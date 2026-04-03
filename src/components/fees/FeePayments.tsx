@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, Search, Download } from 'lucide-react'
+import { Plus, Search, Download, DollarSign } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
@@ -121,9 +121,15 @@ export function FeePayments() {
     .reduce((sum, t) => sum + t.amount, 0)
 
   const methodColors: Record<string, string> = {
-    CASH: 'bg-green-100 text-green-700',
-    MPESA: 'bg-green-100 text-green-700',
-    BANK: 'bg-blue-100 text-blue-700',
+    CASH: 'bg-green-50 text-green-700 border border-green-200',
+    MPESA: 'bg-teal-50 text-teal-700 border border-teal-200',
+    BANK: 'bg-sky-50 text-sky-700 border border-sky-200',
+  }
+
+  const methodIcons: Record<string, string> = {
+    CASH: '💵',
+    MPESA: '📱',
+    BANK: '🏦',
   }
 
   return (
@@ -184,6 +190,15 @@ export function FeePayments() {
 
       {/* Transactions Table */}
       <Card className="shadow-sm border-slate-200/60">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-slate-700">Payment History</CardTitle>
+            <div className="text-right">
+              <p className="text-xs text-slate-400">Total Collected</p>
+              <p className="text-sm font-bold text-green-600">KES {totalCollected.toLocaleString()}</p>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -212,8 +227,12 @@ export function FeePayments() {
                 ))
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-slate-400">
-                    No transactions found
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="flex flex-col items-center">
+                      <DollarSign className="w-10 h-10 text-slate-300 mb-2" />
+                      <p className="text-slate-500 text-sm font-medium">No transactions found</p>
+                      <p className="text-slate-400 text-xs mt-1">Try adjusting your search or filters</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -224,21 +243,21 @@ export function FeePayments() {
                     <TableCell className="hidden md:table-cell text-sm text-slate-600">{t.feeName}</TableCell>
                     <TableCell className="text-sm font-semibold">KES {t.amount.toLocaleString()}</TableCell>
                     <TableCell className="hidden sm:table-cell">
-                      <Badge variant="secondary" className={cn('text-[10px]', methodColors[t.paymentMethod] || '')}>
-                        {t.paymentMethod}
+                      <Badge variant="outline" className={cn('text-[10px] font-medium', methodColors[t.paymentMethod] || 'bg-slate-50 text-slate-700 border-slate-200')}>
+                        {methodIcons[t.paymentMethod] || ''} {t.paymentMethod}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-sm text-slate-500">
                       {format(new Date(t.createdAt), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className={cn(
-                        'text-[10px]',
-                        t.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                        t.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
+                      <Badge variant="outline" className={cn(
+                        'text-[10px] font-medium',
+                        t.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200' :
+                        t.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-red-50 text-red-700 border-red-200'
                       )}>
-                        {t.status}
+                        {t.status === 'COMPLETED' ? '✓ ' : t.status === 'PENDING' ? '◷ ' : '✗ '}{t.status}
                       </Badge>
                     </TableCell>
                   </TableRow>

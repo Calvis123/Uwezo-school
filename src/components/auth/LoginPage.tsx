@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { GraduationCap, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { GraduationCap, Eye, EyeOff, Loader2, Shield, UserCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
 import { authApi } from '@/lib/api'
@@ -11,6 +11,12 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
+
+const demoCredentials = [
+  { role: 'Super Admin', email: 'admin@olives.co.ke', password: 'admin123', color: 'bg-red-50 border-red-100 text-red-700 dark:bg-red-900/30 dark:border-red-800/50 dark:text-red-300' },
+  { role: 'Teacher', email: 'teacher@olives.co.ke', password: 'teacher123', color: 'bg-sky-50 border-sky-100 text-sky-700 dark:bg-sky-900/30 dark:border-sky-800/50 dark:text-sky-300' },
+  { role: 'Parent', email: 'parent@olives.co.ke', password: 'parent123', color: 'bg-amber-50 border-amber-100 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800/50 dark:text-amber-300' },
+]
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -42,58 +48,97 @@ export function LoginPage() {
     }
   }
 
-  const fillDemo = () => {
-    setEmail('admin@olives.co.ke')
-    setPassword('admin123')
+  const loginAsDemo = async (demoEmail: string, demoPass: string) => {
+    setLoading(true)
+    setError('')
+    try {
+      const result = await authApi.login(demoEmail, demoPass)
+      if (result.success && result.data) {
+        login(result.data.user || result.data)
+        toast.success('Welcome back!', {
+          description: `Signed in as ${result.data.user?.name || result.data.name}`,
+        })
+      } else {
+        setError(result.error || 'Invalid credentials.')
+      }
+    } catch {
+      setError('An error occurred. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-amber-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-white to-amber-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 relative overflow-hidden">
+      {/* Animated background pattern */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-teal-100/40 dark:bg-teal-900/20 animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-amber-100/30 dark:bg-amber-900/15 animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/4 left-1/4 w-40 h-40 rounded-full bg-teal-50/60 dark:bg-teal-900/10 animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-1/3 right-1/3 w-32 h-32 rounded-full bg-amber-50/50 dark:bg-amber-900/10 animate-pulse" style={{ animationDelay: '0.5s' }} />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
         {/* School Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 shadow-lg shadow-teal-200 mb-4">
-            <GraduationCap className="w-9 h-9 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-200/50 dark:shadow-teal-900/50 mb-4 relative">
+            <GraduationCap className="w-10 h-10 text-white" />
+            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center">
+              <span className="text-[8px] text-white font-bold">✓</span>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Olives School</h1>
-          <p className="text-slate-500 text-sm mt-1">Nurturing Excellence, Building Futures</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Olives School</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Nurturing Excellence, Building Futures</p>
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-xl border-slate-200/60">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-xl">Welcome Back</CardTitle>
-            <CardDescription>Sign in to your account</CardDescription>
+        <Card className="shadow-xl border-slate-200/60 dark:border-slate-700/60 shadow-slate-200/50 dark:shadow-slate-950/50 bg-white dark:bg-slate-800">
+          <CardHeader className="text-center pb-2 pt-6 px-6">
+            <CardTitle className="text-xl text-slate-900 dark:text-slate-100">Welcome Back</CardTitle>
+            <CardDescription className="text-slate-500 dark:text-slate-400">Sign in to your account to continue</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 pb-6">
             <form onSubmit={handleLogin} className="space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
+                <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 text-sm rounded-lg p-3 flex items-center gap-2">
+                  <Shield className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="h-11"
-                  disabled={loading}
-                />
+                <Label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300">Email Address</Label>
+                <div className="relative">
+                  <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-11 pl-10"
+                    disabled={loading}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-sm font-medium text-slate-700 dark:text-slate-300">Password</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 hover:underline"
+                    tabIndex={-1}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
@@ -108,7 +153,7 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -118,7 +163,7 @@ export function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white font-medium"
+                className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium shadow-md shadow-teal-200/50 dark:shadow-teal-900/50 transition-all"
                 disabled={loading}
               >
                 {loading ? (
@@ -133,25 +178,37 @@ export function LoginPage() {
             </form>
 
             {/* Demo credentials */}
-            <div className="mt-6 pt-4 border-t border-slate-100">
-              <p className="text-xs text-slate-400 text-center mb-2">Demo Credentials</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-slate-600 border-dashed"
-                onClick={fillDemo}
-                disabled={loading}
-              >
-                Use Demo Account
-              </Button>
-              <div className="mt-2 text-center text-xs text-slate-400">
-                <span className="font-mono bg-slate-50 px-1.5 py-0.5 rounded">admin@olives.co.ke</span>
-                {' / '}
-                <span className="font-mono bg-slate-50 px-1.5 py-0.5 rounded">admin123</span>
+            <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-700/60">
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mb-3 font-medium uppercase tracking-wider">Demo Accounts</p>
+              <div className="space-y-2">
+                {demoCredentials.map((demo) => (
+                  <button
+                    key={demo.role}
+                    type="button"
+                    onClick={() => loginAsDemo(demo.email, demo.password)}
+                    disabled={loading}
+                    className={cn(
+                      'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
+                      demo.color,
+                      'cursor-pointer'
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold">{demo.role}</p>
+                      <p className="text-[11px] font-mono opacity-75 truncate">{demo.email}</p>
+                    </div>
+                    <span className="text-[10px] font-mono opacity-60 hidden sm:block">{demo.password}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-6">
+          © 2025 Olives Schools — Eldoret, Kenya
+        </p>
       </motion.div>
     </div>
   )

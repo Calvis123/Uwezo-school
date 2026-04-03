@@ -14,6 +14,7 @@ import {
   Download,
   Upload,
   Filter,
+  GraduationCap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
@@ -24,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -154,12 +156,19 @@ export function StudentList() {
     setDeleteId(null)
   }
 
-  const statusColors: Record<string, string> = {
-    ACTIVE: 'bg-green-100 text-green-700',
-    INACTIVE: 'bg-slate-100 text-slate-700',
-    GRADUATED: 'bg-blue-100 text-blue-700',
-    TRANSFERRED: 'bg-amber-100 text-amber-700',
+  const statusConfig: Record<string, { className: string; label: string }> = {
+    ACTIVE: { className: 'bg-green-50 text-green-700 border border-green-200', label: 'Active' },
+    INACTIVE: { className: 'bg-slate-50 text-slate-600 border border-slate-200', label: 'Inactive' },
+    GRADUATED: { className: 'bg-sky-50 text-sky-700 border border-sky-200', label: 'Graduated' },
+    TRANSFERRED: { className: 'bg-amber-50 text-amber-700 border border-amber-200', label: 'Transferred' },
   }
+
+  // Use total as the active count since we filter by status='ACTIVE' by default
+  // For a more accurate count, we'd need a separate API call
+  const pageActiveCount = students.filter(s => s.status === 'ACTIVE').length
+  const pageInactiveCount = students.filter(s => s.status === 'INACTIVE').length
+  const maleCount = students.filter(s => s.gender === 'MALE').length
+  const femaleCount = students.filter(s => s.gender === 'FEMALE').length
 
   return (
     <div className="space-y-4">
@@ -167,10 +176,15 @@ export function StudentList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Students</h2>
-          <p className="text-sm text-slate-500">{total} students found</p>
+          <p className="text-sm text-slate-500">
+            {total} students found
+            {filterStatus === 'ACTIVE' && <span className="text-green-600 ml-1">(showing active)</span>}
+            {filterStatus === 'INACTIVE' && <span className="text-slate-500 ml-1">(showing inactive)</span>}
+            {filterStatus === '' && <span className="text-slate-500 ml-1">(all statuses)</span>}
+          </p>
         </div>
         <Button
-          className="bg-teal-600 hover:bg-teal-700 text-white"
+          className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
           onClick={() => {
             setEditStudent(null)
             setFormOpen(true)
@@ -180,6 +194,61 @@ export function StudentList() {
           Add Student
         </Button>
       </div>
+
+      {/* Summary cards */}
+      {!loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="shadow-sm border-slate-200/60">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-teal-50 flex items-center justify-center">
+                <GraduationCap className="w-4 h-4 text-teal-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Total</p>
+                <p className="text-sm font-bold text-slate-900">{total}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-slate-200/60">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Active</p>
+                <p className="text-sm font-bold text-green-700">{filterStatus === 'ACTIVE' ? total : pageActiveCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-slate-200/60">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-slate-400" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Inactive</p>
+                <p className="text-sm font-bold text-slate-600">{filterStatus === 'INACTIVE' ? total : pageInactiveCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border-slate-200/60">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-sky-50 flex items-center justify-center">
+                <span className="text-xs">♂♀</span>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Ratio</p>
+                <p className="text-sm font-bold text-slate-900">
+                  {students.length > 0
+                    ? `${Math.round(maleCount / students.length * 100)}:${Math.round(femaleCount / students.length * 100)}`
+                    : '—'
+                  }
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -217,16 +286,16 @@ export function StudentList() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-50 hover:bg-slate-50">
-              <TableHead className="text-xs font-semibold">Admission #</TableHead>
-              <TableHead className="text-xs font-semibold">Name</TableHead>
-              <TableHead className="text-xs font-semibold hidden sm:table-cell">Gender</TableHead>
-              <TableHead className="text-xs font-semibold hidden md:table-cell">Class</TableHead>
-              <TableHead className="text-xs font-semibold">Status</TableHead>
-              <TableHead className="text-xs font-semibold text-right">Actions</TableHead>
+            <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+              <TableHead className="text-xs font-semibold text-slate-600">Admission #</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600">Name</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 hidden sm:table-cell">Gender</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 hidden md:table-cell">Class</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -243,62 +312,84 @@ export function StudentList() {
               ))
             ) : students.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-slate-400">
-                  No students found
+                <TableCell colSpan={6} className="text-center py-12">
+                  <GraduationCap className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm font-medium">No students found</p>
+                  <p className="text-slate-400 text-xs mt-1">Try adjusting your search or filters</p>
                 </TableCell>
               </TableRow>
             ) : (
-              students.map((student) => (
-                <TableRow
-                  key={student.id}
-                  className="cursor-pointer hover:bg-slate-50 transition-colors"
-                  onClick={() => navigateTo('student-detail', { studentId: student.id })}
-                >
-                  <TableCell className="text-sm font-mono text-slate-500">
-                    {student.admissionNumber}
-                  </TableCell>
-                  <TableCell className="text-sm font-medium text-slate-900">
-                    {student.firstName} {student.lastName}
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell text-sm text-slate-500">
-                    {student.gender}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-sm text-slate-600">
-                    {student.class?.name || '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={cn('text-[10px] px-2 py-0.5', statusColors[student.status] || '')}
-                    >
-                      {student.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigateTo('student-detail', { studentId: student.id })}>
-                          <Eye className="w-4 h-4 mr-2" /> View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setEditStudent(student); setFormOpen(true) }}>
-                          <Pencil className="w-4 h-4 mr-2" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600 focus:text-red-600"
-                          onClick={() => setDeleteId(student.id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+              students.map((student) => {
+                const statusCfg = statusConfig[student.status] || statusConfig.ACTIVE
+                return (
+                  <TableRow
+                    key={student.id}
+                    className="cursor-pointer hover:bg-teal-50/40 transition-colors"
+                    onClick={() => navigateTo('student-detail', { studentId: student.id })}
+                  >
+                    <TableCell className="text-sm font-mono text-slate-500">
+                      {student.admissionNumber}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold',
+                          student.gender === 'MALE'
+                            ? 'bg-sky-50 text-sky-600'
+                            : 'bg-pink-50 text-pink-600'
+                        )}>
+                          {student.gender === 'MALE' ? '♂' : '♀'}
+                        </div>
+                        <span className="text-sm font-medium text-slate-900">
+                          {student.firstName} {student.lastName}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <span className={cn(
+                        'text-xs font-medium',
+                        student.gender === 'MALE' ? 'text-sky-600' : 'text-pink-600'
+                      )}>
+                        {student.gender === 'MALE' ? 'Male' : 'Female'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-slate-600">
+                      {student.class?.name || '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn('text-[10px] px-2 py-0.5 font-medium', statusCfg.className)}
+                      >
+                        {statusCfg.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigateTo('student-detail', { studentId: student.id })}>
+                            <Eye className="w-4 h-4 mr-2" /> View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setEditStudent(student); setFormOpen(true) }}>
+                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => setDeleteId(student.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>

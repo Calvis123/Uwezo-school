@@ -13,7 +13,9 @@ export interface ClassItem {
   name: string
   level: string
   stream?: string
-  _count?: { students: number }
+  teacherId?: string
+  capacity?: number
+  studentCount: number
 }
 
 export interface SubjectItem {
