@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
@@ -132,9 +132,9 @@ export function ExamList() {
   }
 
   const statusColors: Record<string, string> = {
-    DRAFT: 'bg-slate-100 text-slate-700',
-    ACTIVE: 'bg-green-100 text-green-700',
-    COMPLETED: 'bg-blue-100 text-blue-700',
+    DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    COMPLETED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   }
 
   const typeLabels: Record<string, string> = {
@@ -178,18 +178,18 @@ export function ExamList() {
         </Button>
       </div>
 
-      <Card className="shadow-sm border-slate-200/60">
+      <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="text-xs font-semibold">Exam Name</TableHead>
-                <TableHead className="text-xs font-semibold hidden sm:table-cell">Class</TableHead>
-                <TableHead className="text-xs font-semibold hidden md:table-cell">Term</TableHead>
-                <TableHead className="text-xs font-semibold hidden sm:table-cell">Type</TableHead>
-                <TableHead className="text-xs font-semibold hidden lg:table-cell">Date Range</TableHead>
-                <TableHead className="text-xs font-semibold">Status</TableHead>
-                <TableHead className="text-xs font-semibold text-right">Actions</TableHead>
+              <TableRow className="bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/80">
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Exam Name</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Class</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Term</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Type</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Date Range</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,18 +207,22 @@ export function ExamList() {
                 ))
               ) : exams.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-slate-400">
-                    No exams found
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="flex flex-col items-center">
+                      <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
+                      <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No exams scheduled</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Create your first exam to get started</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 exams.map((exam) => (
-                  <TableRow key={exam.id} className="hover:bg-slate-50">
-                    <TableCell className="text-sm font-medium">{exam.name}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-slate-600">
+                  <TableRow key={exam.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                    <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{exam.name}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-slate-600 dark:text-slate-400">
                       {exam.class?.name || '—'}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-slate-600">
+                    <TableCell className="hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">
                       {exam.term ? `${exam.term.name} ${exam.term.year}` : '—'}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
@@ -226,7 +230,7 @@ export function ExamList() {
                         {typeLabels[exam.type] || exam.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell text-xs text-slate-500">
+                    <TableCell className="hidden lg:table-cell text-xs text-slate-500 dark:text-slate-400">
                       {format(new Date(exam.startDate), 'MMM d')} - {format(new Date(exam.endDate), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
@@ -266,13 +270,13 @@ export function ExamList() {
 
       {/* Create Exam Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white dark:bg-slate-800">
           <DialogHeader>
-            <DialogTitle>Create New Exam</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-slate-100">Create New Exam</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Exam Name *</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Exam Name *</Label>
               <Input
                 value={newExam.name}
                 onChange={(e) => setNewExam({ ...newExam, name: e.target.value })}
@@ -281,7 +285,7 @@ export function ExamList() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Class *</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Class *</Label>
                 <Select value={newExam.classId} onValueChange={(v) => setNewExam({ ...newExam, classId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -292,7 +296,7 @@ export function ExamList() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Term *</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Term *</Label>
                 <Select value={newExam.termId} onValueChange={(v) => setNewExam({ ...newExam, termId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -304,7 +308,7 @@ export function ExamList() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Type</Label>
               <Select value={newExam.type} onValueChange={(v) => setNewExam({ ...newExam, type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -316,7 +320,7 @@ export function ExamList() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Start Date</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Start Date</Label>
                 <Input
                   type="date"
                   value={newExam.startDate}
@@ -324,7 +328,7 @@ export function ExamList() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>End Date</Label>
+                <Label className="text-slate-700 dark:text-slate-300">End Date</Label>
                 <Input
                   type="date"
                   value={newExam.endDate}

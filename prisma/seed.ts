@@ -64,6 +64,7 @@ async function main() {
   await prisma.studentGuardian.deleteMany();
   await prisma.student.deleteMany();
   await prisma.schoolNotice.deleteMany();
+  await prisma.calendarEvent.deleteMany();
   await prisma.systemSetting.deleteMany();
   await prisma.term.deleteMany();
   await prisma.subject.deleteMany();
@@ -583,6 +584,75 @@ async function main() {
     ]
   });
 
+  // ==================== CALENDAR EVENTS ====================
+  console.log('Creating calendar events...');
+  await prisma.calendarEvent.createMany({
+    data: [
+      // Term dates
+      { title: 'Term 1 Opening Day', description: 'First day of Term 1 - All students report', startDate: new Date('2025-01-27'), endDate: new Date('2025-01-27'), eventType: 'EVENT', targetRoles: 'ALL', isAllDay: true, color: 'teal' },
+      { title: 'Term 1 Closing Day', description: 'Last day of Term 1', startDate: new Date('2025-04-04'), endDate: new Date('2025-04-04'), eventType: 'EVENT', targetRoles: 'ALL', isAllDay: true, color: 'teal' },
+      { title: 'Term 2 Opening Day', description: 'First day of Term 2 - All students report', startDate: new Date('2025-05-05'), endDate: new Date('2025-05-05'), eventType: 'EVENT', targetRoles: 'ALL', isAllDay: true, color: 'teal' },
+      { title: 'Term 2 Closing Day', description: 'Last day of Term 2', startDate: new Date('2025-08-01'), endDate: new Date('2025-08-01'), eventType: 'EVENT', targetRoles: 'ALL', isAllDay: true, color: 'teal' },
+      { title: 'Term 3 Opening Day', description: 'First day of Term 3 - All students report', startDate: new Date('2025-09-01'), endDate: new Date('2025-09-01'), eventType: 'EVENT', targetRoles: 'ALL', isAllDay: true, color: 'teal' },
+      { title: 'Term 3 Closing Day', description: 'Last day of Term 3 - End of academic year', startDate: new Date('2025-11-28'), endDate: new Date('2025-11-28'), eventType: 'EVENT', targetRoles: 'ALL', isAllDay: true, color: 'teal' },
+
+      // Kenyan National Holidays
+      { title: 'New Year\'s Day', description: 'Public Holiday', startDate: new Date('2025-01-01'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Good Friday', description: 'Public Holiday', startDate: new Date('2025-04-18'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Easter Monday', description: 'Public Holiday', startDate: new Date('2025-04-21'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Labour Day', description: 'Public Holiday - Madaraka Day', startDate: new Date('2025-05-01'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Madaraka Day', description: 'Public Holiday', startDate: new Date('2025-06-01'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Mashujaa Day', description: 'Public Holiday - Heroes Day', startDate: new Date('2025-10-20'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Jamhuri Day', description: 'Public Holiday - Republic Day', startDate: new Date('2025-12-12'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Christmas Day', description: 'Public Holiday', startDate: new Date('2025-12-25'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Boxing Day', description: 'Public Holiday', startDate: new Date('2025-12-26'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+
+      // School Holidays / Breaks
+      { title: 'April Holiday', description: 'Term 1 break - 3 weeks holiday', startDate: new Date('2025-04-05'), endDate: new Date('2025-04-25'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'August Holiday', description: 'Term 2 break - 4 weeks holiday', startDate: new Date('2025-08-02'), endDate: new Date('2025-08-29'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'December Holiday', description: 'End of year holiday - 2 months', startDate: new Date('2025-11-29'), endDate: new Date('2026-01-25'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+      { title: 'Term 2 Mid-Term Break', description: 'Mid-term break for Term 2', startDate: new Date('2025-06-26'), endDate: new Date('2025-06-30'), eventType: 'HOLIDAY', targetRoles: 'ALL', isAllDay: true, color: 'amber' },
+
+      // Exam Periods
+      { title: 'Term 1 CAT 1 Exams', description: 'Continuous Assessment Test 1 for all classes', startDate: new Date('2025-02-15'), endDate: new Date('2025-02-20'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+      { title: 'Term 1 End Term Exams', description: 'End of Term 1 examinations for all classes', startDate: new Date('2025-03-25'), endDate: new Date('2025-04-02'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+      { title: 'Term 2 CAT 1 Exams', description: 'Continuous Assessment Test 1 for all classes', startDate: new Date('2025-06-15'), endDate: new Date('2025-06-20'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+      { title: 'Term 2 CAT 2 Exams', description: 'Continuous Assessment Test 2 for all classes', startDate: new Date('2025-07-14'), endDate: new Date('2025-07-18'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+      { title: 'Term 2 End Term Exams', description: 'End of Term 2 examinations for all classes', startDate: new Date('2025-07-21'), endDate: new Date('2025-07-30'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+      { title: 'Term 3 CAT 1 Exams', description: 'Continuous Assessment Test 1 for all classes', startDate: new Date('2025-10-06'), endDate: new Date('2025-10-10'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+      { title: 'Term 3 End Term Exams', description: 'End of Term 3 / End of Year examinations', startDate: new Date('2025-11-10'), endDate: new Date('2025-11-21'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+      { title: 'KPSEA Exams (Grade 6)', description: 'Kenya Primary School Education Assessment for Grade 6', startDate: new Date('2025-10-27'), endDate: new Date('2025-10-31'), eventType: 'EXAM', targetRoles: 'STUDENTS', isAllDay: true, color: 'red' },
+
+      // Sports Events
+      { title: 'Inter-House Sports Day', description: 'Annual inter-house athletics and games competition', startDate: new Date('2025-03-08'), startTime: '08:00', endTime: '16:00', location: 'School Sports Field', eventType: 'SPORTS', targetRoles: 'ALL', isAllDay: false, color: 'green' },
+      { title: 'Inter-School Sports Day', description: 'Compete against other schools in the region', startDate: new Date('2025-08-10'), startTime: '08:00', endTime: '17:00', location: 'County Stadium, Eldoret', eventType: 'SPORTS', targetRoles: 'ALL', isAllDay: false, color: 'green' },
+      { title: 'Swimming Gala', description: 'Annual school swimming competition', startDate: new Date('2025-05-23'), startTime: '09:00', endTime: '13:00', location: 'Olives Swimming Pool', eventType: 'SPORTS', targetRoles: 'ALL', isAllDay: false, color: 'green' },
+      { title: 'Cross Country Run', description: 'School cross country championship', startDate: new Date('2025-10-04'), startTime: '07:00', endTime: '12:00', location: 'School Grounds', eventType: 'SPORTS', targetRoles: 'ALL', isAllDay: false, color: 'green' },
+
+      // Meetings
+      { title: 'Parent-Teacher Conference Term 1', description: 'Discuss student progress and academic performance', startDate: new Date('2025-02-08'), startTime: '09:00', endTime: '16:00', location: 'School Hall', eventType: 'MEETING', targetRoles: 'PARENTS', isAllDay: false, color: 'blue' },
+      { title: 'Parent-Teacher Conference Term 2', description: 'Discuss student progress and academic performance', startDate: new Date('2025-07-12'), startTime: '09:00', endTime: '16:00', location: 'School Hall', eventType: 'MEETING', targetRoles: 'PARENTS', isAllDay: false, color: 'blue' },
+      { title: 'Parent-Teacher Conference Term 3', description: 'End of year parent-teacher meeting and report card collection', startDate: new Date('2025-11-24'), startTime: '09:00', endTime: '16:00', location: 'School Hall', eventType: 'MEETING', targetRoles: 'PARENTS', isAllDay: false, color: 'blue' },
+      { title: 'Staff Meeting - Term Planning', description: 'Teachers meeting to plan Term 2 activities', startDate: new Date('2025-04-28'), startTime: '08:00', endTime: '12:00', location: 'Staff Room', eventType: 'MEETING', targetRoles: 'STAFF', isAllDay: false, color: 'blue' },
+      { title: 'Board of Governors Meeting', description: 'Quarterly board meeting for school governance', startDate: new Date('2025-03-15'), startTime: '10:00', endTime: '13:00', location: 'Conference Room', eventType: 'MEETING', targetRoles: 'STAFF', isAllDay: false, color: 'blue' },
+      { title: 'CBC Training Workshop', description: 'Teacher training on updated Competency-Based Curriculum', startDate: new Date('2025-08-11'), endDate: new Date('2025-08-15'), startTime: '08:30', endTime: '16:30', location: 'School Hall', eventType: 'MEETING', targetRoles: 'TEACHERS', isAllDay: false, color: 'blue' },
+
+      // Cultural Events
+      { title: 'International Day', description: 'Celebrate cultural diversity with performances and food', startDate: new Date('2025-02-21'), startTime: '09:00', endTime: '15:00', location: 'School Hall', eventType: 'CULTURAL', targetRoles: 'ALL', isAllDay: false, color: 'purple' },
+      { title: 'Music Festival', description: 'Annual school music and drama festival', startDate: new Date('2025-06-07'), startTime: '09:00', endTime: '17:00', location: 'School Hall', eventType: 'CULTURAL', targetRoles: 'ALL', isAllDay: false, color: 'purple' },
+      { title: 'Prize Giving Day', description: 'Annual award ceremony for academic and co-curricular excellence', startDate: new Date('2025-12-05'), startTime: '10:00', endTime: '13:00', location: 'School Hall', eventType: 'CULTURAL', targetRoles: 'ALL', isAllDay: false, color: 'purple' },
+      { title: 'Jubilee Celebrations', description: 'School anniversary celebration and alumni gathering', startDate: new Date('2025-06-14'), startTime: '10:00', endTime: '18:00', location: 'School Grounds', eventType: 'CULTURAL', targetRoles: 'ALL', isAllDay: false, color: 'purple' },
+      { title: 'Science Fair', description: 'Annual science and innovation exhibition', startDate: new Date('2025-09-19'), startTime: '09:00', endTime: '15:00', location: 'School Hall', eventType: 'CULTURAL', targetRoles: 'ALL', isAllDay: false, color: 'purple' },
+
+      // General Events
+      { title: 'School Opening Preparation', description: 'Staff prepare for the new academic year', startDate: new Date('2025-01-20'), endDate: new Date('2025-01-24'), eventType: 'EVENT', targetRoles: 'STAFF', isAllDay: true, color: 'teal' },
+      { title: 'Admissions Day', description: 'New student enrollment and admissions', startDate: new Date('2025-01-24'), startTime: '08:00', endTime: '16:00', location: 'Admin Block', eventType: 'EVENT', targetRoles: 'PARENTS', isAllDay: false, color: 'teal' },
+      { title: 'Career Day', description: 'Career guidance and counseling for students', startDate: new Date('2025-07-05'), startTime: '09:00', endTime: '14:00', location: 'School Hall', eventType: 'EVENT', targetRoles: 'STUDENTS', isAllDay: false, color: 'teal' },
+      { title: 'Founders Day', description: 'Celebrate the founding of Olives Schools', startDate: new Date('2025-09-12'), startTime: '10:00', endTime: '15:00', location: 'School Grounds', eventType: 'EVENT', targetRoles: 'ALL', isAllDay: false, color: 'teal' },
+      { title: 'Tree Planting Day', description: 'Environmental conservation activity', startDate: new Date('2025-11-07'), startTime: '09:00', endTime: '12:00', location: 'School Compound', eventType: 'EVENT', targetRoles: 'ALL', isAllDay: false, color: 'teal' },
+    ]
+  });
+
   console.log('\n✅ Seeding completed successfully!');
   console.log(`\n📊 Summary:`);
   console.log(`   Users: ${users.length}`);
@@ -593,6 +663,7 @@ async function main() {
   console.log(`   Fee Structures: ${feeStructures.length}`);
   console.log(`   Exams: ${exams.length}`);
   console.log(`   Notices: 5`);
+  console.log(`   Calendar Events: 42`);
 
   console.log('\n🔑 Demo Login Credentials:');
   console.log('   Super Admin: admin@olives.co.ke / admin123');

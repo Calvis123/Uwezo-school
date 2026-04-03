@@ -91,17 +91,17 @@ export function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* School Information */}
-      <Card className="shadow-sm border-slate-200/60">
+      <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
         <CardHeader>
-          <CardTitle className="text-base font-semibold text-slate-700 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-teal-600" />
+          <CardTitle className="text-base font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
             School Information
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>School Name</Label>
+              <Label className="text-slate-700 dark:text-slate-300">School Name</Label>
               <Input
                 value={settings.school_name}
                 onChange={(e) => setSettings({ ...settings, school_name: e.target.value })}
@@ -109,7 +109,7 @@ export function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>School Motto</Label>
+              <Label className="text-slate-700 dark:text-slate-300">School Motto</Label>
               <Input
                 value={settings.school_motto}
                 onChange={(e) => setSettings({ ...settings, school_motto: e.target.value })}
@@ -117,7 +117,7 @@ export function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Address</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Address</Label>
               <Input
                 value={settings.address}
                 onChange={(e) => setSettings({ ...settings, address: e.target.value })}
@@ -125,7 +125,7 @@ export function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Phone</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Phone</Label>
               <Input
                 value={settings.phone}
                 onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
@@ -133,7 +133,7 @@ export function SettingsPage() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Email</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Email</Label>
               <Input
                 value={settings.email}
                 onChange={(e) => setSettings({ ...settings, email: e.target.value })}
@@ -146,14 +146,14 @@ export function SettingsPage() {
       </Card>
 
       {/* Academic Settings */}
-      <Card className="shadow-sm border-slate-200/60">
+      <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
         <CardHeader>
-          <CardTitle className="text-base font-semibold text-slate-700">Academic Settings</CardTitle>
+          <CardTitle className="text-base font-semibold text-slate-700 dark:text-slate-300">Academic Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Academic Year</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Academic Year</Label>
               <Input
                 value={settings.academic_year}
                 onChange={(e) => setSettings({ ...settings, academic_year: e.target.value })}
@@ -161,7 +161,7 @@ export function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Current Term</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Current Term</Label>
               <Select
                 value={settings.current_term}
                 onValueChange={(v) => setSettings({ ...settings, current_term: v })}
@@ -177,7 +177,7 @@ export function SettingsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Currency</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Currency</Label>
               <Select
                 value={settings.currency}
                 onValueChange={(v) => setSettings({ ...settings, currency: v })}

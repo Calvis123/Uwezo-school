@@ -56,10 +56,12 @@ export const studentsApi = {
 
 // Fees
 export const feesApi = {
-  structures: (params?: { classId?: string; termId?: string }) => {
+  structures: (params?: { classId?: string; termId?: string; page?: number; limit?: number }) => {
     const searchParams = new URLSearchParams()
     if (params?.classId) searchParams.set('classId', params.classId)
     if (params?.termId) searchParams.set('termId', params.termId)
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
     return request(`/api/fees/structures?${searchParams.toString()}`)
   },
   transactions: (params?: { studentId?: string; classId?: string; term?: string }) => {
@@ -137,4 +139,52 @@ export const settingsApi = {
   get: () => request('/api/settings'),
   update: (data: any) =>
     request('/api/settings', { method: 'PUT', body: JSON.stringify(data) }),
+}
+
+// Calendar
+export const calendarApi = {
+  list: (month?: number, year?: number, eventType?: string) => {
+    const searchParams = new URLSearchParams()
+    if (month) searchParams.set('month', String(month))
+    if (year) searchParams.set('year', String(year))
+    if (eventType) searchParams.set('eventType', eventType)
+    return request(`/api/calendar/events?${searchParams.toString()}`)
+  },
+  get: (id: string) => request(`/api/calendar/events/${id}`),
+  create: (data: any) =>
+    request('/api/calendar/events', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    request(`/api/calendar/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request(`/api/calendar/events/${id}`, { method: 'DELETE' }),
+}
+
+// Parent Portal
+export const parentApi = {
+  children: (guardianId: string) =>
+    request(`/api/parent/children?guardianId=${guardianId}`),
+  dashboard: (guardianId: string) =>
+    request(`/api/parent/dashboard?guardianId=${guardianId}`),
+  feeLedger: (studentId: string) =>
+    request(`/api/parent/fee-ledger/${studentId}`),
+}
+
+// Users
+export const usersApi = {
+  list: (params?: { page?: number; limit?: number; role?: string; status?: string; search?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.role) searchParams.set('role', params.role)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.search) searchParams.set('search', params.search)
+    return request(`/api/users?${searchParams.toString()}`)
+  },
+  get: (id: string) => request(`/api/users/${id}`),
+  create: (data: any) =>
+    request('/api/users', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    request(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request(`/api/users/${id}`, { method: 'DELETE' }),
 }

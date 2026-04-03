@@ -249,3 +249,24 @@ model SchoolNotice {
 
   @@map("school_notices")
 }
+
+// ==================== CALENDAR ====================
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  startTime   String?  // e.g., "09:00"
+  endTime     String?  // e.g., "10:30"
+  location    String?
+  eventType   String   @default("EVENT")  // EVENT, HOLIDAY, EXAM, MEETING, SPORTS, CULTURAL
+  targetRoles String   @default("ALL")    // ALL, TEACHERS, PARENTS, STUDENTS, STAFF
+  isAllDay    Boolean  @default(false)
+  color       String   @default("teal")   // teal, amber, red, blue, purple, green
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("calendar_events")
+}

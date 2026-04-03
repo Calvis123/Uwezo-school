@@ -165,9 +165,71 @@
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* Focus ring for accessibility */
+/* Focus ring for accessibility - enhanced */
 *:focus-visible {
   outline: 2px solid #0d9488;
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+/* Make sure focus rings don't apply to elements that don't need them */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Table styles - border-collapse separate equivalent */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Table row hover with left border highlight */
+tbody tr {
+  border-left: 3px solid transparent;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+/* Touch-friendly tap targets - ensure minimum 44px on mobile */
+@media (max-width: 640px) {
+  button, [role="button"], a, select, input[type="checkbox"], input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Reduce tap target only for specific small icon buttons that are in grids */
+  button[aria-label]:not(:only-child) {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* Responsive table scroll containers - sticky headers */
+.overflow-y-auto > table > thead > tr {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Smooth transitions for sidebar nav items */
+nav button {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Card hover effects global */
+.card-hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.08);
+}
+
+/* Number input spinner removal */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }

@@ -120,10 +120,18 @@ export function FeePayments() {
     .filter((t) => t.status === 'COMPLETED')
     .reduce((sum, t) => sum + t.amount, 0)
 
+  const totalOutstanding = filtered
+    .filter((t) => t.status === 'PENDING')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const collectionRate = filtered.length > 0
+    ? ((filtered.filter((t) => t.status === 'COMPLETED').length / filtered.length) * 100).toFixed(1)
+    : '0'
+
   const methodColors: Record<string, string> = {
-    CASH: 'bg-green-50 text-green-700 border border-green-200',
-    MPESA: 'bg-teal-50 text-teal-700 border border-teal-200',
-    BANK: 'bg-sky-50 text-sky-700 border border-sky-200',
+    CASH: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800',
+    MPESA: 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800',
+    BANK: 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800',
   }
 
   const methodIcons: Record<string, string> = {
@@ -136,24 +144,22 @@ export function FeePayments() {
     <div className="space-y-4">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60">
           <CardContent className="p-4">
-            <p className="text-xs text-slate-500">Total Collected</p>
-            <p className="text-xl font-bold text-green-600">KES {totalCollected.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Total Collected</p>
+            <p className="text-xl font-bold text-green-600 dark:text-green-400">KES {totalCollected.toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60">
           <CardContent className="p-4">
-            <p className="text-xs text-slate-500">Transactions</p>
-            <p className="text-xl font-bold text-slate-900">{filtered.length}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Outstanding</p>
+            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">KES {totalOutstanding.toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60">
           <CardContent className="p-4">
-            <p className="text-xs text-slate-500">Pending</p>
-            <p className="text-xl font-bold text-amber-600">
-              {filtered.filter((t) => t.status === 'PENDING').length}
-            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Collection Rate</p>
+            <p className="text-xl font-bold text-teal-600 dark:text-teal-400">{collectionRate}%</p>
           </CardContent>
         </Card>
       </div>
@@ -161,7 +167,7 @@ export function FeePayments() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Search by student or receipt..."
             className="pl-9 h-10"
@@ -189,27 +195,27 @@ export function FeePayments() {
       </div>
 
       {/* Transactions Table */}
-      <Card className="shadow-sm border-slate-200/60">
+      <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-slate-700">Payment History</CardTitle>
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Payment History</CardTitle>
             <div className="text-right">
-              <p className="text-xs text-slate-400">Total Collected</p>
-              <p className="text-sm font-bold text-green-600">KES {totalCollected.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Total Collected</p>
+              <p className="text-sm font-bold text-green-600 dark:text-green-400">KES {totalCollected.toLocaleString()}</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50 hover:bg-slate-50">
-                <TableHead className="text-xs font-semibold">Receipt #</TableHead>
-                <TableHead className="text-xs font-semibold">Student</TableHead>
-                <TableHead className="text-xs font-semibold hidden md:table-cell">Fee Type</TableHead>
-                <TableHead className="text-xs font-semibold">Amount</TableHead>
-                <TableHead className="text-xs font-semibold hidden sm:table-cell">Method</TableHead>
-                <TableHead className="text-xs font-semibold hidden sm:table-cell">Date</TableHead>
-                <TableHead className="text-xs font-semibold">Status</TableHead>
+              <TableRow className="bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/80">
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Receipt #</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Student</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Fee Type</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Amount</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Method</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Date</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,33 +235,33 @@ export function FeePayments() {
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12">
                     <div className="flex flex-col items-center">
-                      <DollarSign className="w-10 h-10 text-slate-300 mb-2" />
-                      <p className="text-slate-500 text-sm font-medium">No transactions found</p>
-                      <p className="text-slate-400 text-xs mt-1">Try adjusting your search or filters</p>
+                      <DollarSign className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
+                      <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No transactions found</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.map((t) => (
-                  <TableRow key={t.id} className="hover:bg-slate-50">
-                    <TableCell className="text-sm font-mono text-slate-500">{t.receiptNumber}</TableCell>
-                    <TableCell className="text-sm font-medium">{t.studentName}</TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-slate-600">{t.feeName}</TableCell>
-                    <TableCell className="text-sm font-semibold">KES {t.amount.toLocaleString()}</TableCell>
+                  <TableRow key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                    <TableCell className="text-sm font-mono text-slate-500 dark:text-slate-400">{t.receiptNumber}</TableCell>
+                    <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{t.studentName}</TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{t.feeName}</TableCell>
+                    <TableCell className="text-sm font-semibold text-slate-900 dark:text-slate-100">KES {t.amount.toLocaleString()}</TableCell>
                     <TableCell className="hidden sm:table-cell">
-                      <Badge variant="outline" className={cn('text-[10px] font-medium', methodColors[t.paymentMethod] || 'bg-slate-50 text-slate-700 border-slate-200')}>
+                      <Badge variant="outline" className={cn('text-[10px] font-medium', methodColors[t.paymentMethod] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600')}>
                         {methodIcons[t.paymentMethod] || ''} {t.paymentMethod}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-slate-500">
+                    <TableCell className="hidden sm:table-cell text-sm text-slate-500 dark:text-slate-400">
                       {format(new Date(t.createdAt), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn(
                         'text-[10px] font-medium',
-                        t.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200' :
-                        t.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-red-50 text-red-700 border-red-200'
+                        t.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800' :
+                        t.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800' :
+                        'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800'
                       )}>
                         {t.status === 'COMPLETED' ? '✓ ' : t.status === 'PENDING' ? '◷ ' : '✗ '}{t.status}
                       </Badge>

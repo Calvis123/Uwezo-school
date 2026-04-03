@@ -10,8 +10,6 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
-  Users,
-  Calendar,
 } from 'lucide-react'
 
 interface StatCardProps {
@@ -22,12 +20,13 @@ interface StatCardProps {
   color: string
   bgColor: string
   borderColor: string
+  gradientBg: string
   trend?: { value: number; direction: 'up' | 'down' }
   delay?: number
   loading?: boolean
 }
 
-export function StatCard({ title, value, subtitle, icon, color, bgColor, borderColor, trend, delay = 0, loading }: StatCardProps) {
+export function StatCard({ title, value, subtitle, icon, color, bgColor, borderColor, gradientBg, trend, delay = 0, loading }: StatCardProps) {
   if (loading) {
     return (
       <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 overflow-hidden bg-white dark:bg-slate-800">
@@ -51,19 +50,26 @@ export function StatCard({ title, value, subtitle, icon, color, bgColor, borderC
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
     >
-      <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 hover:shadow-md dark:hover:shadow-slate-900/50 transition-all duration-200 overflow-hidden bg-white dark:bg-slate-800">
+      <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 hover:shadow-lg dark:hover:shadow-slate-900/60 transition-all duration-300 ease-out overflow-hidden bg-white dark:bg-slate-800 cursor-default">
+        {/* Gradient top border */}
         <div className={cn('h-1', borderColor)} />
-        <CardContent className="p-5">
+        {/* Subtle left-to-right gradient background */}
+        <div className={cn('absolute inset-0 opacity-[0.03] dark:opacity-[0.05]', gradientBg)} />
+        <CardContent className="p-5 relative">
           <div className="flex items-start justify-between">
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{title}</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">{value}</p>
               <div className="flex items-center gap-2">
                 {trend && (
                   <div className={cn(
-                    'flex items-center gap-0.5 text-[11px] font-semibold',
-                    trend.direction === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+                    'flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-md',
+                    trend.direction === 'up'
+                      ? 'text-green-700 bg-green-50 dark:text-green-300 dark:bg-green-900/30'
+                      : 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30'
                   )}>
                     {trend.direction === 'up' ? (
                       <TrendingUp className="w-3 h-3" />
@@ -78,7 +84,10 @@ export function StatCard({ title, value, subtitle, icon, color, bgColor, borderC
                 )}
               </div>
             </div>
-            <div className={cn('h-11 w-11 rounded-xl flex items-center justify-center shadow-sm', bgColor)}>
+            <div className={cn(
+              'h-11 w-11 rounded-xl flex items-center justify-center shadow-sm transition-transform duration-300 group-hover:scale-110',
+              bgColor
+            )}>
               <span className={color}>{icon}</span>
             </div>
           </div>
@@ -113,6 +122,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         color="text-teal-600 dark:text-teal-400"
         bgColor="bg-teal-50 dark:bg-teal-900/40"
         borderColor="bg-gradient-to-r from-teal-400 to-teal-600"
+        gradientBg="bg-gradient-to-r from-teal-100 to-teal-50 dark:from-teal-900/20 dark:to-teal-800/10"
         trend={{ value: 3.2, direction: 'up' }}
         delay={0}
         loading={loading}
@@ -125,6 +135,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         color="text-sky-600 dark:text-sky-400"
         bgColor="bg-sky-50 dark:bg-sky-900/40"
         borderColor="bg-gradient-to-r from-sky-400 to-sky-600"
+        gradientBg="bg-gradient-to-r from-sky-100 to-sky-50 dark:from-sky-900/20 dark:to-sky-800/10"
         delay={0.1}
         loading={loading}
       />
@@ -136,6 +147,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         color="text-amber-600 dark:text-amber-400"
         bgColor="bg-amber-50 dark:bg-amber-900/40"
         borderColor="bg-gradient-to-r from-amber-400 to-amber-600"
+        gradientBg="bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-900/20 dark:to-amber-800/10"
         trend={stats?.feeCollectionRate ? { value: stats.feeCollectionRate, direction: stats.feeCollectionRate >= 50 ? 'up' : 'down' } : undefined}
         delay={0.2}
         loading={loading}
@@ -148,6 +160,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
         color="text-green-600 dark:text-green-400"
         bgColor="bg-green-50 dark:bg-green-900/40"
         borderColor="bg-gradient-to-r from-green-400 to-green-600"
+        gradientBg="bg-gradient-to-r from-green-100 to-green-50 dark:from-green-900/20 dark:to-green-800/10"
         trend={stats?.attendanceRate ? { value: stats.attendanceRate, direction: stats.attendanceRate >= 80 ? 'up' : 'down' } : undefined}
         delay={0.3}
         loading={loading}

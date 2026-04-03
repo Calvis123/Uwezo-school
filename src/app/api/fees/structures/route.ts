@@ -8,25 +8,51 @@ export async function GET(request: NextRequest) {
     const classId = searchParams.get('classId');
     const termId = searchParams.get('termId');
     const category = searchParams.get('category');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
 
     const where: Prisma.FeeStructureWhereInput = {};
     if (classId) where.classId = classId;
     if (termId) where.termId = termId;
     if (category) where.category = category;
 
-    const structures = await db.feeStructure.findMany({
-      where,
-      include: {
-        class: true,
-        term: true,
-        _count: {
-          select: { transactions: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // If no term filter, default to the current active term
+    if (!termId) {
+      const activeTerm = await db.term.findFirst({
+        where: { status: 'ACTIVE' },
+      });
+      if (activeTerm) {
+        where.termId = activeTerm.id;
+      }
+    }
 
-    return NextResponse.json({ success: true, data: structures });
+    const [structures, total] = await Promise.all([
+      db.feeStructure.findMany({
+        where,
+        include: {
+          class: true,
+          term: true,
+          _count: {
+            select: { transactions: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      db.feeStructure.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: structures,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error: any) {
     console.error('Error fetching fee structures:', error);
     return NextResponse.json(

@@ -16,6 +16,8 @@ import { ReportCards } from '@/components/exams/ReportCards'
 import { AttendanceMarking } from '@/components/attendance/AttendanceMarking'
 import { NoticeList } from '@/components/notices/NoticeList'
 import { SettingsPage } from '@/components/settings/SettingsPage'
+import { UserManagement } from '@/components/users/UserManagement'
+import { CalendarView } from '@/components/calendar/CalendarView'
 import { FeesPage } from '@/components/fees/FeesPage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -25,6 +27,7 @@ function ViewRouter() {
 
   const views: Record<string, React.ReactNode> = {
     dashboard: <DashboardHome />,
+    users: <UserManagement />,
     students: <StudentList />,
     'student-detail': <StudentDetail />,
     fees: <FeesPage />,
@@ -32,6 +35,7 @@ function ViewRouter() {
     'mark-entry': <MarkEntry />,
     'report-cards': <ReportCards />,
     attendance: <AttendanceMarking />,
+    calendar: <CalendarView />,
     notices: <NoticeList />,
     settings: <SettingsPage />,
   }

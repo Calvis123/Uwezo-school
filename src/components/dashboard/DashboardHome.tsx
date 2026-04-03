@@ -12,6 +12,12 @@ import {
   Clock,
   CreditCard,
   RefreshCw,
+  Wallet,
+  Users,
+  Banknote,
+  Smartphone,
+  Landmark,
+  CalendarDays,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
@@ -32,6 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { ParentDashboard } from '@/components/parent/ParentDashboard'
 
 interface DashboardStats {
   totalStudents: number
@@ -65,7 +72,33 @@ interface RecentActivity {
   icon: 'payment' | 'attendance'
 }
 
+const paymentMethodConfig: Record<string, { className: string; icon: React.ReactNode }> = {
+  CASH: {
+    className: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    icon: <Banknote className="w-3 h-3" />,
+  },
+  MPESA: {
+    className: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+    icon: <Smartphone className="w-3 h-3" />,
+  },
+  BANK: {
+    className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    icon: <Landmark className="w-3 h-3" />,
+  },
+}
+
 export function DashboardHome() {
+  const { user } = useAppStore()
+
+  // If the logged-in user is a PARENT, show the Parent Dashboard instead
+  if (user?.role === 'PARENT') {
+    return <ParentDashboard />
+  }
+
+  return <AdminDashboard />
+}
+
+function AdminDashboard() {
   const { navigateTo, setClasses, setTerms, classes, user } = useAppStore()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([])
@@ -254,12 +287,6 @@ export function DashboardHome() {
     { month: 'Jun', collected: 380000, outstanding: 150000 },
   ]
 
-  const paymentMethodColors: Record<string, string> = {
-    CASH: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    MPESA: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
-    BANK: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  }
-
   // Error state
   if (error && !stats) {
     return (
@@ -279,6 +306,8 @@ export function DashboardHome() {
     )
   }
 
+  const todayStr = format(new Date(), 'EEEE, MMMM d, yyyy')
+
   return (
     <div className="space-y-6">
       {/* Welcome banner */}
@@ -286,17 +315,22 @@ export function DashboardHome() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-xl p-6 text-white shadow-md dark:shadow-lg dark:shadow-teal-900/30"
+        className="bg-gradient-to-r from-teal-600 via-teal-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg dark:shadow-xl dark:shadow-teal-900/40 relative overflow-hidden"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        {/* Decorative circles */}
+        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/5" />
+        <div className="absolute -bottom-8 -right-4 w-24 h-24 rounded-full bg-white/5" />
+
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold">
+            <h2 className="text-xl font-bold flex items-center gap-2">
               Welcome back, {user?.name?.split(' ')[0] || 'Admin'}! 👋
             </h2>
-            <p className="text-teal-100 text-sm mt-1">
-              {format(new Date(), 'EEEE, MMMM d, yyyy')}
+            <p className="text-teal-100 text-sm mt-1 flex items-center gap-2">
+              <CalendarDays className="w-3.5 h-3.5" />
+              {todayStr}
               {stats?.activeTerm && (
-                <span className="ml-2 inline-flex items-center">
+                <span className="inline-flex items-center ml-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-teal-300 mr-1.5 inline-block" />
                   {stats.activeTerm}
                 </span>
@@ -307,7 +341,7 @@ export function DashboardHome() {
             <Button
               variant="ghost"
               size="sm"
-              className="text-teal-100 hover:text-white hover:bg-teal-500/50"
+              className="text-teal-100 hover:text-white hover:bg-teal-500/50 transition-colors"
               onClick={() => navigateTo('notices')}
             >
               {stats?.totalNotices || 0} Notices
@@ -315,6 +349,66 @@ export function DashboardHome() {
           </div>
         </div>
       </motion.div>
+
+      {/* Today's Summary */}
+      {!loading && stats && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+        >
+          <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden">
+            <div className="h-px bg-gradient-to-r from-teal-500 via-teal-300 to-transparent" />
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CalendarDays className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Today&apos;s Summary</h3>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-auto font-mono">
+                  {format(new Date(), 'MMM d, yyyy')}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-teal-50/60 dark:bg-teal-900/20 border border-teal-100/60 dark:border-teal-800/30">
+                  <div className="h-9 w-9 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{stats.totalStudents}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Students</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50/60 dark:bg-green-900/20 border border-green-100/60 dark:border-green-800/30">
+                  <div className="h-9 w-9 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                    <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">KES {(stats.feeCollection / 1000).toFixed(0)}K</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Collected</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50/60 dark:bg-amber-900/20 border border-amber-100/60 dark:border-amber-800/30">
+                  <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">KES {(stats.feeOutstanding / 1000).toFixed(0)}K</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Outstanding</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-sky-50/60 dark:bg-sky-900/20 border border-sky-100/60 dark:border-sky-800/30">
+                  <div className="h-9 w-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">
+                    <ClipboardCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{stats.attendanceRate}%</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Attendance</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Stats Cards */}
       <StatsCards stats={stats} loading={loading} />
@@ -340,45 +434,51 @@ export function DashboardHome() {
               <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-700 dark:hover:text-teal-300 hover:border-teal-200 dark:hover:border-teal-800 transition-colors"
-                onClick={() => navigateTo('students')}
-              >
-                <div className="h-8 w-8 rounded-lg bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center">
-                  <Plus className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Add Student</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Register a new student</p>
-                </div>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-300 hover:border-amber-200 dark:hover:border-amber-800 transition-colors"
-                onClick={() => navigateTo('fees')}
-              >
-                <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Record Payment</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Process fee payment</p>
-                </div>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
-                onClick={() => navigateTo('attendance')}
-              >
-                <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center">
-                  <ClipboardCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Take Attendance</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">Mark daily attendance</p>
-                </div>
-              </Button>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-700 dark:hover:text-teal-300 hover:border-teal-200 dark:hover:border-teal-800 transition-colors"
+                  onClick={() => navigateTo('students')}
+                >
+                  <div className="h-8 w-8 rounded-lg bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center">
+                    <Plus className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Add Student</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Register a new student</p>
+                  </div>
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-300 hover:border-amber-200 dark:hover:border-amber-800 transition-colors"
+                  onClick={() => navigateTo('fees')}
+                >
+                  <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Record Payment</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Process fee payment</p>
+                  </div>
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
+                  onClick={() => navigateTo('attendance')}
+                >
+                  <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center">
+                    <ClipboardCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Take Attendance</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Mark daily attendance</p>
+                  </div>
+                </Button>
+              </motion.div>
             </CardContent>
           </Card>
         </motion.div>
@@ -396,7 +496,7 @@ export function DashboardHome() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-teal-600 dark:text-teal-400 text-xs"
+                  className="text-teal-600 dark:text-teal-400 text-xs hover:bg-teal-50 dark:hover:bg-teal-900/30"
                   onClick={() => navigateTo('fees')}
                 >
                   View All <ArrowRight className="w-3 h-3 ml-1" />
@@ -416,34 +516,46 @@ export function DashboardHome() {
                   <p className="text-slate-400 dark:text-slate-500 text-sm">No recent payments</p>
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {recentPayments.slice(0, 5).map((payment) => (
-                    <div
-                      key={payment.id}
-                      className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-8 w-8 rounded-full bg-green-50 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
-                          <DollarSign className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                <div className="space-y-0.5">
+                  {recentPayments.slice(0, 5).map((payment, index) => {
+                    const methodCfg = paymentMethodConfig[payment.paymentMethod] || {
+                      className: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+                      icon: <CreditCard className="w-3 h-3" />,
+                    }
+                    return (
+                      <div
+                        key={payment.id}
+                        className={cn(
+                          'flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer',
+                          index % 2 === 0 && 'bg-slate-50/40 dark:bg-slate-800/40'
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-8 w-8 rounded-full bg-green-50 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                            <DollarSign className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{payment.studentName}</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{payment.receiptNumber}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{payment.studentName}</p>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{payment.receiptNumber}</p>
+                        <div className="text-right flex-shrink-0 ml-2 flex items-center gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                              KES {payment.amount.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className={cn(
+                            'flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-medium',
+                            methodCfg.className
+                          )}>
+                            {methodCfg.icon}
+                            {payment.paymentMethod}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0 ml-2">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          KES {payment.amount.toLocaleString()}
-                        </p>
-                        <Badge
-                          variant="secondary"
-                          className={cn('text-[9px] px-1.5 py-0', paymentMethodColors[payment.paymentMethod] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300')}
-                        >
-                          {payment.paymentMethod}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </CardContent>
@@ -475,12 +587,12 @@ export function DashboardHome() {
               ) : (
                 <div className="relative">
                   {/* Timeline line */}
-                  <div className="absolute left-[15px] top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-700" />
+                  <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-slate-200 via-slate-200 to-transparent dark:from-slate-700 dark:via-slate-700 dark:to-transparent" />
                   <div className="space-y-4">
                     {recentActivities.slice(0, 5).map((activity) => (
                       <div key={activity.id} className="flex items-start gap-3 relative">
                         <div className={cn(
-                          'h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 z-10',
+                          'h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 shadow-sm',
                           activity.type === 'payment'
                             ? 'bg-green-50 dark:bg-green-900/40 border-2 border-green-200 dark:border-green-800'
                             : 'bg-blue-50 dark:bg-blue-900/40 border-2 border-blue-200 dark:border-blue-800'

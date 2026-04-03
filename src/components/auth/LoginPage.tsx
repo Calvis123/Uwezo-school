@@ -78,6 +78,34 @@ export function LoginPage() {
         <div className="absolute bottom-1/3 right-1/3 w-32 h-32 rounded-full bg-amber-50/50 dark:bg-amber-900/10 animate-pulse" style={{ animationDelay: '0.5s' }} />
       </div>
 
+      {/* School Building Illustration - CSS Shapes */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-none opacity-[0.07] dark:opacity-[0.04] hidden sm:block">
+        {/* Main building */}
+        <div className="relative w-[400px] h-[200px]">
+          {/* Base */}
+          <div className="absolute bottom-0 left-[50px] w-[300px] h-[140px] bg-teal-800 rounded-t-lg" />
+          {/* Roof */}
+          <div className="absolute bottom-[140px] left-[30px] w-0 h-0 border-l-[170px] border-r-[170px] border-b-[60px] border-l-transparent border-r-transparent border-b-teal-700" />
+          {/* Windows row 1 */}
+          {[0, 1, 2, 3].map((i) => (
+            <div key={`w1-${i}`} className="absolute bottom-[70px] bg-white/30 w-[40px] h-[35px] rounded-sm" style={{ left: `${80 + i * 65}px` }} />
+          ))}
+          {/* Windows row 2 */}
+          {[0, 1, 2, 3].map((i) => (
+            <div key={`w2-${i}`} className="absolute bottom-[25px] bg-white/30 w-[40px] h-[35px] rounded-sm" style={{ left: `${80 + i * 65}px` }} />
+          ))}
+          {/* Door */}
+          <div className="absolute bottom-0 left-[175px] w-[50px] h-[55px] bg-teal-600 rounded-t-md" />
+          {/* Flag pole */}
+          <div className="absolute bottom-[195px] left-[200px] w-[2px] h-[40px] bg-slate-400" />
+          <div className="absolute bottom-[225px] left-[202px] w-[25px] h-[15px] bg-teal-500 rounded-r" />
+          {/* Left wing */}
+          <div className="absolute bottom-0 left-0 w-[55px] h-[100px] bg-teal-800/80 rounded-tl-lg" />
+          {/* Right wing */}
+          <div className="absolute bottom-0 right-0 w-[55px] h-[100px] bg-teal-800/80 rounded-tr-lg" />
+        </div>
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -88,7 +116,7 @@ export function LoginPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-200/50 dark:shadow-teal-900/50 mb-4 relative">
             <GraduationCap className="w-10 h-10 text-white" />
-            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center">
+            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center shadow-sm">
               <span className="text-[8px] text-white font-bold">✓</span>
             </div>
           </div>
@@ -147,14 +175,20 @@ export function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-11 pr-10"
+                    className="h-11 pr-12"
                     disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                    className={cn(
+                      'absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md flex items-center justify-center transition-all duration-200',
+                      'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300',
+                      'hover:bg-slate-100 dark:hover:bg-slate-700',
+                      showPassword && 'text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30'
+                    )}
                     tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -177,38 +211,60 @@ export function LoginPage() {
               </Button>
             </form>
 
-            {/* Demo credentials */}
-            <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-700/60">
-              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mb-3 font-medium uppercase tracking-wider">Demo Accounts</p>
-              <div className="space-y-2">
-                {demoCredentials.map((demo) => (
-                  <button
-                    key={demo.role}
-                    type="button"
-                    onClick={() => loginAsDemo(demo.email, demo.password)}
-                    disabled={loading}
-                    className={cn(
-                      'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
-                      demo.color,
-                      'cursor-pointer'
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold">{demo.role}</p>
-                      <p className="text-[11px] font-mono opacity-75 truncate">{demo.email}</p>
-                    </div>
-                    <span className="text-[10px] font-mono opacity-60 hidden sm:block">{demo.password}</span>
-                  </button>
-                ))}
+            {/* Divider with "or" */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-slate-700" />
               </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-3 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium">or try a demo</span>
+              </div>
+            </div>
+
+            {/* Demo credentials */}
+            <div className="space-y-2">
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mb-2 font-medium uppercase tracking-wider">
+                Quick Access
+              </p>
+              {demoCredentials.map((demo) => (
+                <motion.button
+                  key={demo.role}
+                  type="button"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => loginAsDemo(demo.email, demo.password)}
+                  disabled={loading}
+                  className={cn(
+                    'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
+                    demo.color,
+                    'cursor-pointer'
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">{demo.role}</p>
+                    <p className="text-[11px] font-mono opacity-75 truncate">{demo.email}</p>
+                  </div>
+                  <span className="text-[10px] font-mono opacity-60 hidden sm:block">{demo.password}</span>
+                </motion.button>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-6">
-          © 2025 Olives Schools — Eldoret, Kenya
-        </p>
+        {/* Footer with version */}
+        <div className="text-center mt-6 space-y-1">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            © 2025 Olives Schools — Eldoret, Kenya
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-800/40">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500 dark:bg-teal-400" />
+              Version 2.0
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-600">•</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">School Management System</span>
+          </div>
+        </div>
       </motion.div>
     </div>
   )

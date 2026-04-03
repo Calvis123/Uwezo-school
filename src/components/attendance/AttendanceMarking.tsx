@@ -40,28 +40,28 @@ interface AttendanceRecord {
 
 const statusConfig: Record<string, { className: string; label: string; icon: React.ReactNode; bgColor: string }> = {
   PRESENT: {
-    className: 'bg-green-50 text-green-700 border border-green-200',
+    className: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800',
     label: 'Present',
     icon: <CheckCircle2 className="w-3 h-3" />,
-    bgColor: 'bg-green-50',
+    bgColor: 'bg-green-50 dark:bg-green-900/40',
   },
   ABSENT: {
-    className: 'bg-red-50 text-red-700 border border-red-200',
+    className: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800',
     label: 'Absent',
     icon: <XCircle className="w-3 h-3" />,
-    bgColor: 'bg-red-50',
+    bgColor: 'bg-red-50 dark:bg-red-900/40',
   },
   LATE: {
-    className: 'bg-amber-50 text-amber-700 border border-amber-200',
+    className: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800',
     label: 'Late',
     icon: <Clock className="w-3 h-3" />,
-    bgColor: 'bg-amber-50',
+    bgColor: 'bg-amber-50 dark:bg-amber-900/40',
   },
   EXCUSED: {
-    className: 'bg-sky-50 text-sky-700 border border-sky-200',
+    className: 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800',
     label: 'Excused',
     icon: <ShieldCheck className="w-3 h-3" />,
-    bgColor: 'bg-sky-50',
+    bgColor: 'bg-sky-50 dark:bg-sky-900/40',
   },
 }
 
@@ -96,14 +96,12 @@ export function AttendanceMarking() {
   const loadStudents = async () => {
     setLoading(true)
     try {
-      // First load students in class
       const studentsRes = await studentsApi.list({ classId, status: 'ACTIVE', limit: 100 })
       let studentList: any[] = []
       if (studentsRes.success && studentsRes.data) {
         studentList = studentsRes.data.items || []
       }
 
-      // Then load existing attendance for this date
       const attRes = await attendanceApi.list({ classId, date })
       const existingAtt: Record<string, any> = {}
       if (attRes.success && attRes.data) {
@@ -123,7 +121,6 @@ export function AttendanceMarking() {
           }))
         )
       } else {
-        // Demo data
         setRecords([
           { studentId: 's1', studentName: 'John Kamau', admissionNumber: 'ADM-001', status: 'PRESENT', reason: '' },
           { studentId: 's2', studentName: 'Mary Wanjiku', admissionNumber: 'ADM-002', status: 'PRESENT', reason: '' },
@@ -195,15 +192,15 @@ export function AttendanceMarking() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">Attendance</h2>
-        <p className="text-sm text-slate-500">Mark and track daily student attendance</p>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Attendance</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Mark and track daily student attendance</p>
       </div>
       <Tabs defaultValue="marking">
-        <TabsList className="bg-white border border-slate-200 p-0 h-auto">
-          <TabsTrigger value="marking" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none text-sm px-4 py-2">
+        <TabsList className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-0 h-auto">
+          <TabsTrigger value="marking" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm px-4 py-2">
             Daily Marking
           </TabsTrigger>
-          <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none text-sm px-4 py-2">
+          <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm px-4 py-2">
             Monthly Summary
           </TabsTrigger>
         </TabsList>
@@ -246,11 +243,11 @@ export function AttendanceMarking() {
           </div>
 
           {!classId ? (
-            <Card className="shadow-sm border-slate-200/60">
+            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
               <CardContent className="py-16 text-center">
-                <AlertCircle className="w-14 h-14 text-slate-200 mx-auto mb-4" />
-                <p className="text-slate-500 font-medium">Select a class to begin marking attendance</p>
-                <p className="text-slate-400 text-sm mt-1">Choose a class from the dropdown above</p>
+                <AlertCircle className="w-14 h-14 text-slate-200 dark:text-slate-600 mx-auto mb-4" />
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Select a class to begin marking attendance</p>
+                <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Choose a class from the dropdown above</p>
               </CardContent>
             </Card>
           ) : loading ? (
@@ -261,71 +258,71 @@ export function AttendanceMarking() {
             </div>
           ) : (
             <>
-              {/* Summary cards - more prominent */}
+              {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <Card className="shadow-sm border-slate-200/60">
+                <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
                   <CardContent className="p-4 text-center">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{records.length}</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">{records.length}</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-green-200/60 bg-green-50/30">
+                <Card className="shadow-sm border-green-200/60 bg-green-50/30 dark:bg-green-900/20 dark:border-green-800/40">
                   <CardContent className="p-4 text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                      <p className="text-xs font-medium text-green-700 uppercase tracking-wider">Present</p>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                      <p className="text-xs font-medium text-green-700 dark:text-green-400 uppercase tracking-wider">Present</p>
                     </div>
-                    <p className="text-2xl font-bold text-green-700">{presentCount}</p>
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-400">{presentCount}</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-red-200/60 bg-red-50/30">
+                <Card className="shadow-sm border-red-200/60 bg-red-50/30 dark:bg-red-900/20 dark:border-red-800/40">
                   <CardContent className="p-4 text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
-                      <XCircle className="w-3.5 h-3.5 text-red-500" />
-                      <p className="text-xs font-medium text-red-600 uppercase tracking-wider">Absent</p>
+                      <XCircle className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">Absent</p>
                     </div>
-                    <p className="text-2xl font-bold text-red-600">{absentCount}</p>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">{absentCount}</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-amber-200/60 bg-amber-50/30">
+                <Card className="shadow-sm border-amber-200/60 bg-amber-50/30 dark:bg-amber-900/20 dark:border-amber-800/40">
                   <CardContent className="p-4 text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
-                      <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      <p className="text-xs font-medium text-amber-700 uppercase tracking-wider">Late</p>
+                      <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 uppercase tracking-wider">Late</p>
                     </div>
-                    <p className="text-2xl font-bold text-amber-700">{lateCount}</p>
+                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{lateCount}</p>
                   </CardContent>
                 </Card>
-                <Card className="shadow-sm border-teal-200/60 bg-teal-50/30">
+                <Card className="shadow-sm border-teal-200/60 bg-teal-50/30 dark:bg-teal-900/20 dark:border-teal-800/40">
                   <CardContent className="p-4 text-center">
                     <div className="flex items-center justify-center gap-1 mb-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
-                      <p className="text-xs font-medium text-teal-700 uppercase tracking-wider">Rate</p>
+                      <ShieldCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      <p className="text-xs font-medium text-teal-700 dark:text-teal-400 uppercase tracking-wider">Rate</p>
                     </div>
-                    <p className="text-2xl font-bold text-teal-700">{attendanceRate}%</p>
+                    <p className="text-2xl font-bold text-teal-700 dark:text-teal-400">{attendanceRate}%</p>
                   </CardContent>
                 </Card>
               </div>
 
               {/* Attendance Table */}
-              <Card className="shadow-sm border-slate-200/60">
+              <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                        <TableHead className="text-xs font-semibold text-slate-600">Name</TableHead>
-                        <TableHead className="text-xs font-semibold text-slate-600 hidden sm:table-cell">Admission #</TableHead>
-                        <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
-                        <TableHead className="text-xs font-semibold text-slate-600 hidden sm:table-cell">Reason</TableHead>
+                      <TableRow className="bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-800/80">
+                        <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Name</TableHead>
+                        <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Admission #</TableHead>
+                        <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
+                        <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Reason</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {records.map((r) => {
                         const cfg = statusConfig[r.status]
                         return (
-                          <TableRow key={r.studentId} className={cn('hover:bg-slate-50 transition-colors', r.status === 'ABSENT' && 'hover:bg-red-50/30')}>
-                            <TableCell className="text-sm font-medium text-slate-900">{r.studentName}</TableCell>
-                            <TableCell className="hidden sm:table-cell text-sm font-mono text-slate-500">
+                          <TableRow key={r.studentId} className={cn('hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors', r.status === 'ABSENT' && 'hover:bg-red-50/30 dark:hover:bg-red-900/20')}>
+                            <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{r.studentName}</TableCell>
+                            <TableCell className="hidden sm:table-cell text-sm font-mono text-slate-500 dark:text-slate-400">
                               {r.admissionNumber}
                             </TableCell>
                             <TableCell>
@@ -456,11 +453,11 @@ function AttendanceSummary() {
       </div>
 
       {!classId ? (
-        <Card className="shadow-sm border-slate-200/60">
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
           <CardContent className="py-16 text-center">
-            <AlertCircle className="w-14 h-14 text-slate-200 mx-auto mb-4" />
-            <p className="text-slate-500 font-medium">Select a class to view monthly summary</p>
-            <p className="text-slate-400 text-sm mt-1">Choose a class from the dropdown above</p>
+            <AlertCircle className="w-14 h-14 text-slate-200 dark:text-slate-600 mx-auto mb-4" />
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Select a class to view monthly summary</p>
+            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Choose a class from the dropdown above</p>
           </CardContent>
         </Card>
       ) : loading ? (
@@ -470,34 +467,34 @@ function AttendanceSummary() {
           ))}
         </div>
       ) : (
-        <Card className="shadow-sm border-slate-200/60">
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                  <TableHead className="text-xs font-semibold text-slate-600">Student</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600 hidden sm:table-cell">Admission #</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Total Days</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Present</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Absent</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600 hidden sm:table-cell">Late</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Rate</TableHead>
+                <TableRow className="bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-800/80">
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Student</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Admission #</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Total Days</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Present</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Absent</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Late</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Rate</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {summaryData.map((s, i) => (
                   <TableRow key={i} className={cn(
-                    'hover:bg-slate-50 transition-colors',
-                    s.rate < 80 && 'bg-red-50/40 hover:bg-red-50/60'
+                    'hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors',
+                    s.rate < 80 && 'bg-red-50/40 dark:bg-red-900/20 hover:bg-red-50/60 dark:hover:bg-red-900/30'
                   )}>
-                    <TableCell className="text-sm font-medium text-slate-900">{s.studentName}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm font-mono text-slate-500">
+                    <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{s.studentName}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm font-mono text-slate-500 dark:text-slate-400">
                       {s.admissionNumber}
                     </TableCell>
-                    <TableCell className="text-sm text-slate-600">{s.totalDays}</TableCell>
-                    <TableCell className="text-sm font-semibold text-green-600">{s.present}</TableCell>
-                    <TableCell className="text-sm text-red-600">{s.absent}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-amber-600">{s.late}</TableCell>
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-400">{s.totalDays}</TableCell>
+                    <TableCell className="text-sm font-semibold text-green-600 dark:text-green-400">{s.present}</TableCell>
+                    <TableCell className="text-sm text-red-600 dark:text-red-400">{s.absent}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-amber-600 dark:text-amber-400">{s.late}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Progress
@@ -511,9 +508,9 @@ function AttendanceSummary() {
                         />
                         <span className={cn(
                           'text-xs font-bold',
-                          s.rate >= 90 ? 'text-green-600' :
-                          s.rate >= 80 ? 'text-amber-600' :
-                          'text-red-600'
+                          s.rate >= 90 ? 'text-green-600 dark:text-green-400' :
+                          s.rate >= 80 ? 'text-amber-600 dark:text-amber-400' :
+                          'text-red-600 dark:text-red-400'
                         )}>
                           {s.rate.toFixed(1)}%
                         </span>

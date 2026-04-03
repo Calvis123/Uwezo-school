@@ -14,7 +14,6 @@ import {
   Cell,
   AreaChart,
   Area,
-  Legend,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,15 +30,15 @@ interface ChartsProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[120px]">
-        <p className="text-xs font-semibold text-slate-900 mb-1">{label}</p>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3 min-w-[140px]">
+        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 mb-1.5">{label}</p>
         {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center justify-between gap-3">
+          <div key={index} className="flex items-center justify-between gap-3 py-0.5">
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-xs text-slate-500">{entry.name}</span>
+              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: entry.color }} />
+              <span className="text-xs text-slate-500 dark:text-slate-400">{entry.name}</span>
             </div>
-            <span className="text-xs font-semibold text-slate-900">
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 tabular-nums">
               {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
             </span>
           </div>
@@ -56,13 +55,13 @@ const GenderTooltip = ({ active, payload }: any) => {
     const total = payload.reduce((sum: number, entry: any) => sum + entry.value, 0)
     const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : 0
     return (
-      <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3">
         <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: payload[0].payload.fill || COLORS[0] }} />
-          <span className="text-sm font-semibold text-slate-900">{data.name}</span>
+          <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: payload[0].payload.fill || COLORS[0] }} />
+          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{data.name}</span>
         </div>
-        <p className="text-xs text-slate-500">
-          <span className="font-bold text-slate-900">{data.value.toLocaleString()}</span> students ({percentage}%)
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="font-bold text-slate-900 dark:text-slate-100">{data.value.toLocaleString()}</span> students ({percentage}%)
         </p>
       </div>
     )
@@ -73,18 +72,16 @@ const GenderTooltip = ({ active, payload }: any) => {
 export function DashboardCharts({ classData, genderData, feeTrendData, loading }: ChartsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Skeleton className="h-80 rounded-xl" />
-        <Skeleton className="h-80 rounded-xl" />
-        <Skeleton className="h-80 rounded-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Skeleton className="h-80 rounded-2xl" />
+        <Skeleton className="h-80 rounded-2xl" />
+        <Skeleton className="h-80 rounded-2xl" />
       </div>
     )
   }
 
-  // Only show first 10 classes for readability
   const displayClassData = classData.slice(0, 10)
 
-  // Truncate long class names
   const truncatedClassData = displayClassData.map((c) => ({
     ...c,
     name: c.name.length > 10 ? c.name.slice(0, 9) + '…' : c.name,
@@ -100,15 +97,15 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
       >
-        <Card className="shadow-sm border-slate-200/60 h-full hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-700">Students per Class</CardTitle>
+        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
+          <CardHeader className="pb-2 pt-5 px-5">
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Students per Class</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 pb-5">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={truncatedClassData} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-700" vertical={false} />
                   <XAxis
                     dataKey="name"
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
@@ -120,8 +117,8 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                     height={60}
                   />
                   <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
-                  <Bar dataKey="students" name="Students" fill="#0d9488" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc', radius: 4 }} />
+                  <Bar dataKey="students" name="Students" fill="#0d9488" radius={[6, 6, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -135,11 +132,11 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
       >
-        <Card className="shadow-sm border-slate-200/60 h-full hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-700">Gender Distribution</CardTitle>
+        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
+          <CardHeader className="pb-2 pt-5 px-5">
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Gender Distribution</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 pb-5">
             <div className="h-52 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -175,8 +172,8 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     />
                     <div className="text-left">
-                      <span className="text-xs font-medium text-slate-700">{entry.name}</span>
-                      <p className="text-[11px] text-slate-400">
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{entry.name}</span>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
                         {entry.value.toLocaleString()} ({percentage}%)
                       </p>
                     </div>
@@ -194,15 +191,15 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}
       >
-        <Card className="shadow-sm border-slate-200/60 h-full hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-700">Fee Collection Trend</CardTitle>
+        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
+          <CardHeader className="pb-2 pt-5 px-5">
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Fee Collection Trend</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 pb-5">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={feeTrendData} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-700" vertical={false} />
                   <XAxis
                     dataKey="month"
                     tick={{ fontSize: 11, fill: '#94a3b8' }}
@@ -224,20 +221,20 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                       <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <Area type="monotone" dataKey="collected" name="Collected" stroke="#0d9488" fill="url(#colorCollected)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="outstanding" name="Outstanding" stroke="#f59e0b" fill="url(#colorOutstanding)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="collected" name="Collected" stroke="#0d9488" fill="url(#colorCollected)" strokeWidth={2.5} />
+                  <Area type="monotone" dataKey="outstanding" name="Outstanding" stroke="#f59e0b" fill="url(#colorOutstanding)" strokeWidth={2.5} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
             {/* Legend */}
             <div className="flex justify-center gap-6 mt-1">
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-teal-500" />
-                <span className="text-xs text-slate-500">Collected</span>
+                <div className="w-3 h-3 rounded-full bg-teal-500 shadow-sm" />
+                <span className="text-xs text-slate-500 dark:text-slate-400">Collected</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-amber-500" />
-                <span className="text-xs text-slate-500">Outstanding</span>
+                <div className="w-3 h-3 rounded-full bg-amber-500 shadow-sm" />
+                <span className="text-xs text-slate-500 dark:text-slate-400">Outstanding</span>
               </div>
             </div>
           </CardContent>

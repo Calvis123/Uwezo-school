@@ -200,7 +200,7 @@ export function StudentDetail() {
   if (!student) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-500">Student not found</p>
+        <p className="text-slate-500 dark:text-slate-400">Student not found</p>
         <Button variant="outline" className="mt-4" onClick={() => navigateTo('students')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
         </Button>
@@ -209,9 +209,9 @@ export function StudentDetail() {
   }
 
   const statusColors: Record<string, string> = {
-    ACTIVE: 'bg-green-100 text-green-700',
-    INACTIVE: 'bg-slate-100 text-slate-700',
-    GRADUATED: 'bg-blue-100 text-blue-700',
+    ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    INACTIVE: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    GRADUATED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   }
 
   const feePaid = feeLedger ? (feeLedger.totalPaid / feeLedger.totalFees) * 100 : 0
@@ -233,7 +233,7 @@ export function StudentDetail() {
   return (
     <div className="space-y-4">
       {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={() => navigateTo('students')} className="text-slate-500">
+      <Button variant="ghost" size="sm" onClick={() => navigateTo('students')} className="text-slate-500 dark:text-slate-400">
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
       </Button>
 
@@ -242,24 +242,24 @@ export function StudentDetail() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <Card className="shadow-sm border-slate-200/60">
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarFallback className="bg-teal-100 text-teal-700 text-xl font-bold">
+                <AvatarFallback className="bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 text-xl font-bold">
                   {student.firstName[0]}{student.lastName[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <h2 className="text-xl font-bold text-slate-900">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {student.firstName} {student.lastName}
                   </h2>
                   <Badge className={cn('text-xs', statusColors[student.status] || '')}>
                     {student.status}
                   </Badge>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   {student.admissionNumber} • {student.class?.name}
                 </p>
                 <div className="flex flex-wrap gap-4 mt-3">
@@ -288,17 +288,17 @@ export function StudentDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview">
-        <TabsList className="bg-white border border-slate-200 p-0 h-auto">
-          <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none text-sm">
+        <TabsList className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-0 h-auto">
+          <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Overview
           </TabsTrigger>
-          <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none text-sm">
+          <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Fees
           </TabsTrigger>
-          <TabsTrigger value="academics" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none text-sm">
+          <TabsTrigger value="academics" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Academics
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none text-sm">
+          <TabsTrigger value="attendance" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Attendance
           </TabsTrigger>
         </TabsList>
