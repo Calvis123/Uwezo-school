@@ -19,6 +19,7 @@ import { SettingsPage } from '@/components/settings/SettingsPage'
 import { UserManagement } from '@/components/users/UserManagement'
 import { CalendarView } from '@/components/calendar/CalendarView'
 import { FeesPage } from '@/components/fees/FeesPage'
+import { MessagingPage } from '@/components/messaging/MessagingPage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -36,6 +37,7 @@ function ViewRouter() {
     'report-cards': <ReportCards />,
     attendance: <AttendanceMarking />,
     calendar: <CalendarView />,
+    messages: <MessagingPage />,
     notices: <NoticeList />,
     settings: <SettingsPage />,
   }

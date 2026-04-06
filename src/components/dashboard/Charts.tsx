@@ -17,8 +17,10 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Users, PieChartIcon, TrendingUp, FileBarChart } from 'lucide-react'
 
-const COLORS = ['#0d9488', '#f59e0b', '#22c55e', '#ef4444', '#6366f1', '#ec4899', '#14b8a6', '#f97316']
+const TEAL_PALETTE = ['#0d9488', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#0f766e', '#115e59', '#134e4a']
+const COMPLEMENTARY = ['#0d9488', '#f59e0b', '#22c55e', '#ef4444', '#6366f1', '#ec4899', '#14b8a6', '#f97316']
 
 interface ChartsProps {
   classData: { name: string; students: number }[]
@@ -57,7 +59,7 @@ const GenderTooltip = ({ active, payload }: any) => {
     return (
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-3">
         <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: payload[0].payload.fill || COLORS[0] }} />
+          <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: payload[0].payload.fill || TEAL_PALETTE[0] }} />
           <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{data.name}</span>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -69,13 +71,33 @@ const GenderTooltip = ({ active, payload }: any) => {
   return null
 }
 
+function ChartSkeleton() {
+  return (
+    <Card className="h-full overflow-hidden">
+      <CardHeader className="pb-2 pt-5 px-5">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pb-5">
+        <div className="skeleton-shimmer h-52 rounded-xl" />
+        <div className="flex justify-center gap-6 mt-4">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function DashboardCharts({ classData, genderData, feeTrendData, loading }: ChartsProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Skeleton className="h-80 rounded-2xl" />
-        <Skeleton className="h-80 rounded-2xl" />
-        <Skeleton className="h-80 rounded-2xl" />
+        <ChartSkeleton />
+        <ChartSkeleton />
+        <ChartSkeleton />
       </div>
     )
   }
@@ -97,9 +119,20 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
       >
-        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
+        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-gradient-to-br from-white via-white to-teal-50/30 dark:from-slate-800 dark:via-slate-800 dark:to-teal-950/20 rounded-2xl overflow-hidden">
           <CardHeader className="pb-2 pt-5 px-5">
-            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Students per Class</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center">
+                  <Users className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                </div>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Students per Class</CardTitle>
+              </div>
+              <button className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium flex items-center gap-1 transition-colors">
+                <FileBarChart className="w-3 h-3" />
+                View Report
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="px-5 pb-5">
             <div className="h-64">
@@ -117,8 +150,14 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                     height={60}
                   />
                   <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc', radius: 4 }} />
-                  <Bar dataKey="students" name="Students" fill="#0d9488" radius={[6, 6, 0, 0]} barSize={20} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(13, 148, 136, 0.06)', radius: 4 }} />
+                  <defs>
+                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#14b8a6" />
+                      <stop offset="100%" stopColor="#0d9488" />
+                    </linearGradient>
+                  </defs>
+                  <Bar dataKey="students" name="Students" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -132,9 +171,20 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
       >
-        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
+        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-gradient-to-br from-white via-white to-teal-50/30 dark:from-slate-800 dark:via-slate-800 dark:to-teal-950/20 rounded-2xl overflow-hidden">
           <CardHeader className="pb-2 pt-5 px-5">
-            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Gender Distribution</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center">
+                  <PieChartIcon className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                </div>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Gender Distribution</CardTitle>
+              </div>
+              <button className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium flex items-center gap-1 transition-colors">
+                <FileBarChart className="w-3 h-3" />
+                View Report
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="px-5 pb-5">
             <div className="h-52 flex items-center justify-center">
@@ -153,7 +203,7 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                     {genderData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
+                        fill={TEAL_PALETTE[index % TEAL_PALETTE.length]}
                       />
                     ))}
                   </Pie>
@@ -169,7 +219,7 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                   <div key={entry.name} className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full shadow-sm"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      style={{ backgroundColor: TEAL_PALETTE[index % TEAL_PALETTE.length] }}
                     />
                     <div className="text-left">
                       <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{entry.name}</span>
@@ -191,9 +241,20 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}
       >
-        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
+        <Card className="shadow-sm hover:shadow-lg border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-gradient-to-br from-white via-white to-teal-50/30 dark:from-slate-800 dark:via-slate-800 dark:to-teal-950/20 rounded-2xl overflow-hidden">
           <CardHeader className="pb-2 pt-5 px-5">
-            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Fee Collection Trend</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center">
+                  <TrendingUp className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                </div>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Fee Collection Trend</CardTitle>
+              </div>
+              <button className="text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium flex items-center gap-1 transition-colors">
+                <FileBarChart className="w-3 h-3" />
+                View Report
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="px-5 pb-5">
             <div className="h-64">

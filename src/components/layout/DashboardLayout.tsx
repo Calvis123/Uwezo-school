@@ -15,6 +15,7 @@ import {
   User,
   ChevronRight,
   Calendar,
+  MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -40,10 +41,12 @@ import { ThemeToggle } from './ThemeToggle'
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'users', label: 'Users', icon: Users, adminOnly: true },
-  { id: 'students', label: 'Students', icon: GraduationCap },
+  { id: 'students', label: 'Students', icon: GraduationCap, staffOnly: true },
   { id: 'fees', label: 'Fees', icon: DollarSign },
-  { id: 'exams', label: 'Exams & Results', icon: FileText },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
+  { id: 'exams', label: 'Exams & Results', icon: FileText, staffOnly: true },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck, staffOnly: true },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'notices', label: 'Notices', icon: Bell },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -107,6 +110,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               (item.id === 'students' && currentView === 'student-detail') ||
               (item.id === 'exams' && (currentView === 'mark-entry' || currentView === 'report-cards'))
             if ('adminOnly' in item && item.adminOnly && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ADMIN') {
+              return null
+            }
+            if ('staffOnly' in item && item.staffOnly && user?.role === 'PARENT') {
               return null
             }
             return (
@@ -214,13 +220,15 @@ const viewInfo: Record<string, { title: string; breadcrumbs?: string[] }> = {
   'mark-entry': { title: 'Mark Entry', breadcrumbs: ['Dashboard', 'Exams', 'Mark Entry'] },
   'report-cards': { title: 'Report Cards', breadcrumbs: ['Dashboard', 'Exams', 'Reports'] },
   attendance: { title: 'Attendance', breadcrumbs: ['Dashboard', 'Attendance'] },
+  calendar: { title: 'School Calendar', breadcrumbs: ['Dashboard', 'Calendar'] },
+  messages: { title: 'Messages', breadcrumbs: ['Dashboard', 'Messages'] },
   notices: { title: 'Notices', breadcrumbs: ['Dashboard', 'Notices'] },
   settings: { title: 'Settings', breadcrumbs: ['Dashboard', 'Settings'] },
 }
 
 export function Header() {
   const { currentView, setSidebarOpen, user, navigateTo, logout } = useAppStore()
-  const info = viewInfo[currentView] || { title: 'Dashboard', breadcrumbs: ['Dashboard'] }
+  const info = viewInfo[currentView] || { title: user?.role === 'TEACHER' ? 'Teacher Portal' : 'Dashboard', breadcrumbs: ['Dashboard'] }
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 lg:px-6 h-16">

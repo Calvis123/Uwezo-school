@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Save, Loader2, UserCheck, AlertCircle, CheckCircle2, XCircle, Clock, ShieldCheck } from 'lucide-react'
+import { Save, Loader2, UserCheck, AlertCircle, CheckCircle2, XCircle, Clock, ShieldCheck, CalendarDays, Users, ClipboardList } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
 import { studentsApi, attendanceApi, refApi } from '@/lib/api'
@@ -38,30 +38,34 @@ interface AttendanceRecord {
   reason: string
 }
 
-const statusConfig: Record<string, { className: string; label: string; icon: React.ReactNode; bgColor: string }> = {
+const statusConfig: Record<string, { className: string; label: string; icon: React.ReactNode; bgColor: string; btnBg: string }> = {
   PRESENT: {
     className: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800',
     label: 'Present',
     icon: <CheckCircle2 className="w-3 h-3" />,
     bgColor: 'bg-green-50 dark:bg-green-900/40',
+    btnBg: 'bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/60 dark:hover:bg-green-900/80 dark:text-green-300 border-green-200 dark:border-green-800',
   },
   ABSENT: {
     className: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800',
     label: 'Absent',
     icon: <XCircle className="w-3 h-3" />,
     bgColor: 'bg-red-50 dark:bg-red-900/40',
+    btnBg: 'bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/60 dark:hover:bg-red-900/80 dark:text-red-300 border-red-200 dark:border-red-800',
   },
   LATE: {
     className: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800',
     label: 'Late',
     icon: <Clock className="w-3 h-3" />,
     bgColor: 'bg-amber-50 dark:bg-amber-900/40',
+    btnBg: 'bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/60 dark:hover:bg-amber-900/80 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   },
   EXCUSED: {
     className: 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800',
     label: 'Excused',
     icon: <ShieldCheck className="w-3 h-3" />,
     bgColor: 'bg-sky-50 dark:bg-sky-900/40',
+    btnBg: 'bg-sky-100 hover:bg-sky-200 text-sky-700 dark:bg-sky-900/60 dark:hover:bg-sky-900/80 dark:text-sky-300 border-sky-200 dark:border-sky-800',
   },
 }
 
@@ -209,22 +213,28 @@ export function AttendanceMarking() {
           {/* Controls */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
-              <Select value={classId} onValueChange={setClassId}>
-                <SelectTrigger className="w-full sm:w-40 h-10">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {localClasses.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full sm:w-44 h-10"
-              />
+              <div className="relative">
+                <Select value={classId} onValueChange={setClassId}>
+                  <SelectTrigger className="w-full sm:w-48 h-10 pl-3 pr-8 bg-white dark:bg-slate-800">
+                    <Users className="w-4 h-4 text-slate-400 mr-2" />
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {localClasses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full sm:w-44 h-10 pl-9 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-teal-500 focus-visible:border-teal-500"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={markAllPresent} disabled={!classId || loading}>
@@ -244,10 +254,14 @@ export function AttendanceMarking() {
 
           {!classId ? (
             <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
-              <CardContent className="py-16 text-center">
-                <AlertCircle className="w-14 h-14 text-slate-200 dark:text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Select a class to begin marking attendance</p>
-                <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Choose a class from the dropdown above</p>
+              <CardContent className="py-20 text-center">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-950/20 flex items-center justify-center mx-auto mb-5">
+                  <ClipboardList className="w-10 h-10 text-teal-400 dark:text-teal-600" />
+                </div>
+                <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">Select a Class</h3>
+                <p className="text-sm text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
+                  Choose a class from the dropdown above to begin marking daily attendance for students.
+                </p>
               </CardContent>
             </Card>
           ) : loading ? (
@@ -258,6 +272,33 @@ export function AttendanceMarking() {
             </div>
           ) : (
             <>
+              {/* Mini Stats Bar */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200/60 dark:border-green-800/40">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-400 tabular-nums">{presentCount}</span>
+                  <span className="text-[10px] text-green-600/70 dark:text-green-500/70">Present</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200/60 dark:border-red-800/40">
+                  <XCircle className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
+                  <span className="text-xs font-semibold text-red-600 dark:text-red-400 tabular-nums">{absentCount}</span>
+                  <span className="text-[10px] text-red-500/70 dark:text-red-500/70">Absent</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-200/60 dark:border-amber-800/40">
+                  <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 tabular-nums">{lateCount}</span>
+                  <span className="text-[10px] text-amber-600/70 dark:text-amber-500/70">Late</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-900/30 border border-sky-200/60 dark:border-sky-800/40">
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                  <span className="text-xs font-semibold text-sky-700 dark:text-sky-400 tabular-nums">{excusedCount}</span>
+                  <span className="text-[10px] text-sky-600/70 dark:text-sky-500/70">Excused</span>
+                </div>
+                <div className="ml-auto text-xs text-slate-400 dark:text-slate-500">
+                  {records.length} students
+                </div>
+              </div>
+
               {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
@@ -320,7 +361,11 @@ export function AttendanceMarking() {
                       {records.map((r) => {
                         const cfg = statusConfig[r.status]
                         return (
-                          <TableRow key={r.studentId} className={cn('hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors', r.status === 'ABSENT' && 'hover:bg-red-50/30 dark:hover:bg-red-900/20')}>
+                          <TableRow key={r.studentId} className={cn(
+                            'hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors',
+                            r.status === 'ABSENT' && 'hover:bg-red-50/30 dark:hover:bg-red-900/20',
+                            r.status === 'LATE' && 'hover:bg-amber-50/30 dark:hover:bg-amber-900/20'
+                          )}>
                             <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{r.studentName}</TableCell>
                             <TableCell className="hidden sm:table-cell text-sm font-mono text-slate-500 dark:text-slate-400">
                               {r.admissionNumber}
@@ -330,7 +375,7 @@ export function AttendanceMarking() {
                                 value={r.status}
                                 onValueChange={(v) => updateStatus(r.studentId, v as AttendanceRecord['status'])}
                               >
-                                <SelectTrigger className={cn('h-8 w-32 font-medium', cfg?.className)}>
+                                <SelectTrigger className={cn('h-8 w-32 font-medium', cfg?.btnBg)}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -441,7 +486,8 @@ function AttendanceSummary() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Select value={classId} onValueChange={setClassId}>
-          <SelectTrigger className="w-40 h-10">
+          <SelectTrigger className="w-48 h-10 bg-white dark:bg-slate-800">
+            <Users className="w-4 h-4 text-slate-400 mr-2" />
             <SelectValue placeholder="Select class" />
           </SelectTrigger>
           <SelectContent>
@@ -454,10 +500,14 @@ function AttendanceSummary() {
 
       {!classId ? (
         <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
-          <CardContent className="py-16 text-center">
-            <AlertCircle className="w-14 h-14 text-slate-200 dark:text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Select a class to view monthly summary</p>
-            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Choose a class from the dropdown above</p>
+          <CardContent className="py-20 text-center">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-950/20 flex items-center justify-center mx-auto mb-5">
+              <ClipboardList className="w-10 h-10 text-teal-400 dark:text-teal-600" />
+            </div>
+            <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">Select a Class</h3>
+            <p className="text-sm text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
+              Choose a class from the dropdown above to view the monthly attendance summary.
+            </p>
           </CardContent>
         </Card>
       ) : loading ? (

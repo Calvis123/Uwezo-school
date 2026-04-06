@@ -49,21 +49,27 @@ export function LoginPage() {
   }
 
   const loginAsDemo = async (demoEmail: string, demoPass: string) => {
+    if (loading) return
     setLoading(true)
     setError('')
     try {
-      const result = await authApi.login(demoEmail, demoPass)
+      const result = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: demoEmail, password: demoPass }),
+      }).then(r => r.json())
       if (result.success && result.data) {
-        login(result.data.user || result.data)
+        const userData = result.data.user || result.data
+        login(userData)
         toast.success('Welcome back!', {
-          description: `Signed in as ${result.data.user?.name || result.data.name}`,
+          description: `Signed in as ${userData.name}`,
         })
       } else {
         setError(result.error || 'Invalid credentials.')
+        setLoading(false)
       }
     } catch {
       setError('An error occurred. Please try again.')
-    } finally {
       setLoading(false)
     }
   }

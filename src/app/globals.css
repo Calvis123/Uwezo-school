@@ -122,6 +122,16 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Smooth focus transitions on all interactive elements */
+  a, button, input, select, textarea, [tabindex] {
+    transition: outline-color 0.15s ease, outline-offset 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* Smooth color transitions for dark/light mode changes */
+  *, *::before, *::after {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease, box-shadow 0.2s ease;
+  }
 }
 
 /* Custom scrollbar */
@@ -165,7 +175,7 @@
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* Focus ring for accessibility - enhanced */
+/* Focus ring for accessibility - enhanced teal outline */
 *:focus-visible {
   outline: 2px solid #0d9488;
   outline-offset: 2px;
@@ -232,4 +242,66 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Print media query - hide sidebar, header, navigation */
+@media print {
+  /* Hide sidebar */
+  [data-sidebar="sidebar"],
+  aside,
+  .fixed.inset-y-0.left-0 {
+    display: none !important;
+  }
+  
+  /* Hide header bar */
+  header,
+  [data-header="header"],
+  .sticky.top-0.z-30 {
+    display: none !important;
+  }
+  
+  /* Hide navigation elements */
+  nav,
+  .pagination,
+  button[aria-label="Page"],
+  [role="navigation"] {
+    display: none !important;
+  }
+  
+  /* Hide action buttons */
+  [data-print-hide],
+  .print-hide {
+    display: none !important;
+  }
+  
+  /* Ensure content takes full width */
+  main, .print-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Remove shadows and borders for cleaner print */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  /* Force light mode colors for print */
+  .dark {
+    --background: white;
+    --foreground: black;
+    --card: white;
+    --card-foreground: black;
+    --border: #e5e7eb;
+  }
+  
+  /* Remove background colors for print */
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

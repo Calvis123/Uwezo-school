@@ -24,6 +24,8 @@ model User {
   updatedAt       DateTime @updatedAt
 
   students        StudentGuardian[]
+  sentMessages    Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -248,6 +250,23 @@ model SchoolNotice {
   updatedAt       DateTime @updatedAt
 
   @@map("school_notices")
+}
+
+// ==================== MESSAGING ====================
+
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  subject     String
+  content     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@map("messages")
 }
 
 // ==================== CALENDAR ====================
