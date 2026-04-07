@@ -342,3 +342,97 @@ export const libraryApi = {
   returnBook: (issueId: string) =>
     request(`/api/library/issues/${issueId}/return`, { method: 'POST' }),
 }
+
+// Health Records
+export const healthApi = {
+  records: (params?: { page?: number; limit?: number; studentId?: string; recordType?: string; severity?: string; status?: string; search?: string; startDate?: string; endDate?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.studentId) searchParams.set('studentId', params.studentId)
+    if (params?.recordType) searchParams.set('recordType', params.recordType)
+    if (params?.severity) searchParams.set('severity', params.severity)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.startDate) searchParams.set('startDate', params.startDate)
+    if (params?.endDate) searchParams.set('endDate', params.endDate)
+    return request(`/api/health/records?${searchParams.toString()}`)
+  },
+  getRecord: (id: string) => request(`/api/health/records/${id}`),
+  createRecord: (data: any) =>
+    request('/api/health/records', { method: 'POST', body: JSON.stringify(data) }),
+  updateRecord: (id: string, data: any) =>
+    request(`/api/health/records/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRecord: (id: string) =>
+    request(`/api/health/records/${id}`, { method: 'DELETE' }),
+  conditions: (params?: { page?: number; limit?: number; studentId?: string; condition?: string; severity?: string; search?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.studentId) searchParams.set('studentId', params.studentId)
+    if (params?.condition) searchParams.set('condition', params.condition)
+    if (params?.severity) searchParams.set('severity', params.severity)
+    if (params?.search) searchParams.set('search', params.search)
+    return request(`/api/health/conditions?${searchParams.toString()}`)
+  },
+  createCondition: (data: any) =>
+    request('/api/health/conditions', { method: 'POST', body: JSON.stringify(data) }),
+  updateCondition: (id: string, data: any) =>
+    request(`/api/health/conditions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCondition: (id: string) =>
+    request(`/api/health/conditions/${id}`, { method: 'DELETE' }),
+  overview: () => request('/api/health/overview'),
+  studentHealth: (studentId: string) =>
+    request(`/api/health/records?studentId=${studentId}&limit=100`),
+}
+
+// Student Promotions
+export const promotionsApi = {
+  promote: (data: {
+    studentIds: string[]
+    fromClassId: string
+    toClassId: string
+    academicYear: string
+    term: string
+    promotedBy: string
+    notes?: string
+  }) =>
+    request('/api/students/promote', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  history: (params?: {
+    academicYear?: string
+    term?: string
+    status?: string
+    fromClassId?: string
+    toClassId?: string
+    page?: number
+    limit?: number
+    search?: string
+  }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.academicYear) searchParams.set('academicYear', params.academicYear)
+    if (params?.term) searchParams.set('term', params.term)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.fromClassId) searchParams.set('fromClassId', params.fromClassId)
+    if (params?.toClassId) searchParams.set('toClassId', params.toClassId)
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.search) searchParams.set('search', params.search)
+    return request(`/api/students/promotions?${searchParams.toString()}`)
+  },
+  approve: (id: string, notes?: string) =>
+    request(`/api/students/promotions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'APPROVED', notes }),
+    }),
+  complete: (id: string, notes?: string) =>
+    request(`/api/students/promotions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'COMPLETED', notes }),
+    }),
+  cancel: (id: string) =>
+    request(`/api/students/promotions/${id}`, { method: 'DELETE' }),
+  getConfig: () => request('/api/classes/promotion-config'),
+}

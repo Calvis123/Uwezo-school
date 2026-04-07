@@ -34,11 +34,13 @@ import {
   Banknote,
   Smartphone,
   Landmark,
+  HeartPulse,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { studentsApi, feesApi, academicsApi } from '@/lib/api'
+import { studentsApi, feesApi, academicsApi, healthApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -175,6 +177,9 @@ export function StudentDetail() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [payLoading, setPayLoading] = useState(false)
   const [regenPinLoading, setRegenPinLoading] = useState(false)
+  const [healthRecords, setHealthRecords] = useState<any[]>([])
+  const [healthConditions, setHealthConditions] = useState<any[]>([])
+  const [healthLoading, setHealthLoading] = useState(true)
 
   useEffect(() => {
     if (!selectedStudentId) return
@@ -225,12 +230,30 @@ export function StudentDetail() {
     }
   }, [selectedStudentId])
 
+  const loadHealth = useCallback(async () => {
+    if (!selectedStudentId) return
+    setHealthLoading(true)
+    try {
+      const [recordsRes, conditionsRes] = await Promise.all([
+        healthApi.records({ studentId: selectedStudentId, limit: 100 }),
+        healthApi.conditions({ studentId: selectedStudentId, limit: 100 }),
+      ])
+      if (recordsRes.success) setHealthRecords(recordsRes.data || [])
+      if (conditionsRes.success) setHealthConditions(conditionsRes.data || [])
+    } catch {
+      // silent
+    } finally {
+      setHealthLoading(false)
+    }
+  }, [selectedStudentId])
+
   useEffect(() => {
     if (student) {
       loadFeeLedger()
       loadAcademics()
+      loadHealth()
     }
-  }, [student, loadFeeLedger, loadAcademics])
+  }, [student, loadFeeLedger, loadAcademics, loadHealth])
 
   const handleCopyPin = () => {
     if (student?.resultsPin) {
@@ -453,6 +476,9 @@ export function StudentDetail() {
           </TabsTrigger>
           <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Fees
+          </TabsTrigger>
+          <TabsTrigger value="health" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
+            Health
           </TabsTrigger>
         </TabsList>
         </div>
@@ -1042,6 +1068,178 @@ export function StudentDetail() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        {/* Health Tab */}
+        <TabsContent value="health" className="mt-4 space-y-4">
+          {healthLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-32 w-full rounded-xl" />
+              <Skeleton className="h-64 w-full rounded-xl" />
+            </div>
+          ) : (
+            <>
+              {/* Health Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="w-4 h-4 text-amber-500" />
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Active Conditions</p>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                      {healthConditions.filter((c: any) => c.isChronic).length}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileText className="w-4 h-4 text-teal-500" />
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Total Records</p>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                      {healthRecords.length}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calendar className="w-4 h-4 text-sky-500" />
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Last Checkup</p>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {(() => {
+                        const checkup = [...healthRecords].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).find((r: any) => r.recordType === 'CHECKUP' || r.recordType === 'DENTAL' || r.recordType === 'EYE_EXAM')
+                        return checkup ? format(new Date(checkup.date), 'MMM d, yyyy') : 'None'
+                      })()}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Active Conditions */}
+              {healthConditions.length > 0 && (
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <HeartPulse className="w-4 h-4 text-teal-600" />
+                      Chronic Conditions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {healthConditions.map((c: any) => (
+                        <div key={c.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700">
+                          <div className="flex items-center gap-3">
+                            <div className={cn('w-2 h-2 rounded-full', c.severity === 'SEVERE' ? 'bg-red-500' : c.severity === 'MODERATE' ? 'bg-amber-500' : 'bg-green-500')} />
+                            <div>
+                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{c.condition.replace(/_/g, ' ')}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">{c.description ? (c.description.length > 60 ? c.description.slice(0, 60) + '...' : c.description) : 'No description'}</p>
+                            </div>
+                          </div>
+                          <Badge variant={c.isChronic ? 'default' : 'secondary'} className="text-[10px]">
+                            {c.severity}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent Health Records */}
+              <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-teal-600" />
+                      Recent Health Records
+                    </CardTitle>
+                    <span className="text-xs text-slate-400">{healthRecords.length} records</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {healthRecords.length > 0 ? (
+                    <div className="max-h-64 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Date</TableHead>
+                            <TableHead className="text-xs">Type</TableHead>
+                            <TableHead className="text-xs">Title</TableHead>
+                            <TableHead className="text-xs hidden sm:table-cell">Severity</TableHead>
+                            <TableHead className="text-xs hidden sm:table-cell">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {healthRecords.slice(0, 5).map((r: any) => {
+                            const severityConfig: Record<string, { dot: string; label: string }> = {
+                              MILD: { dot: 'bg-green-500', label: 'Mild' },
+                              MODERATE: { dot: 'bg-amber-500', label: 'Moderate' },
+                              SEVERE: { dot: 'bg-red-500', label: 'Severe' },
+                              CRITICAL: { dot: 'bg-rose-500', label: 'Critical' },
+                            }
+                            const statusConfig: Record<string, { color: string; label: string }> = {
+                              ACTIVE: { color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300', label: 'Active' },
+                              RESOLVED: { color: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300', label: 'Resolved' },
+                              ONGOING: { color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', label: 'Ongoing' },
+                              MONITORING: { color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300', label: 'Monitoring' },
+                            }
+                            const typeConfig: Record<string, { color: string; label: string }> = {
+                              ALLERGY: { color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300', label: 'Allergy' },
+                              ILLNESS: { color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300', label: 'Illness' },
+                              INJURY: { color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', label: 'Injury' },
+                              CHECKUP: { color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300', label: 'Checkup' },
+                              VACCINATION: { color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300', label: 'Vaccination' },
+                              DENTAL: { color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', label: 'Dental' },
+                              EYE_EXAM: { color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300', label: 'Eye Exam' },
+                              SPECIAL_NEED: { color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300', label: 'Special Need' },
+                            }
+                            const tc = typeConfig[r.recordType] || { color: 'bg-slate-100 text-slate-700', label: r.recordType }
+                            return (
+                              <TableRow key={r.id}>
+                                <TableCell className="text-xs text-slate-500">{format(new Date(r.date), 'MMM d, yyyy')}</TableCell>
+                                <TableCell><Badge className={cn('text-[10px]', tc.color)}>{tc.label}</Badge></TableCell>
+                                <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{r.title}</TableCell>
+                                <TableCell className="hidden sm:table-cell">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className={cn('w-1.5 h-1.5 rounded-full', severityConfig[r.severity]?.dot)} />
+                                    <span className="text-xs text-slate-500">{severityConfig[r.severity]?.label}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell">
+                                  <Badge className={cn('text-[10px]', statusConfig[r.status]?.color)}>{statusConfig[r.status]?.label}</Badge>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <HeartPulse className="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-2" />
+                      <p className="text-sm text-slate-500 dark:text-slate-400">No health records found</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* View Full Health Records Button */}
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  className="gap-2 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 border-teal-200 dark:border-teal-800"
+                  onClick={() => navigateTo('health')}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View Full Health Records
+                </Button>
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

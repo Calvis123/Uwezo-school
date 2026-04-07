@@ -20,10 +20,12 @@ import {
   School,
   BarChart3,
   Activity,
+  HeartPulse,
   Phone,
   Mail,
   BookOpen,
   Bus,
+  ArrowUpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -54,6 +56,7 @@ const navItems = [
   { id: 'users', label: 'Users', icon: Users, adminOnly: true },
   { id: 'students', label: 'Students', icon: GraduationCap },
   { id: 'classes', label: 'Classes', icon: School },
+  { id: 'promotions', label: 'Promotions', icon: ArrowUpCircle, adminOnly: true },
   { id: 'teacher-dashboard', label: 'Teachers View', icon: GraduationCap, teacherOnly: true },
   { id: 'fees', label: 'Fees', icon: DollarSign },
   { id: 'export', label: 'Export', icon: Download },
@@ -66,6 +69,7 @@ const navItems = [
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'notices', label: 'Notices', icon: Bell },
   { id: 'library', label: 'Library', icon: BookOpen },
+  { id: 'health', label: 'Health', icon: HeartPulse },
   { id: 'activity', label: 'Activity', icon: Activity },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -242,11 +246,13 @@ const viewInfo: Record<string, { title: string; breadcrumbs?: string[] }> = {
   calendar: { title: 'Calendar', breadcrumbs: ['Dashboard', 'Calendar'] },
   analytics: { title: 'Analytics', breadcrumbs: ['Dashboard', 'Analytics'] },
   classes: { title: 'Class Management', breadcrumbs: ['Dashboard', 'Classes'] },
+  promotions: { title: 'Student Promotion', breadcrumbs: ['Dashboard', 'Promotions'] },
   messages: { title: 'Messages', breadcrumbs: ['Dashboard', 'Messages'] },
   'teacher-dashboard': { title: 'Teachers View', breadcrumbs: ['Dashboard', 'Teachers View'] },
   notices: { title: 'Notices', breadcrumbs: ['Dashboard', 'Notices'] },
   activity: { title: 'Activity Feed', breadcrumbs: ['Dashboard', 'Activity'] },
   library: { title: 'Library', breadcrumbs: ['Dashboard', 'Library'] },
+  health: { title: 'Health Records', breadcrumbs: ['Dashboard', 'Health'] },
   transport: { title: 'Transport', breadcrumbs: ['Dashboard', 'Transport'] },
   settings: { title: 'Settings', breadcrumbs: ['Dashboard', 'Settings'] },
 }

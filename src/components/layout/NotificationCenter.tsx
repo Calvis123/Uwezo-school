@@ -66,15 +66,19 @@ const typeConfig: Record<
     darkBgColor: string
     ringColor: string
     label: string
+    borderColor: string
+    hoverBorder: string
   }
 > = {
   PAYMENT: {
     icon: DollarSign,
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bgColor: 'bg-emerald-50',
-    darkBgColor: 'dark:bg-emerald-900/30',
-    ringColor: 'ring-emerald-500/20',
+    color: 'text-teal-600 dark:text-teal-400',
+    bgColor: 'bg-teal-50',
+    darkBgColor: 'dark:bg-teal-900/30',
+    ringColor: 'ring-teal-500/20',
     label: 'Fee Payment',
+    borderColor: 'border-l-teal-500',
+    hoverBorder: 'hover:border-l-teal-400',
   },
   ATTENDANCE: {
     icon: ClipboardCheck,
@@ -83,6 +87,8 @@ const typeConfig: Record<
     darkBgColor: 'dark:bg-amber-900/30',
     ringColor: 'ring-amber-500/20',
     label: 'Attendance',
+    borderColor: 'border-l-amber-500',
+    hoverBorder: 'hover:border-l-amber-400',
   },
   MESSAGE: {
     icon: MessageSquare,
@@ -91,6 +97,8 @@ const typeConfig: Record<
     darkBgColor: 'dark:bg-sky-900/30',
     ringColor: 'ring-sky-500/20',
     label: 'Message',
+    borderColor: 'border-l-sky-500',
+    hoverBorder: 'hover:border-l-sky-400',
   },
   EXAM: {
     icon: FileText,
@@ -99,6 +107,8 @@ const typeConfig: Record<
     darkBgColor: 'dark:bg-violet-900/30',
     ringColor: 'ring-violet-500/20',
     label: 'Exam Results',
+    borderColor: 'border-l-violet-500',
+    hoverBorder: 'hover:border-l-violet-400',
   },
   NOTICE: {
     icon: BellRing,
@@ -107,6 +117,8 @@ const typeConfig: Record<
     darkBgColor: 'dark:bg-teal-900/30',
     ringColor: 'ring-teal-500/20',
     label: 'Notice',
+    borderColor: 'border-l-teal-500',
+    hoverBorder: 'hover:border-l-teal-400',
   },
   SYSTEM: {
     icon: Settings,
@@ -115,6 +127,8 @@ const typeConfig: Record<
     darkBgColor: 'dark:bg-slate-800/30',
     ringColor: 'ring-slate-500/20',
     label: 'System',
+    borderColor: 'border-l-slate-400',
+    hoverBorder: 'hover:border-l-slate-400',
   },
 }
 
@@ -199,10 +213,11 @@ function NotificationItem({
       layout
       onClick={() => onClick(notification)}
       className={cn(
-        'w-full flex items-start gap-3 px-4 py-3 text-left transition-all duration-200 relative group rounded-lg mx-1 my-0.5',
+        'w-full flex items-start gap-3 px-4 py-3 text-left transition-all duration-200 relative group rounded-lg mx-1 my-0.5 border-l-[3px]',
+        config.borderColor,
         isUnread
-          ? 'bg-teal-50/60 dark:bg-teal-900/15 hover:bg-teal-50 dark:hover:bg-teal-900/25'
-          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
+          ? `bg-teal-50/60 dark:bg-teal-900/15 ${config.hoverBorder} dark:hover:border-l-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/25`
+          : `${config.hoverBorder} dark:hover:border-l-teal-400 hover:bg-slate-50/80 dark:hover:bg-slate-800/50`
       )}
     >
       {/* Unread indicator dot */}
@@ -385,6 +400,7 @@ export function NotificationCenter() {
   const [loading, setLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [markingRead, setMarkingRead] = useState<string | null>(null)
+  const [confirmMarkAll, setConfirmMarkAll] = useState(false)
   const { user, setNotificationCount, setCurrentView } = useAppStore()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hasFetchedRef = useRef(false)
@@ -436,6 +452,7 @@ export function NotificationCenter() {
       }))
       setUnreadCount(0)
       setNotificationCount(0)
+      setConfirmMarkAll(false)
     } catch {
       // Silent fail - will re-sync on next poll
     }
@@ -535,16 +552,36 @@ export function NotificationCenter() {
               </p>
             </div>
           </div>
-          {unreadCount > 0 && (
+          {unreadCount > 0 && !confirmMarkAll && (
             <Button
               variant="ghost"
               size="sm"
               className="h-7 text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 font-medium gap-1 transition-all duration-200"
-              onClick={handleMarkAllRead}
+              onClick={() => setConfirmMarkAll(true)}
             >
               <CheckCheck className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Mark all read</span>
             </Button>
+          )}
+          {unreadCount > 0 && confirmMarkAll && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 font-medium gap-1 transition-all duration-200"
+                onClick={handleMarkAllRead}
+              >
+                Confirm
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all duration-200"
+                onClick={() => setConfirmMarkAll(false)}
+              >
+                Cancel
+              </Button>
+            </div>
           )}
         </motion.div>
 

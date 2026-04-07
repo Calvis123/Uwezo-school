@@ -80,7 +80,7 @@ interface StudentRow {
 }
 
 export function StudentList() {
-  const { navigateTo, classes, setClasses } = useAppStore()
+  const { navigateTo, classes, setClasses, user } = useAppStore()
   const [students, setStudents] = useState<StudentRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -385,6 +385,16 @@ export function StudentList() {
               <DropdownMenuItem onClick={() => toast.info('Select students first')}>
                 <FileDown className="w-4 h-4 mr-2" />
                 Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') {
+                  navigateTo('promotions')
+                } else {
+                  toast.error('Only administrators can promote students')
+                }
+              }}>
+                <GraduationCap className="w-4 h-4 mr-2" />
+                Promote
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => toast.info('Select students first')} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">

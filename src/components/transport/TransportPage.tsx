@@ -15,6 +15,8 @@ import {
   X,
   AlertTriangle,
   RefreshCw,
+  Wrench,
+  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -139,14 +141,20 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   ACTIVE: {
     label: 'Active',
     className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    icon: CheckCircle2,
+    dot: 'bg-emerald-500',
   },
   INACTIVE: {
     label: 'Inactive',
     className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+    icon: X,
+    dot: 'bg-slate-400',
   },
   MAINTENANCE: {
     label: 'Maintenance',
     className: 'bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    icon: Wrench,
+    dot: 'bg-amber-500',
   },
 }
 
@@ -524,26 +532,31 @@ export function TransportPage() {
                             </div>
                           </div>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className={cn('text-[10px] font-medium', sc.className)}
-                        >
-                          {sc.label}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn('w-2 h-2 rounded-full', sc.dot)} />
+                          <Badge
+                            variant="secondary"
+                            className={cn('text-[10px] font-medium', sc.className)}
+                          >
+                            {sc.label}
+                          </Badge>
+                        </div>
                       </div>
 
                       {/* Driver Info */}
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                          <User className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                          <span className="font-medium">{bus.driverName}</span>
+                      <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-700/20 mb-4">
+                        <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                         </div>
-                        {bus.driverPhone && (
-                          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                            <Phone className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                            <span>{bus.driverPhone}</span>
-                          </div>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{bus.driverName}</p>
+                          {bus.driverPhone && (
+                            <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3" />
+                              {bus.driverPhone}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Capacity Progress */}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import { Loader2, Save, Building2, GraduationCap, Globe, CreditCard, Shield, School, Calendar, CheckCircle2, Palette, Bell, Lock, User } from 'lucide-react'
+import { Loader2, Save, Building2, GraduationCap, Globe, CreditCard, Shield, School, Calendar, CheckCircle2, Palette, Bell, Lock, User, Check } from 'lucide-react'
 import { settingsApi } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
@@ -365,9 +365,10 @@ export function SettingsPage() {
             <CardContent className="space-y-3">
               <div className="space-y-2">
                 {[
-                  { icon: Palette, label: 'Theme', desc: 'System default', bg: 'bg-purple-50 dark:bg-purple-900/30', color: 'text-purple-600 dark:text-purple-400' },
-                  { icon: Bell, label: 'Notifications', desc: 'Enabled for all events', bg: 'bg-teal-50 dark:bg-teal-900/30', color: 'text-teal-600 dark:text-teal-400' },
-                  { icon: Globe, label: 'Language', desc: 'English (default)', bg: 'bg-sky-50 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
+                  { icon: Palette, label: 'Theme', desc: 'System default', bg: 'bg-purple-50 dark:bg-purple-900/30', color: 'text-purple-600 dark:text-purple-400', toggle: false },
+                  { icon: Bell, label: 'Notifications', desc: 'Enabled for all events', bg: 'bg-teal-50 dark:bg-teal-900/30', color: 'text-teal-600 dark:text-teal-400', toggle: true, on: true },
+                  { icon: Globe, label: 'Language', desc: 'English (default)', bg: 'bg-sky-50 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400', toggle: false },
+                  { icon: Bell, label: 'Email Alerts', desc: 'Payment & attendance alerts', bg: 'bg-amber-50 dark:bg-amber-900/30', color: 'text-amber-600 dark:text-amber-400', toggle: true, on: false },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                     <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center', item.bg)}>
@@ -375,8 +376,27 @@ export function SettingsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.label}</p>
-                      <p className="text-xs text-slate-400">{item.desc}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{item.desc}</p>
                     </div>
+                    {item.toggle ? (
+                      <button
+                        className={cn(
+                          'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-teal-500 focus-visible:outline-offset-2',
+                          item.on ? 'bg-teal-500' : 'bg-slate-200 dark:bg-slate-600'
+                        )}
+                        role="switch"
+                        aria-checked={item.on ? 'true' : 'false'}
+                      >
+                        <span
+                          className={cn(
+                            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ease-in-out',
+                            item.on ? 'translate-x-5' : 'translate-x-0'
+                          )}
+                        >
+                          {item.on && <Check className="w-3 h-3 text-teal-500 m-[3px]" />}
+                        </span>
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -448,11 +468,16 @@ export function SettingsPage() {
           disabled={saving}
         >
           {saving ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
           ) : (
-            <Save className="w-4 h-4 mr-2" />
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Save Settings
+            </>
           )}
-          Save Settings
         </Button>
       </motion.div>
     </div>

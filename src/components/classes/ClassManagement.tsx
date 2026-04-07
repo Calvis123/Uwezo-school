@@ -15,10 +15,12 @@ import {
   X,
   UsersRound,
   BarChart3,
+  ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { studentsApi, usersApi } from '@/lib/api'
+import { useAppStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -168,6 +170,7 @@ const statusConfig: Record<string, { className: string; label: string }> = {
 // ==================== Main Component ====================
 
 export function ClassManagement() {
+  const { navigateTo, user } = useAppStore()
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -432,13 +435,25 @@ export function ClassManagement() {
             Manage classes, assign teachers, and track enrollment
           </p>
         </div>
-        <Button
-          className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm h-9"
-          onClick={openCreateForm}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Class
-        </Button>
+        <div className="flex gap-2">
+          {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+            <Button
+              variant="outline"
+              className="h-9 gap-1.5 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-900/30"
+              onClick={() => navigateTo('promotions')}
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Promote Students</span>
+            </Button>
+          )}
+          <Button
+            className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm h-9"
+            onClick={openCreateForm}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Class
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

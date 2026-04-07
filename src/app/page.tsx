@@ -26,7 +26,9 @@ import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
 import { ActivityFeed } from '@/components/activity/ActivityFeed'
 import { FeesPage } from '@/components/fees/FeesPage'
 import { ClassReport } from '@/components/reports/ClassReport'
+import { StudentPromotion } from '@/components/students/StudentPromotion'
 import { LibraryPage } from '@/components/library/LibraryPage'
+import { HealthRecords } from '@/components/health/HealthRecords'
 import { TransportPage } from '@/components/transport/TransportPage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -49,12 +51,14 @@ function ViewRouter() {
     'mark-entry': <MarkEntry />,
     'report-cards': <ReportCards />,
     'class-reports': <ClassReport />,
+    promotions: <StudentPromotion />,
     attendance: <AttendanceMarking />,
     calendar: <CalendarView />,
     'teacher-dashboard': <TeacherDashboard />,
     messages: <MessagingPage />,
     notices: <NoticeList />,
     library: <LibraryPage />,
+    health: <HealthRecords />,
     transport: <TransportPage />,
     activity: <ActivityFeed />,
     settings: <SettingsPage />,

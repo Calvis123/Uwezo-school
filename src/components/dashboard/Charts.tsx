@@ -17,6 +17,7 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BarChart3, PieChart as PieChartIcon, TrendingUp } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
 const COLORS = ['#0d9488', '#f59e0b', '#22c55e', '#ef4444', '#6366f1', '#ec4899', '#14b8a6', '#f97316']
@@ -29,6 +30,13 @@ interface ChartsProps {
   genderData: { name: string; value: number }[]
   feeTrendData: { month: string; collected: number; outstanding: number }[]
   loading: boolean
+}
+
+// Format large numbers: 150000 → 150K, 1500000 → 1.5M
+function formatYAxis(value: number): string {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
+  if (value >= 1000) return `${Math.round(value / 1000)}K`
+  return String(value)
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -95,6 +103,36 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
 
   const displayClassData = classData.slice(0, 10)
 
+  // Empty state when no data
+  const hasNoData = displayClassData.length === 0 && genderData.length === 0 && feeTrendData.length === 0
+
+  if (hasNoData) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {[{ icon: BarChart3, label: 'Students per Class' }, { icon: PieChartIcon, label: 'Gender Distribution' }, { icon: TrendingUp, label: 'Fee Collection Trend' }].map((chart, i) => (
+          <motion.div
+            key={chart.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 + i * 0.1 }}
+          >
+            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 h-full transition-all duration-300 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden">
+              <CardHeader className="pb-2 pt-5 px-5">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">{chart.label}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="h-16 w-16 rounded-2xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mb-3">
+                  <chart.icon className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                </div>
+                <p className="text-sm text-slate-400 dark:text-slate-500">No data available</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    )
+  }
+
   const truncatedClassData = displayClassData.map((c) => ({
     ...c,
     name: c.name.length > 10 ? c.name.slice(0, 9) + '…' : c.name,
@@ -129,7 +167,7 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                     textAnchor="end"
                     height={60}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: axisTickFill }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: axisTickFill }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: cursorFill, radius: 4 }} />
                   <Bar dataKey="students" name="Students" fill="#0d9488" radius={[6, 6, 0, 0]} barSize={20} />
                 </BarChart>
@@ -219,7 +257,7 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                     axisLine={{ stroke: axisLineStroke }}
                     tickLine={false}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: axisTickFill }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: axisTickFill }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
                   <Tooltip
                     content={<CustomTooltip />}
                     formatter={(value: number) => [`KES ${value.toLocaleString()}`, '']}

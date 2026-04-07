@@ -19,6 +19,7 @@ import {
   Landmark,
   CalendarDays,
   BarChart3,
+  TrendingUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
@@ -513,6 +514,21 @@ function AdminDashboard() {
                   <div className="text-left">
                     <p className="text-sm font-medium">M-Pesa Payment</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">Process mobile money payment</p>
+                  </div>
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-700 dark:hover:text-teal-300 hover:border-teal-200 dark:hover:border-teal-800 transition-colors"
+                  onClick={() => navigateTo('promotions')}
+                >
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-teal-100 to-amber-100 dark:from-teal-900/40 dark:to-amber-900/40 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Promote Students</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">End of term promotions</p>
                   </div>
                 </Button>
               </motion.div>

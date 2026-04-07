@@ -308,6 +308,11 @@ export function ActivityFeed() {
                       <div className="flex items-start gap-3 p-4">
                         {/* Timeline Dot */}
                         <div className="relative flex-shrink-0">
+                          {/* Colored ring matching activity type */}
+                          <div className={cn(
+                            'absolute -inset-1 rounded-full z-0 opacity-40',
+                            config.bgColor
+                          )} />
                           {/* Avatar with initials */}
                           <div className={cn(
                             'w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-slate-900 z-10',

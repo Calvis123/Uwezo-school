@@ -179,9 +179,10 @@ const formatRelative = (dateStr: string) => {
 
   if (mins < 1) return 'Just now'
   if (mins < 60) return `${mins}m ago`
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24 && new Date(dateStr).toDateString() === now.toDateString()) return format(date, 'h:mm a')
+  if (days < 2) return 'Yesterday'
   if (days < 7) return `${days}d ago`
-  return format(date, 'MMM d, yyyy')
+  return format(date, 'MMM d')
 }
 
 // ---- Component ----
@@ -944,7 +945,7 @@ export function MessagingPage() {
                           )}>
                             {msg.subject}
                           </p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5 leading-relaxed">
+                          <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5 leading-relaxed line-clamp-2">
                             {msg.content}
                           </p>
                         </div>

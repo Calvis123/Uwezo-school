@@ -19,7 +19,6 @@ import {
   Clock,
   Trash2,
   Sparkles,
-  GraduationCapIcon,
   School,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -211,6 +210,23 @@ const API_CATEGORY_ORDER = ['students', 'users', 'classes', 'notices'] as const
 function formatCurrency(amount: number): string {
   if (amount === 0) return 'Paid'
   return `KES ${amount.toLocaleString()}`
+}
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>
+  const lowerText = text.toLowerCase()
+  const lowerQuery = query.toLowerCase()
+  const idx = lowerText.indexOf(lowerQuery)
+  if (idx === -1) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 rounded px-0.5">
+        {text.slice(idx, idx + query.length)}
+      </span>
+      {text.slice(idx + query.length)}
+    </>
+  )
 }
 
 function loadRecentSearches(): RecentSearch[] {
@@ -458,7 +474,7 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-700/80 shadow-2xl shadow-black/10 dark:shadow-black/40 rounded-xl">
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200/80 dark:border-slate-700/80 shadow-2xl shadow-black/10 dark:shadow-black/40 rounded-xl [&>button]:hidden">
         <DialogTitle className="sr-only">Global Search</DialogTitle>
 
         {/* ── Search Input ─────────────────────────────────────── */}
@@ -468,7 +484,7 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
             ref={inputRef}
             type="text"
             placeholder="Search students, classes, navigate anywhere..."
-            className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
+            className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none ring-0 focus:ring-0 transition-all duration-300"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -718,7 +734,7 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
                                   ? 'text-teal-700 dark:text-teal-300'
                                   : 'text-slate-900 dark:text-slate-100'
                               )}>
-                                {item.name}
+                                <HighlightedText text={item.name} query={query} />
                               </p>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 {item.type === 'student' && (

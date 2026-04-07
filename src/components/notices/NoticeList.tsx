@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
-import { Bell, Plus, Calendar, Tag, ChevronDown, ChevronUp, Eye, EyeOff, Megaphone, Users, GraduationCap, UserCheck, ShieldCheck, Pin, BookOpen, AlertTriangle, Trophy } from 'lucide-react'
+import { Bell, Plus, Calendar, Tag, ChevronDown, ChevronUp, Eye, EyeOff, Megaphone, Users, GraduationCap, UserCheck, ShieldCheck, Pin, BookOpen, AlertTriangle, Trophy, Newspaper, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { noticesApi } from '@/lib/api'
@@ -124,6 +124,23 @@ export function NoticeList() {
     URGENT: 'border-l-red-500',
   }
 
+  const statusBadge = (notice: Notice) => {
+    if (notice.isPublished) {
+      return (
+        <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
+          <CheckCircle2 className="w-3 h-3" />
+          Published
+        </span>
+      )
+    }
+    return (
+      <span className="flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-1.5 py-0.5 rounded-full">
+        <XCircle className="w-3 h-3" />
+        Draft
+      </span>
+    )
+  }
+
   const categoryIcons: Record<string, React.ReactNode> = {
     GENERAL: <Megaphone className="w-3 h-3" />,
     ACADEMIC: <BookOpen className="w-3 h-3" />,
@@ -220,7 +237,7 @@ export function NoticeList() {
                 className="inline-block"
               >
                 <div className="h-16 w-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                  <Megaphone className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                  <Newspaper className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                 </div>
               </motion.div>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No notices published yet</p>
@@ -279,6 +296,7 @@ export function NoticeList() {
                                   <Pin className="w-2.5 h-2.5" />
                                   Pinned
                                 </Badge>
+                                {statusBadge(notice)}
                                 <Badge variant="secondary" className={cn('text-[10px] font-medium gap-1', audience.className)}>
                                   <AudienceIcon className="w-3 h-3" />
                                   {audience.label}
@@ -303,7 +321,7 @@ export function NoticeList() {
                               </h3>
                               <p className={cn(
                                 'text-sm text-slate-500 dark:text-slate-400 mt-1',
-                                expandedId === notice.id ? '' : 'line-clamp-2'
+                                expandedId === notice.id ? '' : 'line-clamp-3'
                               )}>
                                 {notice.content}
                               </p>
@@ -400,6 +418,7 @@ export function NoticeList() {
                                 <Badge variant="secondary" className={cn('text-[10px] font-medium gap-1', categoryColors[notice.category] || '')}>
                                   {categoryIcons[notice.category]} {notice.category}
                                 </Badge>
+                                {statusBadge(notice)}
                                 <Badge variant="secondary" className={cn('text-[10px] font-medium gap-1', audience.className)}>
                                   <AudienceIcon className="w-3 h-3" />
                                   {audience.label}
@@ -419,7 +438,7 @@ export function NoticeList() {
                               </h3>
                               <p className={cn(
                                 'text-sm text-slate-500 dark:text-slate-400 mt-1',
-                                expandedId === notice.id ? '' : 'line-clamp-2'
+                                expandedId === notice.id ? '' : 'line-clamp-3'
                               )}>
                                 {notice.content}
                               </p>

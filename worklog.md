@@ -656,6 +656,126 @@ Improve the visual styling of ALL existing pages with more detail, polish, and p
 3. `/src/components/dashboard/Charts.tsx` — Better shadows, rounded corners, enhanced tooltips
 4. `/src/components/students/StudentList.tsx` — Row numbers, fees due, wider search, bulk actions, pagination
 5. `/src/components/auth/LoginPage.tsx` — School building CSS, version badge, divider, password toggle
+
+---
+## Task ID: 7-student-promotion
+Agent: Full-stack Developer
+Task: Build Student Promotion/Graduation feature for the Olives School Management System
+
+### Work Task
+Implement a comprehensive student promotion management system with database model, API routes, frontend wizard, and integration points across the application.
+
+### Work Summary
+
+#### 1. Database Schema (`/prisma/schema.prisma`)
+- Added `PromotionRecord` model with fields: id, studentId, fromClassId, toClassId, academicYear, term, status, promotedBy, notes, completedAt, timestamps
+- Status enum: PENDING → APPROVED → COMPLETED
+- Added relations to `Student` model: `promotions PromotionRecord[]`
+- Added relations to `SchoolClass` model: `promotionsFrom` and `promotionsTo` (named relations)
+- Added indexes on studentId, academicYear, status
+- Pushed schema with `bunx prisma db push` and generated client
+
+#### 2. API Routes Created
+
+**`/src/app/api/students/promote/route.ts`** — POST
+- Validates required fields (studentIds, fromClassId, toClassId, academicYear, term, promotedBy)
+- Validates source/target classes exist and are different
+- Validates students are active in source class
+- Checks target class capacity warnings
+- Creates PromotionRecord entries for each valid student
+- Updates student classId to new class
+- Returns summary with promoted count, errors, capacity info
+
+**`/src/app/api/students/promotions/route.ts`** — GET
+- Lists promotion records with student/class names
+- Filters: academicYear, term, status, fromClassId, toClassId, search (by student name/admission number)
+- Pagination support (page, limit)
+- Returns stats: totalPromotions, pending, approved, completed
+- Resolves promotedBy user names
+
+**`/src/app/api/students/promotions/[id]/route.ts`** — PUT + DELETE
+- PUT: Update status (APPROVE/COMPLETE), add notes, set completedAt on completion
+- DELETE: Cancel promotion, revert student class if status was COMPLETED
+
+**`/src/app/api/classes/promotion-config/route.ts`** — GET
+- Returns class hierarchy ordered by level (PP1 → PP2 → NURSERY → GRADE_1 → ... → JSS_3)
+- Returns promotion suggestions based on level hierarchy
+- Returns allClasses with studentCount and nextClassSuggestion
+
+#### 3. API Client (`/src/lib/api.ts`)
+- Added `promotionsApi` with methods: promote(), history(), approve(), complete(), cancel(), getConfig()
+
+#### 4. Seed Data (`/scripts/seed-promotions.ts`)
+- Created 10 historical promotion records from 2024 academic year
+- 8 COMPLETED promotions (various class-to-class transfers)
+- 2 APPROVED promotions (awaiting final clearance)
+- Uses real students and admin user from database
+
+#### 5. Frontend Component (`/src/components/students/StudentPromotion.tsx`)
+~800-line comprehensive promotion management page with:
+
+**Page Header**: Title with GraduationCap icon, description, "New Promotion" button (admin only)
+
+**Stats Cards (4)**: Total Promotions (teal), This Year (sky), Pending Approval (amber), Completed (green)
+
+**Promotion Suggestions Section**: Card showing level-based promotion suggestions with clickable buttons showing student counts
+
+**New Promotion Wizard (5-step Dialog)**:
+- Step indicator with numbered circles and connecting lines
+- Step 1: Select Source Class (dropdown with student counts)
+- Step 2: Select Target Class (dropdown with capacity info, capacity warning, academic year/term selection)
+- Step 3: Select Students (checkbox list with search, select all, gender badges)
+- Step 4: Review & Confirm (summary, notes textarea, student list)
+- Step 5: Success (promoted count, warnings if any)
+- Framer-motion step transitions
+
+**Promotion History Table**:
+- Columns: Student (name + admission), From, To, Year, Term, Status (badge), Promoted By, Actions
+- Status badges: PENDING=amber, APPROVED=sky, COMPLETED=green
+- Filters: Year, Term, Status, student search
+- Actions dropdown: View Details, Approve, Complete, Cancel (with confirmation)
+
+**Access Control**:
+- SUPER_ADMIN/ADMIN: Create, approve, complete, cancel promotions
+- TEACHER: View promotion history only
+- PARENT: Cannot access promotions page
+
+**Dark mode support**, responsive design, loading skeletons, empty states
+
+#### 6. Integration Points
+
+**`/src/app/page.tsx`**: Added `StudentPromotion` import and `'promotions'` case in ViewRouter
+
+**`/src/components/students/StudentList.tsx`**: Added "Promote" option to Bulk Actions dropdown (navigates to promotions page, admin-only with error toast for non-admins)
+
+**`/src/components/classes/ClassManagement.tsx`**: Added "Promote Students" button in header (admin-only, teal outline button with ArrowRight icon)
+
+**`/src/components/dashboard/DashboardHome.tsx`**: Added "Promote Students" quick action card in Quick Actions section (with TrendingUp icon, "End of term promotions" subtitle)
+
+#### Quality
+- `bun run lint` — ✅ Zero errors, zero warnings
+- Dev server compiles and runs successfully
+- 10 seed promotion records created in database
+
+#### Files Created
+1. `/src/app/api/students/promote/route.ts` — Promotion POST API
+2. `/src/app/api/students/promotions/route.ts` — Promotions list GET API
+3. `/src/app/api/students/promotions/[id]/route.ts` — Promotion update/delete API
+4. `/src/app/api/classes/promotion-config/route.ts` — Class hierarchy config API
+5. `/scripts/seed-promotions.ts` — Historical promotion seed data
+6. `/src/components/students/StudentPromotion.tsx` — Frontend promotion management page
+
+#### Files Modified
+1. `/prisma/schema.prisma` — Added PromotionRecord model and relations
+2. `/src/lib/api.ts` — Added `promotionsApi`
+3. `/src/app/page.tsx` — Added StudentPromotion view router
+4. `/src/components/students/StudentList.tsx` — Added "Promote" bulk action + user destructure
+5. `/src/components/classes/ClassManagement.tsx` — Added "Promote Students" button + imports
+6. `/src/components/dashboard/DashboardHome.tsx` — Added "Promote Students" quick action + TrendingUp importnds, hover/tap animations, enhanced trends
+2. `/src/components/dashboard/DashboardHome.tsx` — Today's Summary, alternating payments, method icons, bounce actions
+3. `/src/components/dashboard/Charts.tsx` — Better shadows, rounded corners, enhanced tooltips
+4. `/src/components/students/StudentList.tsx` — Row numbers, fees due, wider search, bulk actions, pagination
+5. `/src/components/auth/LoginPage.tsx` — School building CSS, version badge, divider, password toggle
 6. `/src/components/layout/DashboardLayout.tsx` — Glass sidebar, nav transitions, notification bell, top border
 7. `/src/app/globals.css` — Table styles, focus-visible, responsive, accessibility, number spinners
 
@@ -2628,3 +2748,92 @@ Stage Summary:
 - 3 styling improvements: Login polish, footer enhancement, global CSS
 - All 18 pages render correctly with zero errors
 - ESLint clean (0 errors, 0 warnings)
+
+---
+## Task ID: 7-health-records
+Agent: Full-stack Developer
+Task: Build Student Health Records Module for Olives School Management System
+
+### Work Task
+Implement a comprehensive health records module with CRUD operations for health records and chronic conditions, school-wide health overview dashboard, student health tab integration, and seed data with realistic Kenyan health information.
+
+### Work Summary
+
+#### 1. Database Schema Update (`prisma/schema.prisma`)
+- Added `HealthRecord` model with fields: studentId, recordType (8 types), title, description, date, severity, status, treatedBy, attachments, followUpDate
+- Added `HealthCondition` model with fields: studentId, condition (10 types), description, severity, isChronic, diagnosedDate, notes
+- Added `healthRecords` and `healthConditions` relations to Student model
+- Ran `bunx prisma db push` and `bunx prisma generate` successfully
+
+#### 2. Seed Data (`/scripts/seed-health.ts`)
+- Created seed script with realistic Kenyan health data
+- Seeded 72 health records across 35 students including:
+  - Allergies (penicillin, dust, pollen, peanuts, milk, egg)
+  - Illnesses (malaria, typhoid, influenza, chickenpox, pneumonia, conjunctivitis, etc.)
+  - Injuries (cuts, sprains, fractures, head bumps, bruises)
+  - Checkups (annual, dental, eye exams, hearing tests, growth monitoring)
+  - Vaccinations (BCG, OPV, DPT, measles, HPV, COVID-19, yellow fever, hepatitis B)
+- Seeded 15 chronic health conditions:
+  - 5 asthma cases, 2 diabetes, 2 allergies, 1 sickle cell, 1 epilepsy, 1 heart condition, 1 ADHD, 1 vision, 1 hearing
+
+#### 3. API Routes Created (6 files)
+- **`/src/app/api/health/records/route.ts`** — GET (list with filters, search, pagination, aggregated stats) + POST (create)
+- **`/src/app/api/health/records/[id]/route.ts`** — GET + PUT + DELETE for individual records
+- **`/src/app/api/health/conditions/route.ts`** — GET (list with filters, search, stats) + POST (create)
+- **`/src/app/api/health/conditions/[id]/route.ts`** — GET + PUT + DELETE for individual conditions
+- **`/src/app/api/health/overview/route.ts`** — GET (school-wide health overview with aggregations)
+
+#### 4. API Client (`/src/lib/api.ts`)
+- Added `healthApi` with methods: records(), getRecord(), createRecord(), updateRecord(), deleteRecord(), conditions(), createCondition(), updateCondition(), deleteCondition(), overview(), studentHealth()
+
+#### 5. Frontend Component (`/src/components/health/HealthRecords.tsx`)
+Comprehensive 1300+ line component with:
+- **Health Alert Banner**: Shows upcoming follow-ups count or "All clear" message
+- **Records Tab**:
+  - 4 animated stat cards (Total Records, Active Conditions, Upcoming Follow-ups, This Month Visits)
+  - Search + Record Type + Severity + Status filters with clear button
+  - Records table with: Date, Student (name + admission#), Type (color-coded badge), Title, Severity (color dot + label), Status badge, Actions menu
+  - Add Record dialog with full form (student select, type, title, description, date, severity, status, treated by, follow-up date)
+  - View Details dialog with all record info
+  - Pagination with page controls
+  - Loading skeletons and empty states
+- **Conditions Tab (Chronic Conditions)**:
+  - 3 stat cards (Students with Conditions, Conditions by Type, Severe Cases)
+  - Conditions table: Student, Condition (colored badge), Severity, Chronic, Diagnosed Date, Notes, Actions
+  - Add/Edit condition dialogs
+  - Search and filter with condition type dropdown
+  - Loading skeletons and empty states
+- Color-coded badges: 8 record types, 4 severity levels, 4 status types, 10 condition types
+- Motion animations on stat cards (whileHover, whileTap)
+
+#### 6. Integration
+- **DashboardLayout.tsx**: Added `HeartPulse` icon, "Health" nav item between Library and Activity, breadcrumbs entry
+- **page.tsx**: Added `HealthRecords` import and `'health'` case in ViewRouter
+- **StudentDetail.tsx**: Added "Health" tab with:
+  - 3 summary cards (Active Conditions, Total Records, Last Checkup)
+  - Chronic conditions list with severity indicators
+  - Recent health records table (last 5)
+  - "View Full Health Records" button linking to health module
+  - Loading skeletons
+
+#### Files Created
+1. `/scripts/seed-health.ts` — Health seed data script
+2. `/src/app/api/health/records/route.ts` — Records list/create API
+3. `/src/app/api/health/records/[id]/route.ts` — Single record CRUD API
+4. `/src/app/api/health/conditions/route.ts` — Conditions list/create API
+5. `/src/app/api/health/conditions/[id]/route.ts` — Single condition CRUD API
+6. `/src/app/api/health/overview/route.ts` — School-wide health overview API
+7. `/src/components/health/HealthRecords.tsx` — Main health records component
+
+#### Files Modified
+1. `/prisma/schema.prisma` — Added HealthRecord + HealthCondition models + Student relations
+2. `/src/lib/api.ts` — Added healthApi
+3. `/src/components/layout/DashboardLayout.tsx` — Health nav item + breadcrumbs
+4. `/src/app/page.tsx` — HealthRecords view in router
+5. `/src/components/students/StudentDetail.tsx` — Health tab with student data
+
+#### API Testing Results
+- `GET /api/health/overview` — ✅ Returns full overview (15 students with conditions, 72 total records, breakdown by type/severity, chronic conditions count)
+- `GET /api/health/records?limit=2` — ✅ Returns paginated records with student data and stats
+- `GET /api/health/conditions?limit=2` — ✅ Returns conditions with pagination and stats
+- `bun run lint` — ✅ Zero errors, zero warnings
