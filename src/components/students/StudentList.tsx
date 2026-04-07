@@ -399,7 +399,7 @@ export function StudentList() {
       {/* Table / Card View */}
       {viewMode === 'table' ? (
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden shadow-sm">
-        <div className="max-h-[520px] overflow-y-auto">
+        <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
           <Table className="w-full">
             <TableHeader className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
               <TableRow className="hover:bg-slate-50/95 dark:hover:bg-slate-800/95">

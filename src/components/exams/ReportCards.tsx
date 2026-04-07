@@ -425,7 +425,7 @@ export function ReportCards() {
               </div>
 
               {/* Marks Table */}
-              <div className="px-6 py-4">
+              <div className="px-6 py-4 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-100 hover:bg-slate-100 print:bg-slate-200">
@@ -606,7 +606,7 @@ export function ReportCards() {
                 <p className="text-sm text-slate-500">No students found with marks for this exam</p>
               </div>
             ) : (
-              <div className="max-h-[60vh] overflow-y-auto">
+              <div className="max-h-[60vh] overflow-y-auto overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50 hover:bg-slate-50">

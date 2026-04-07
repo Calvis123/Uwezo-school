@@ -445,7 +445,7 @@ export function UserManagement() {
         transition={{ delay: 0.25 }}
         className="rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden shadow-sm"
       >
-        <div className="max-h-[600px] overflow-y-auto">
+        <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-800/80 sticky top-0 z-10">

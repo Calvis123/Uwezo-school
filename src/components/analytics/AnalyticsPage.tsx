@@ -76,7 +76,7 @@ export function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [dateRange, setDateRange] = useState('this_year')
+  const [dateRange, setDateRange] = useState('all_time')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -92,6 +92,7 @@ export function AnalyticsPage() {
         params.set('from', `${now.getFullYear() - 1}-01-01`)
         params.set('to', `${now.getFullYear() - 1}-12-31`)
       }
+      // 'all_time' — don't set from/to, API returns all data
 
       const res = await fetch(`/api/analytics?${params.toString()}`)
       const result = await res.json()
@@ -180,6 +181,7 @@ export function AnalyticsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all_time">All Time</SelectItem>
               <SelectItem value="this_year">This Year</SelectItem>
               <SelectItem value="last_year">Last Year</SelectItem>
             </SelectContent>

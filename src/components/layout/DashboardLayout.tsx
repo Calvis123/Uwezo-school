@@ -20,6 +20,9 @@ import {
   School,
   BarChart3,
   Activity,
+  Phone,
+  Mail,
+  MapPin,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -364,6 +367,39 @@ export function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
   )
 }
 
+function DashboardFooter() {
+  return (
+    <footer className="mt-auto pt-6 pb-2">
+      <div className="border-t border-slate-200/60 dark:border-slate-700/40 pt-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-md bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center">
+              <GraduationCap className="w-3.5 h-3.5 text-white" />
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              © 2025 Olives Schools — Eldoret, Kenya
+            </p>
+          </div>
+          <div className="flex items-center gap-4 text-[11px] text-slate-400 dark:text-slate-500">
+            <span className="flex items-center gap-1">
+              <Phone className="w-3 h-3" />
+              +254 700 123 456
+            </span>
+            <span className="hidden sm:flex items-center gap-1">
+              <Mail className="w-3 h-3" />
+              info@olives.co.ke
+            </span>
+            <span className="hidden md:flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              Eldoret, Uasin Gishu
+            </span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false)
   return (
@@ -373,12 +409,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <Header onSearchOpen={() => setSearchOpen(true)} />
         <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
         {/* Main content area with teal-to-transparent top gradient border */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 relative">
+        <main className="flex-1 overflow-y-auto relative">
           <div className="h-px bg-gradient-to-r from-teal-500 via-teal-300/50 to-transparent absolute top-0 left-0 right-0 z-10" />
-          <div className="relative">
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
+          <div className="relative p-4 lg:p-6 min-h-full flex flex-col">
+            <div className="flex-1">
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
+            </div>
+            <DashboardFooter />
           </div>
         </main>
       </div>

@@ -245,29 +245,25 @@ export function LoginPage() {
                 Quick Access
               </p>
               {demoCredentials.map((demo) => (
-                <motion.div
+                <motion.button
                   key={demo.role}
+                  type="button"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full"
+                  onClick={() => loginAsDemo(demo.email, demo.password)}
+                  disabled={loading}
+                  className={cn(
+                    'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
+                    demo.color,
+                    'cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                  )}
                 >
-                  <button
-                    type="button"
-                    onClick={() => loginAsDemo(demo.email, demo.password)}
-                    disabled={loading}
-                    className={cn(
-                      'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
-                      demo.color,
-                      'cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold">{demo.role}</p>
-                      <p className="text-[11px] font-mono opacity-75 truncate">{demo.email}</p>
-                    </div>
-                    <span className="text-[10px] font-mono opacity-60 hidden sm:block">{demo.password}</span>
-                  </button>
-                </motion.div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">{demo.role}</p>
+                    <p className="text-[11px] font-mono opacity-75 truncate">{demo.email}</p>
+                  </div>
+                  <span className="text-[10px] font-mono opacity-60 hidden sm:block">{demo.password}</span>
+                </motion.button>
               ))}
             </div>
           </CardContent>
@@ -281,7 +277,7 @@ export function LoginPage() {
           <div className="flex items-center justify-center gap-2">
             <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-800/40">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-500 dark:bg-teal-400" />
-              Version 2.0
+              Version 3.0
             </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-600">•</span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">School Management System</span>

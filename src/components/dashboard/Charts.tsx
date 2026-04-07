@@ -17,8 +17,12 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useTheme } from 'next-themes'
 
 const COLORS = ['#0d9488', '#f59e0b', '#22c55e', '#ef4444', '#6366f1', '#ec4899', '#14b8a6', '#f97316']
+
+// Gender-specific colors (teal for boys, rose for girls)
+const GENDER_COLORS = ['#0d9488', '#f43f5e']
 
 interface ChartsProps {
   classData: { name: string; students: number }[]
@@ -70,6 +74,15 @@ const GenderTooltip = ({ active, payload }: any) => {
 }
 
 export function DashboardCharts({ classData, genderData, feeTrendData, loading }: ChartsProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
+  // Theme-aware colors for SVG elements
+  const gridStroke = isDark ? '#334155' : '#f1f5f9'
+  const axisTickFill = isDark ? '#64748b' : '#94a3b8'
+  const axisLineStroke = isDark ? '#334155' : '#e2e8f0'
+  const cursorFill = isDark ? '#1e293b' : '#f8fafc'
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -105,19 +118,19 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={truncatedClassData} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-700" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    axisLine={{ stroke: '#e2e8f0' }}
+                    tick={{ fontSize: 10, fill: axisTickFill }}
+                    axisLine={{ stroke: axisLineStroke }}
                     tickLine={false}
                     interval={0}
                     angle={-35}
                     textAnchor="end"
                     height={60}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc', radius: 4 }} />
+                  <YAxis tick={{ fontSize: 11, fill: axisTickFill }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: cursorFill, radius: 4 }} />
                   <Bar dataKey="students" name="Students" fill="#0d9488" radius={[6, 6, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
@@ -153,7 +166,7 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                     {genderData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
+                        fill={GENDER_COLORS[index % GENDER_COLORS.length]}
                       />
                     ))}
                   </Pie>
@@ -169,7 +182,7 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
                   <div key={entry.name} className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full shadow-sm"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      style={{ backgroundColor: GENDER_COLORS[index % GENDER_COLORS.length] }}
                     />
                     <div className="text-left">
                       <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{entry.name}</span>
@@ -199,14 +212,14 @@ export function DashboardCharts({ classData, genderData, feeTrendData, loading }
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={feeTrendData} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-700" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                   <XAxis
                     dataKey="month"
-                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    axisLine={{ stroke: '#e2e8f0' }}
+                    tick={{ fontSize: 11, fill: axisTickFill }}
+                    axisLine={{ stroke: axisLineStroke }}
                     tickLine={false}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: axisTickFill }} axisLine={false} tickLine={false} />
                   <Tooltip
                     content={<CustomTooltip />}
                     formatter={(value: number) => [`KES ${value.toLocaleString()}`, '']}

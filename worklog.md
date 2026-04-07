@@ -1599,3 +1599,355 @@ Stage Summary:
 - Class Reports added to sidebar navigation
 - Comprehensive print CSS added for A4 formatting
 - `bun run lint` — ✅ Zero errors, zero warnings
+
+---
+Task ID: fix-analytics-date
+Agent: Analytics Fix Agent
+Task: Fix Analytics page showing KES 0K revenue due to date filtering
+
+Work Log:
+- Identified issue: Analytics defaults to "this_year" (2026) but seed data is from 2025
+- Changed default `dateRange` from `'this_year'` to `'all_time'` in AnalyticsPage.tsx
+- Added "All Time" as first option in the date range Select component
+- When "All Time" is selected, no `from`/`to` query params are sent to API
+- Updated API route to skip date filtering entirely when no `from`/`to` params provided
+- Fee transactions and attendance records are now fetched without date restrictions when "All Time" is selected
+
+Stage Summary:
+- Analytics now shows correct data with "All Time" as default
+- `bun run lint` — ✅ Zero errors
+
+---
+## Task ID: fix-demo-login
+Agent: Main Orchestrator
+Task: Fix demo login buttons not triggering navigation to dashboard
+
+### Work Task
+Debug and fix the demo credential buttons (Super Admin, Teacher, Parent) on the login page. Clicking them doesn't navigate to the dashboard.
+
+### Investigation
+- Read LoginPage.tsx: `loginAsDemo()` correctly calls `authApi.login()` then `login()` from Zustand store
+- Read store.ts: `login` action correctly sets `{ user, isAuthenticated: true, currentView: 'dashboard' }`
+- Read page.tsx: View router correctly checks `isAuthenticated` and `currentView` to switch between login and dashboard
+- Verified dev.log: `POST /api/auth/login 200` confirms the API works
+
+### Root Cause
+The demo buttons were wrapped in a `<motion.div>` with `whileHover` and `whileTap` gesture props, while the actual `<button onClick={...}>` was a child element. Framer Motion's gesture system on the parent `motion.div` intercepts pointer events (adds `touch-action: none`, listens for `onPointerDown`/`onPointerUp`) to detect the "tap" animation, which can prevent the child `<button>`'s `onClick` from firing reliably. This is a known Framer Motion issue when gesture-enabled parents wrap interactive children.
+
+### Fix
+Replaced the `<motion.div>` + nested `<button>` pattern with a single `<motion.button>` that has both the animation props (`whileHover`, `whileTap`) and the `onClick` handler on the same element. This eliminates the pointer event interception issue while preserving the visual hover/tap animations.
+
+**Before:**
+```jsx
+<motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} className="w-full">
+  <button type="button" onClick={() => loginAsDemo(demo.email, demo.password)} ...>
+    ...
+  </button>
+</motion.div>
+```
+
+**After:**
+```jsx
+<motion.button type="button" whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+  onClick={() => loginAsDemo(demo.email, demo.password)} ...>
+  ...
+</motion.button>
+```
+
+### Files Modified
+1. `/src/components/auth/LoginPage.tsx` — Replaced `<motion.div>` + `<button>` with `<motion.button>` for demo credential buttons (lines 247-267)
+
+### Verification
+- `bun run lint` — ✅ Zero errors, zero warnings
+- Dev server recompiles successfully
+
+---
+## Task ID: seed-calendar-events
+Agent: Full-stack Developer
+Task: Create seed script for Calendar Events and populate the database
+
+### Work Task
+Create a database seed script for the CalendarEvent model with realistic Kenyan school calendar events for 2025 and 2026, fixing the "0 events" issue on the calendar page.
+
+### Work Summary
+
+#### 1. Created Seed Script: `/scripts/seed-calendar.ts`
+- Standalone Prisma script (follows existing patterns from `link-parent.ts`)
+- Deletes all existing calendar events before seeding
+- Seeds 35 calendar events using `createMany()` for efficiency
+
+#### 2. Events by Type (35 total)
+- **EXAM** (8): Term 1/2/3 CAT & End Term exams for 2025, KCPE/KCSE Mocks, 2026 exams
+- **EVENT** (9): Opening Days for all 3 terms 2025 + Term 1 2026, Sports Day, Cultural Festival, Parents' Day, Prize Giving Day
+- **HOLIDAY** (7): Term 1/2 breaks, Christmas & New Year holiday, Madaraka Day, Mashujaa Day, Jamhuri Day, Term 1 2026 break
+- **MEETING** (4): Staff meetings (Term 1 & 2), Parent-Teacher Conference, Board of Management
+- **SPORTS** (4): Inter-House Athletics, Swimming Gala, Inter-School Football Tournament, Sports Day 2026
+- **CULTURAL** (3): Kenya Music Festival Regional, Drama & Theatre Festival, International Day
+
+#### 3. Events by Year
+- **2025**: 29 events (full academic year: Jan–Dec)
+- **2026**: 6 events (Term 1 2026: Jan–May)
+
+#### 4. Data Characteristics
+- **Colors mixed**: teal (EVENT), red (EXAM), amber (HOLIDAY), blue (MEETING), green (SPORTS), purple (CULTURAL)
+- **Target roles mixed**: ALL, TEACHERS, PARENTS, STUDENTS, STAFF
+- **All-day events**: 7 holidays (no start/end time, isAllDay: true)
+- **Timed events**: 28 events with specific start/end times (08:00, 09:00, etc.)
+- **Descriptions**: All events have descriptive text explaining the event
+- **Locations**: School Compound, Staff Room, Main Hall, School Sports Field, Swimming Pool, County Hall Eldoret, Board Room, etc.
+- **Realistic Kenyan dates**: Follows Kenyan school calendar with 3 terms per year, CBC curriculum references, Kenyan public holidays (Madaraka Day, Mashujaa Day, Jamhuri Day)
+- **Multi-day events**: Some events span multiple days (exams, athletics, music festival)
+
+#### 5. API Verification
+- `GET /api/calendar/events?month=1&year=2025` — ✅ Returns 2 events (Staff Meeting, Opening Day)
+- `GET /api/calendar/events?month=4&year=2026` — ✅ Returns 2 events (End Term Exams, Term 1 Break)
+- `GET /api/calendar/events?month=10&year=2025` — ✅ Returns 3 events (KCPE Mocks, Mashujaa Day, Drama Festival)
+- `GET /api/calendar/events` — ✅ Returns all 35 events + 2 upcoming
+
+#### Files Created
+1. `/scripts/seed-calendar.ts` — Calendar events seed script (35 events)
+
+#### Quality
+- `bun run lint` — ✅ Zero errors, zero warnings
+- Seed script runs successfully with `bun run scripts/seed-calendar.ts`
+
+---
+## Task ID: seed-messages
+Agent: Main Developer
+Task: Seed messages between users to populate the messaging inbox
+
+### Work Task
+Create a script to seed realistic messages between the 6 users in the system, so the messaging page shows populated inboxes instead of being empty.
+
+### Work Summary
+
+#### 1. Created Seed Script: `/scripts/seed-messages.ts`
+- Script uses PrismaClient to seed 27 realistic messages between all 6 users
+- Messages cover realistic school communication scenarios:
+  - **Admin → Teachers** (6 messages): Staff meeting reminders, exam schedules, uniform policies
+  - **Teacher → Admin** (5 messages): Textbook requests, furniture repair needs, attendance concerns, science lab materials, printing supplies
+  - **Parent → Admin** (4 messages): Fee balance inquiries, payment receipt requests, student progress reports, school transport inquiries, emergency contact changes
+  - **Admin → Parents** (6 messages): Parent-teacher conference invitations, fee reminders, sports day announcements, closing date reminders, holiday programmes
+  - **Cross-role** (3 messages): Teacher-to-parent positive feedback, parent-to-teacher homework help, teacher-to-teacher collaboration
+  - **Parent ↔ Admin** (3 messages): Fee confirmation, fee payment receipt
+- Mix of read (18) and unread (9) messages
+- Dates spread over the past 20 days with realistic time-of-day variations
+- Includes per-user inbox summary after seeding
+
+#### 2. Bug Fixed: DashboardLayout.tsx Duplicate Import
+- **Issue**: `GraduationCap` was imported from `lucide-react` twice — once in the main import block (line 6) and again on line 47 with `Phone, Mail, MapPin`
+- **Fix**: Removed the duplicate import line, added `Phone`, `Mail`, `MapPin` to the main import block
+- **Impact**: This was causing the entire application to crash with HTTP 500 on all pages (including API routes) due to the Turbopack bundler error
+
+#### 3. Verification
+- Messages API verified working for all user roles:
+  - Allan Kimeli (Super Admin): 3 inbox messages (1 unread), 7 sent
+  - Mary Wanjiku (Admin): 7 inbox messages (3 unread), 7 sent
+  - John Mwangi (Teacher): 5 inbox messages (2 unread), 4 sent
+  - Grace Akinyi (Teacher): 4 inbox messages (1 unread), 3 sent
+  - Peter Otieno (Parent): 4 inbox messages (1 unread), 3 sent
+  - Agnes Wambui (Parent): 4 inbox messages (1 unread), 3 sent
+
+#### Files Created
+1. `/scripts/seed-messages.ts` — Message seeding script (27 messages)
+
+#### Files Modified
+1. `/src/components/layout/DashboardLayout.tsx` — Fixed duplicate `GraduationCap` import, consolidated `Phone`, `Mail`, `MapPin` into main lucide-react import
+
+#### Quality
+- `bun run lint` — ✅ Zero errors, zero warnings
+- Seed script runs successfully with `bun run scripts/seed-messages.ts`
+- Messages API returns correct data for all users
+
+---
+## Task ID: polish-round5
+Agent: UI Polish Specialist
+Task: Visual styling improvements and UX polish across multiple pages
+
+### Work Task
+Improve visual styling and UX details including chart dark mode, notification center, global search, sticky footer, version badge, and mobile responsiveness.
+
+### Work Summary
+
+#### 1. Dashboard Charts Dark Mode Fix (Charts.tsx)
+- **Problem**: Recharts SVG elements (CartesianGrid, XAxis, YAxis, cursor) used hardcoded light colors that didn't respond to CSS `className` dark mode classes
+- **Fix**: Added `useTheme()` from `next-themes` to detect dark mode and conditionally set SVG color props
+- **Theme-aware colors**: gridStroke (#334155 in dark), axisTickFill (#64748b), axisLineStroke (#334155), cursorFill (#1e293b in dark)
+- **Gender pie chart colors**: Changed from generic COLORS array to dedicated GENDER_COLORS (teal `#0d9488` for Boys, rose `#f43f5e` for Girls) for more meaningful visual distinction
+- **Added**: `useTheme` import, `GENDER_COLORS` constant, theme detection logic, conditional SVG color props on all 3 chart types
+
+#### 2. NotificationCenter Verification (NotificationCenter.tsx)
+- Already well-implemented with Popover panel on bell click
+- Features verified: filter tabs (All, Payments, Attendance, Exams, Messages), unread count badge, mark all read, mark individual read, notification navigation
+- Dark mode fully supported
+- No changes needed
+
+#### 3. Global Search Modal Verification (GlobalSearchModal.tsx)
+- Already well-implemented with ⌘K keyboard shortcut
+- Features verified: debounced search, keyboard navigation (↑↓ Enter Escape), category grouping (students, users, classes, notices), loading/error/empty states
+- Connected to `/api/search` endpoint via `searchApi`
+- Dark mode fully supported
+- No changes needed
+
+#### 4. Sticky Footer (DashboardLayout.tsx)
+- Added `DashboardFooter` component with:
+  - School branding (teal gradient icon)
+  - Copyright: "© 2025 Olives Schools — Eldoret, Kenya"
+  - Contact info: Phone (+254 700 123 456), Email (info@olives.co.ke), Location (Eldoret, Uasin Gishu)
+  - Responsive: contact items progressively hidden on smaller screens
+  - Border-top separator with padding
+- Restructured main content area: padding moved from `<main>` to inner flex container
+- Uses `min-h-full flex flex-col` on inner div with `mt-auto` on footer for sticky behavior
+- Added Phone, Mail, MapPin icons from lucide-react
+
+#### 5. Version Badge Update (LoginPage.tsx)
+- Updated from "Version 2.0" to "Version 3.0" to reflect the many features added since last version
+- Simple text change on line 280
+
+#### 6. Mobile Responsiveness - Table Overflow
+- Added `overflow-x-auto` to all table containers that were missing horizontal scrolling:
+  - **StudentList.tsx**: `max-h-[520px] overflow-y-auto` → `overflow-y-auto overflow-x-auto`
+  - **UserManagement.tsx**: `max-h-[600px] overflow-y-auto` → `overflow-y-auto overflow-x-auto`
+  - **FeePayments.tsx**: `p-0` → `p-0 overflow-x-auto`
+  - **FeeReports.tsx**: Both table CardContent `p-0` → `p-0 overflow-x-auto` (2 instances)
+  - **ExamList.tsx**: `p-0` → `p-0 overflow-x-auto`
+  - **AttendanceMarking.tsx**: Both table CardContent `p-0` → `p-0 overflow-x-auto` (2 instances)
+  - **ReportCards.tsx**: Marks table `px-6 py-4` → `px-6 py-4 overflow-x-auto`, Class summary `max-h-[60vh] overflow-y-auto` → `max-h-[60vh] overflow-y-auto overflow-x-auto`
+  - **StudentDetail.tsx**: Exam history `max-h-96 overflow-y-auto` → `max-h-96 overflow-y-auto overflow-x-auto`
+- Global CSS already has mobile tap targets (44px min), scrollbar-hide on mobile, and responsive column hiding
+
+### Files Modified
+1. `/src/components/dashboard/Charts.tsx` — Dark mode fix for SVG elements, gender-specific colors
+2. `/src/components/layout/DashboardLayout.tsx` — Sticky footer with school info, restructured main content area
+3. `/src/components/auth/LoginPage.tsx` — Version badge 2.0 → 3.0
+4. `/src/components/students/StudentList.tsx` — Added overflow-x-auto for table horizontal scrolling
+5. `/src/components/users/UserManagement.tsx` — Added overflow-x-auto for table horizontal scrolling
+6. `/src/components/fees/FeePayments.tsx` — Added overflow-x-auto for table horizontal scrolling
+7. `/src/components/fees/FeeReports.tsx` — Added overflow-x-auto for table horizontal scrolling (2 instances)
+8. `/src/components/exams/ExamList.tsx` — Added overflow-x-auto for table horizontal scrolling
+9. `/src/components/exams/ReportCards.tsx` — Added overflow-x-auto for table horizontal scrolling (2 instances)
+10. `/src/components/attendance/AttendanceMarking.tsx` — Added overflow-x-auto for table horizontal scrolling (2 instances)
+11. `/src/components/students/StudentDetail.tsx` — Added overflow-x-auto for table horizontal scrolling
+
+### Quality
+- `bun run lint` — ✅ Zero errors, zero warnings
+- Dev server compiles successfully (✓ Compiled in ~170ms)
+- All existing functionality preserved (no logic changes)
+- Dark mode compatible across all changes
+
+---
+## Task ID: cron-round5
+Agent: Main Orchestrator + 5 Subagents
+Task: Browser QA, bug fixes, feature additions, and styling improvements
+
+### Work Log
+
+#### 1. Browser QA (agent-browser)
+- ✅ Login page renders with demo credential buttons (now using motion.button fix)
+- ✅ Dashboard loads with real data: 540 students, 19 classes, KES 9.1M+ fees, 59% attendance
+- ✅ Users page works (6 users, search/filter, CRUD)
+- ✅ Classes page works (19 classes, grid layout, CRUD)
+- ✅ Fees page works (75 fee structures, tabs for structures/payments/reports)
+- ✅ Analytics page works (NOW shows KES 9187K with "All Time" default)
+- ✅ Exams page works (table with exam cards, mark entry, report cards)
+- ✅ Calendar page works (NOW shows events: 2 in April 2026, 35 total)
+- ✅ Messages page works (NOW shows 1 unread, 7 sent messages)
+- ✅ Notices page works (5 published notices)
+- ✅ Activity page works (35 activities with filters)
+- ✅ Students page works (540 students, bulk actions, pagination)
+- ✅ Settings page works (school info, user profile)
+- ✅ Export page works (3 export types: students, fees, attendance)
+- ✅ Class Reports page works (class/exam selectors, ranked table)
+- ✅ Dark mode works
+- ✅ Sticky footer with copyright and contact info
+- ✅ ESLint: Zero errors
+
+#### 2. Bug Fixes (3 subagents in parallel)
+
+**Fix 1: Analytics KES 0K Revenue**
+- Root Cause: Analytics defaulted to "This Year" (2026) but all seed data has 2025 dates
+- Fix: Added "All Time" as default date range option; API handles missing date params
+- Files: `AnalyticsPage.tsx`, `api/analytics/route.ts`
+- Result: Analytics now shows KES 9,187K total revenue, 60.3% avg attendance, Grade 2 A top class
+
+**Fix 2: Calendar 0 Events**
+- Root Cause: No seed data existed for CalendarEvent model
+- Fix: Created seed script with 35 realistic Kenyan school events
+- Events: 8 exams, 9 school events, 7 holidays, 4 meetings, 4 sports, 3 cultural
+- Script: `/scripts/seed-calendar.ts`
+- Result: Calendar shows events across 2025-2026 with color coding and role targeting
+
+**Fix 3: Demo Login Buttons Not Working**
+- Root Cause: `<motion.div>` wrapper with gesture props intercepts pointer events, preventing child `<button>` onClick from firing
+- Fix: Replaced `<motion.div> + <button>` with single `<motion.button>` combining animation and click
+- Also fixed: Duplicate `GraduationCap` import in DashboardLayout.tsx
+- File: `LoginPage.tsx`, `DashboardLayout.tsx`
+
+**Fix 4: Messages Empty Inbox**
+- Root Cause: No seed messages existed between users
+- Fix: Created seed script with 27 realistic messages across all 6 users
+- Messages: Admin↔Teacher, Admin↔Parent, Teacher↔Parent communications
+- 18 read + 9 unread messages with dates spanning 20 days
+- Script: `/scripts/seed-messages.ts`
+- Result: Admin inbox shows 1 unread, 7 sent messages
+
+#### 3. Styling Improvements (1 subagent)
+
+**Charts Dark Mode Fix**:
+- Fixed dark mode rendering for Recharts SVG elements (CartesianGrid, XAxis, YAxis)
+- Used `useTheme()` to conditionally set SVG color props for dark mode
+- Updated gender pie chart colors to teal (#0d9488) and rose (#f43f5e)
+
+**Sticky Footer Added**:
+- New `DashboardFooter` component in DashboardLayout
+- Shows: "© 2025 Olives Schools — Eldoret, Kenya"
+- Contact info: Phone, Email, Location (responsive hiding on smaller screens)
+- Proper `mt-auto` sticky footer behavior with `min-h-full flex flex-col`
+
+**Login Version Badge**: Updated from "Version 2.0" → "Version 3.0"
+
+**Mobile Table Responsiveness**:
+- Added `overflow-x-auto` to 11 table containers across 8 component files
+- Ensures all tables scroll horizontally on mobile devices
+
+### Stage Summary
+- 4 critical bugs fixed: Analytics data, Calendar empty, Demo login, Messages empty
+- 35 calendar events seeded, 27 messages seeded
+- Charts dark mode fixed, sticky footer added, version badge updated
+- All 15 pages verified working via browser QA
+- ESLint passes with zero errors
+- Dashboard verified: 540 students, 19 classes, KES 9,187K collected, 60.3% attendance
+
+### Current Project Statistics
+- **Components**: 39 custom components + 80+ shadcn/ui components
+- **API Routes**: 50+ API endpoints
+- **Data Models**: 15 Prisma models (User, Student, SchoolClass, Subject, Term, FeeStructure, FeeTransaction, Exam, ExamMark, Attendance, StudentGuardian, SchoolNotice, SystemSetting, Message, CalendarEvent)
+- **Seed Data**: 540 students, 19 classes, 20 subjects, 3 terms, 225 fee structures, fee transactions, 7 exams, 3159 attendance records, 5 notices, 6 users, 27 messages, 35 calendar events
+- **Features**: Login, Dashboard, Students, Classes, Fees, Exams (mark entry + report cards + print), Attendance, Calendar, Messages, Notices, Activity Feed, Analytics, Export, Class Reports, Settings, User Management, Parent Portal, Teacher Dashboard, Global Search, NotificationCenter, Dark Mode, M-Pesa Payment Dialog
+
+### Demo Credentials
+- **Super Admin**: admin@olives.co.ke / admin123
+- **Admin**: admin2@olives.co.ke / admin123
+- **Teacher**: teacher@olives.co.ke / teacher123
+- **Parent**: parent@olives.co.ke / parent123
+
+### QA Screenshots (Round 5)
+- `/download/qa-r5-dashboard.png` — Dashboard (light mode)
+- `/download/qa-r5-dashboard-dark.png` — Dashboard (dark mode)
+- `/download/qa-r5-final-dashboard.png` — Full dashboard screenshot
+
+### Unresolved Issues / Next Phase Priorities
+1. ~~Analytics showing KES 0K~~ ✅ FIXED (All Time default)
+2. ~~Calendar showing 0 events~~ ✅ FIXED (35 events seeded)
+3. ~~Demo login buttons not working~~ ✅ FIXED (motion.button)
+4. ~~Messages empty inbox~~ ✅ FIXED (27 messages seeded)
+5. ~~Charts dark mode broken~~ ✅ FIXED (SVG color props)
+6. ~~No footer~~ ✅ FIXED (sticky footer added)
+7. Improve mobile responsiveness on actual devices
+8. Add M-Pesa integration placeholder (STK push simulation)
+9. Add SMS notification placeholders
+10. Add school photo gallery/media management
+11. Add student health records module
+12. Add term grading reports with automatic calculations
+13. Add data import from CSV (students, fees)
+14. Performance optimization (lazy loading, code splitting)

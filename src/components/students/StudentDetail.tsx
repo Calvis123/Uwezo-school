@@ -702,7 +702,7 @@ export function StudentDetail() {
                   <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Exam History</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="max-h-96 overflow-y-auto">
+                  <div className="max-h-96 overflow-y-auto overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>

@@ -7,12 +7,10 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    // Build date filters
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const endOfYear = new Date(now.getFullYear(), 11, 31);
-    const fromDate = from ? new Date(from) : startOfYear;
-    const toDate = to ? new Date(to) : endOfYear;
+    // Build date filters — only apply if 'from'/'to' params are provided
+    // When no date params are given (e.g. "All Time"), don't restrict by date
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(to) : null;
 
     // Fetch classes with student counts
     const classes = await db.schoolClass.findMany({
@@ -29,12 +27,13 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    // Fetch fee transactions for the year
+    // Fetch fee transactions (filtered by date range if provided)
+    const feeWhereClause: any = { status: 'COMPLETED' };
+    if (fromDate && toDate) {
+      feeWhereClause.createdAt = { gte: fromDate, lte: toDate };
+    }
     const feeTransactions = await db.feeTransaction.findMany({
-      where: {
-        createdAt: { gte: fromDate, lte: toDate },
-        status: 'COMPLETED',
-      },
+      where: feeWhereClause,
       select: {
         amount: true,
         createdAt: true,
@@ -51,11 +50,13 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Fetch attendance
+    // Fetch attendance (filtered by date range if provided)
+    const attWhereClause: any = {};
+    if (fromDate && toDate) {
+      attWhereClause.date = { gte: fromDate, lte: toDate };
+    }
     const attendanceRecords = await db.attendance.findMany({
-      where: {
-        date: { gte: fromDate, lte: toDate },
-      },
+      where: attWhereClause,
       select: {
         status: true,
         date: true,
