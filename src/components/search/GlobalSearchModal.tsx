@@ -58,28 +58,28 @@ const categoryConfig: Record<string, {
   bg: string
   badgeBg: string
 }> = {
-  student: {
+  students: {
     icon: GraduationCap,
     label: 'Students',
     color: 'text-teal-600 dark:text-teal-400',
     bg: 'bg-teal-50 dark:bg-teal-900/30',
     badgeBg: 'bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300',
   },
-  user: {
+  users: {
     icon: Users,
     label: 'Users',
     color: 'text-violet-600 dark:text-violet-400',
     bg: 'bg-violet-50 dark:bg-violet-900/30',
     badgeBg: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
   },
-  class: {
+  classes: {
     icon: BookOpen,
     label: 'Classes',
     color: 'text-amber-600 dark:text-amber-400',
     bg: 'bg-amber-50 dark:bg-amber-900/30',
     badgeBg: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
   },
-  notice: {
+  notices: {
     icon: Megaphone,
     label: 'Notices',
     color: 'text-rose-600 dark:text-rose-400',
