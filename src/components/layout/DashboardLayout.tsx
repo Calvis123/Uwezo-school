@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Calendar,
   MessageSquare,
+  Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -35,16 +36,19 @@ import {
   SheetContent,
 } from '@/components/ui/sheet'
 import { useAppStore } from '@/lib/store'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
+import { SearchDialog } from './SearchDialog'
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'users', label: 'Users', icon: Users, adminOnly: true },
-  { id: 'students', label: 'Students', icon: GraduationCap, staffOnly: true },
+  { id: 'students', label: 'Students', icon: GraduationCap },
+  { id: 'teacher-dashboard', label: 'Teachers View', icon: GraduationCap, teacherOnly: true },
   { id: 'fees', label: 'Fees', icon: DollarSign },
-  { id: 'exams', label: 'Exams & Results', icon: FileText, staffOnly: true },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck, staffOnly: true },
+  { id: 'export', label: 'Export', icon: Download },
+  { id: 'exams', label: 'Exams & Results', icon: FileText },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'notices', label: 'Notices', icon: Bell },
@@ -112,7 +116,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             if ('adminOnly' in item && item.adminOnly && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ADMIN') {
               return null
             }
-            if ('staffOnly' in item && item.staffOnly && user?.role === 'PARENT') {
+            if ('teacherOnly' in item && item.teacherOnly && user?.role !== 'TEACHER') {
               return null
             }
             return (
@@ -216,19 +220,21 @@ const viewInfo: Record<string, { title: string; breadcrumbs?: string[] }> = {
   students: { title: 'Students', breadcrumbs: ['Dashboard', 'Students'] },
   'student-detail': { title: 'Student Details', breadcrumbs: ['Dashboard', 'Students', 'Details'] },
   fees: { title: 'Fees Management', breadcrumbs: ['Dashboard', 'Fees'] },
+  export: { title: 'Data Export', breadcrumbs: ['Dashboard', 'Export'] },
   exams: { title: 'Exams & Results', breadcrumbs: ['Dashboard', 'Exams'] },
   'mark-entry': { title: 'Mark Entry', breadcrumbs: ['Dashboard', 'Exams', 'Mark Entry'] },
   'report-cards': { title: 'Report Cards', breadcrumbs: ['Dashboard', 'Exams', 'Reports'] },
   attendance: { title: 'Attendance', breadcrumbs: ['Dashboard', 'Attendance'] },
-  calendar: { title: 'School Calendar', breadcrumbs: ['Dashboard', 'Calendar'] },
+  calendar: { title: 'Calendar', breadcrumbs: ['Dashboard', 'Calendar'] },
   messages: { title: 'Messages', breadcrumbs: ['Dashboard', 'Messages'] },
+  'teacher-dashboard': { title: 'Teachers View', breadcrumbs: ['Dashboard', 'Teachers View'] },
   notices: { title: 'Notices', breadcrumbs: ['Dashboard', 'Notices'] },
   settings: { title: 'Settings', breadcrumbs: ['Dashboard', 'Settings'] },
 }
 
-export function Header() {
+export function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
   const { currentView, setSidebarOpen, user, navigateTo, logout } = useAppStore()
-  const info = viewInfo[currentView] || { title: user?.role === 'TEACHER' ? 'Teacher Portal' : 'Dashboard', breadcrumbs: ['Dashboard'] }
+  const info = viewInfo[currentView] || { title: 'Dashboard', breadcrumbs: ['Dashboard'] }
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 lg:px-6 h-16">
@@ -268,16 +274,27 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Search Bar (placeholder) */}
-          <div className="hidden md:flex items-center relative">
+          {/* Search Bar - clickable to open dialog */}
+          <button
+            onClick={onSearchOpen}
+            className="hidden md:flex items-center relative h-9 w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm pl-9 pr-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+          >
             <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-            <div className="h-9 w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm pl-9 pr-3 flex items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-              <span className="text-sm text-slate-400 dark:text-slate-500">Search...</span>
-              <kbd className="hidden lg:inline-flex ml-auto h-5 items-center gap-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 font-mono text-[10px] text-slate-400 dark:text-slate-500 shadow-sm">
-                ⌘K
-              </kbd>
-            </div>
-          </div>
+            <span className="text-sm text-slate-400 dark:text-slate-500">Search...</span>
+            <kbd className="hidden lg:inline-flex ml-auto h-5 items-center gap-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 font-mono text-[10px] text-slate-400 dark:text-slate-500 shadow-sm">
+              ⌘K
+            </kbd>
+          </button>
+
+          {/* Mobile search button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-teal-500"
+            onClick={onSearchOpen}
+          >
+            <Search className="w-[18px] h-[18px]" />
+          </Button>
 
           {/* Theme Toggle */}
           <ThemeToggle />
@@ -340,11 +357,13 @@ export function Header() {
 }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [searchOpen, setSearchOpen] = useState(false)
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header />
+        <Header onSearchOpen={() => setSearchOpen(true)} />
+        <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
         {/* Main content area with teal-to-transparent top gradient border */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 relative">
           <div className="h-px bg-gradient-to-r from-teal-500 via-teal-300/50 to-transparent absolute top-0 left-0 right-0 z-10" />

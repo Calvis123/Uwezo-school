@@ -63,6 +63,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { getInitials, getAvatarColor } from '@/lib/avatar'
 
 interface StudentRow {
   id: string
@@ -195,12 +196,7 @@ export function StudentList() {
       {/* Top bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Students</h2>
-            <Badge variant="secondary" className="bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800 tabular-nums font-semibold text-xs px-2 py-0.5">
-              {total}
-            </Badge>
-          </div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Students</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {total} students found
             {filterStatus === 'ACTIVE' && <span className="text-green-600 dark:text-green-400 ml-1">(showing active)</span>}
@@ -371,7 +367,7 @@ export function StudentList() {
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Gender</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Class</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Fees Due</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Status</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -385,16 +381,14 @@ export function StudentList() {
                     <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : students.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-16">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                      <GraduationCap className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-                    </div>
+                  <TableCell colSpan={8} className="text-center py-12">
+                    <GraduationCap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                     <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No students found</p>
                     <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
                   </TableCell>
@@ -424,13 +418,11 @@ export function StudentList() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <div className={cn(
-                            'w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
-                            student.gender === 'MALE'
-                              ? 'bg-sky-50 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400'
-                              : 'bg-pink-50 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400'
-                          )}>
-                            {student.gender === 'MALE' ? '♂' : '♀'}
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                            style={{ backgroundColor: getAvatarColor(`${student.firstName} ${student.lastName}`).bg }}
+                          >
+                            {getInitials(student.firstName, student.lastName)}
                           </div>
                           <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                             {student.firstName} {student.lastName}
@@ -460,7 +452,7 @@ export function StudentList() {
                           <span className="text-xs text-slate-400 dark:text-slate-500">Paid</span>
                         )}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
+                      <TableCell>
                         <Badge
                           variant="outline"
                           className={cn('text-[10px] px-2 py-0.5 font-medium', statusCfg.className)}

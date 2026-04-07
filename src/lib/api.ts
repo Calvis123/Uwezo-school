@@ -169,26 +169,6 @@ export const parentApi = {
     request(`/api/parent/fee-ledger/${studentId}`),
 }
 
-// Teacher Portal
-export const teacherApi = {
-  dashboard: (teacherId: string) =>
-    request(`/api/teacher/dashboard?teacherId=${teacherId}`),
-}
-
-// Messages
-export const messagesApi = {
-  list: (userId: string, folder?: string) => {
-    const searchParams = new URLSearchParams()
-    searchParams.set('userId', userId)
-    if (folder) searchParams.set('folder', folder)
-    return request(`/api/messages?${searchParams.toString()}`)
-  },
-  send: (data: { senderId: string; receiverId: string; subject: string; content: string }) =>
-    request('/api/messages', { method: 'POST', body: JSON.stringify(data) }),
-  markRead: (messageIds: string[]) =>
-    request('/api/messages/mark-read', { method: 'POST', body: JSON.stringify({ messageIds }) }),
-}
-
 // Users
 export const usersApi = {
   list: (params?: { page?: number; limit?: number; role?: string; status?: string; search?: string }) => {
@@ -207,4 +187,24 @@ export const usersApi = {
     request(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request(`/api/users/${id}`, { method: 'DELETE' }),
+}
+
+// Teacher Portal
+export const teacherApi = {
+  dashboard: (teacherId: string) =>
+    request(`/api/teacher/dashboard?teacherId=${teacherId}`),
+}
+
+// Messaging
+export const messagesApi = {
+  list: (userId: string, folder: 'inbox' | 'sent') => {
+    const searchParams = new URLSearchParams()
+    searchParams.set('userId', userId)
+    searchParams.set('folder', folder)
+    return request(`/api/messages?${searchParams.toString()}`)
+  },
+  send: (data: { senderId: string; receiverId: string; subject: string; content: string }) =>
+    request('/api/messages', { method: 'POST', body: JSON.stringify(data) }),
+  markRead: (messageIds: string[]) =>
+    request('/api/messages/mark-read', { method: 'POST', body: JSON.stringify({ messageIds }) }),
 }

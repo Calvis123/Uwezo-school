@@ -49,27 +49,25 @@ export function LoginPage() {
   }
 
   const loginAsDemo = async (demoEmail: string, demoPass: string) => {
-    if (loading) return
+    // Fill in form fields for visual feedback
+    setEmail(demoEmail)
+    setPassword(demoPass)
     setLoading(true)
     setError('')
     try {
-      const result = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: demoEmail, password: demoPass }),
-      }).then(r => r.json())
+      const result = await authApi.login(demoEmail, demoPass)
       if (result.success && result.data) {
-        const userData = result.data.user || result.data
-        login(userData)
+        login(result.data.user || result.data)
         toast.success('Welcome back!', {
-          description: `Signed in as ${userData.name}`,
+          description: `Signed in as ${result.data.user?.name || result.data.name}`,
         })
       } else {
         setError(result.error || 'Invalid credentials.')
-        setLoading(false)
       }
-    } catch {
+    } catch (err) {
+      console.error('Demo login error:', err)
       setError('An error occurred. Please try again.')
+    } finally {
       setLoading(false)
     }
   }
@@ -233,25 +231,29 @@ export function LoginPage() {
                 Quick Access
               </p>
               {demoCredentials.map((demo) => (
-                <motion.button
+                <motion.div
                   key={demo.role}
-                  type="button"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  onClick={() => loginAsDemo(demo.email, demo.password)}
-                  disabled={loading}
-                  className={cn(
-                    'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
-                    demo.color,
-                    'cursor-pointer'
-                  )}
+                  className="w-full"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold">{demo.role}</p>
-                    <p className="text-[11px] font-mono opacity-75 truncate">{demo.email}</p>
-                  </div>
-                  <span className="text-[10px] font-mono opacity-60 hidden sm:block">{demo.password}</span>
-                </motion.button>
+                  <button
+                    type="button"
+                    onClick={() => loginAsDemo(demo.email, demo.password)}
+                    disabled={loading}
+                    className={cn(
+                      'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
+                      demo.color,
+                      'cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold">{demo.role}</p>
+                      <p className="text-[11px] font-mono opacity-75 truncate">{demo.email}</p>
+                    </div>
+                    <span className="text-[10px] font-mono opacity-60 hidden sm:block">{demo.password}</span>
+                  </button>
+                </motion.div>
               ))}
             </div>
           </CardContent>

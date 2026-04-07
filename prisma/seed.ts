@@ -56,7 +56,6 @@ async function main() {
   console.log('🌱 Seeding Olives School Management System...\n');
 
   // Clean existing data
-  await prisma.message.deleteMany();
   await prisma.examMark.deleteMany();
   await prisma.attendance.deleteMany();
   await prisma.feeTransaction.deleteMany();
@@ -146,35 +145,35 @@ async function main() {
   // ==================== CLASSES ====================
   console.log('Creating classes...');
   const classData = [
-    { name: 'Pre-Nursery', level: 'PRE_NURSERY', stream: null, capacity: 30, teacherIdx: 3 },
-    { name: 'Nursery', level: 'NURSERY', stream: null, capacity: 35, teacherIdx: 2 },
-    { name: 'Grade 1', level: 'PRIMARY', stream: 'A', capacity: 40, teacherIdx: 3 },
-    { name: 'Grade 1', level: 'PRIMARY', stream: 'B', capacity: 40, teacherIdx: 2 },
-    { name: 'Grade 2', level: 'PRIMARY', stream: 'A', capacity: 40, teacherIdx: 3 },
-    { name: 'Grade 2', level: 'PRIMARY', stream: 'B', capacity: 40, teacherIdx: 2 },
-    { name: 'Grade 3', level: 'PRIMARY', stream: 'A', capacity: 40, teacherIdx: 2 },
-    { name: 'Grade 3', level: 'PRIMARY', stream: 'B', capacity: 40, teacherIdx: 3 },
-    { name: 'Grade 4', level: 'PRIMARY', stream: 'A', capacity: 40, teacherIdx: 2 },
-    { name: 'Grade 4', level: 'PRIMARY', stream: 'B', capacity: 40, teacherIdx: 3 },
-    { name: 'Grade 5', level: 'PRIMARY', stream: 'A', capacity: 40, teacherIdx: 2 },
-    { name: 'Grade 5', level: 'PRIMARY', stream: 'B', capacity: 40, teacherIdx: 3 },
-    { name: 'Grade 6', level: 'PRIMARY', stream: 'A', capacity: 40, teacherIdx: 2 },
-    { name: 'Grade 6', level: 'PRIMARY', stream: 'B', capacity: 40, teacherIdx: 3 },
-    { name: 'Grade 7', level: 'JUNIOR_SECONDARY', stream: 'A', capacity: 45, teacherIdx: 2 },
-    { name: 'Grade 7', level: 'JUNIOR_SECONDARY', stream: 'B', capacity: 45, teacherIdx: 3 },
-    { name: 'Grade 8', level: 'JUNIOR_SECONDARY', stream: 'A', capacity: 45, teacherIdx: 2 },
-    { name: 'Grade 8', level: 'JUNIOR_SECONDARY', stream: 'B', capacity: 45, teacherIdx: 3 },
-    { name: 'Grade 9', level: 'JUNIOR_SECONDARY', stream: 'A', capacity: 45, teacherIdx: 2 },
+    { name: 'Pre-Nursery', level: 'PRE_NURSERY', stream: null, capacity: 30 },
+    { name: 'Nursery', level: 'NURSERY', stream: null, capacity: 35 },
+    { name: 'Grade 1', level: 'PRIMARY', stream: 'A', capacity: 40 },
+    { name: 'Grade 1', level: 'PRIMARY', stream: 'B', capacity: 40 },
+    { name: 'Grade 2', level: 'PRIMARY', stream: 'A', capacity: 40 },
+    { name: 'Grade 2', level: 'PRIMARY', stream: 'B', capacity: 40 },
+    { name: 'Grade 3', level: 'PRIMARY', stream: 'A', capacity: 40 },
+    { name: 'Grade 3', level: 'PRIMARY', stream: 'B', capacity: 40 },
+    { name: 'Grade 4', level: 'PRIMARY', stream: 'A', capacity: 40 },
+    { name: 'Grade 4', level: 'PRIMARY', stream: 'B', capacity: 40 },
+    { name: 'Grade 5', level: 'PRIMARY', stream: 'A', capacity: 40 },
+    { name: 'Grade 5', level: 'PRIMARY', stream: 'B', capacity: 40 },
+    { name: 'Grade 6', level: 'PRIMARY', stream: 'A', capacity: 40 },
+    { name: 'Grade 6', level: 'PRIMARY', stream: 'B', capacity: 40 },
+    { name: 'Grade 7', level: 'JUNIOR_SECONDARY', stream: 'A', capacity: 45 },
+    { name: 'Grade 7', level: 'JUNIOR_SECONDARY', stream: 'B', capacity: 45 },
+    { name: 'Grade 8', level: 'JUNIOR_SECONDARY', stream: 'A', capacity: 45 },
+    { name: 'Grade 8', level: 'JUNIOR_SECONDARY', stream: 'B', capacity: 45 },
+    { name: 'Grade 9', level: 'JUNIOR_SECONDARY', stream: 'A', capacity: 45 },
   ];
 
   const classes = await Promise.all(
-    classData.map((c) =>
+    classData.map((c, i) =>
       prisma.schoolClass.create({
         data: {
           name: `${c.name}${c.stream ? ' ' + c.stream : ''}`,
           level: c.level,
           stream: c.stream,
-          teacherId: users[c.teacherIdx].id,
+          teacherId: i % 2 === 0 ? users[2].id : users[3].id,
           capacity: c.capacity,
         }
       })
@@ -654,80 +653,6 @@ async function main() {
     ]
   });
 
-  // ==================== MESSAGES ====================
-  console.log('Creating messages...');
-  const admin = users[0]; // Allan Kimeli (admin@olives.co.ke)
-  const teacher = users[2]; // John Mwangi (teacher@olives.co.ke)
-
-  await prisma.message.createMany({
-    data: [
-      {
-        senderId: admin.id,
-        receiverId: teacher.id,
-        subject: 'Welcome to the New Term',
-        content: 'Dear John, welcome back for Term 2! I hope you had a restful holiday. Please ensure you have your lesson plans ready by Monday. Also, remember the staff meeting on April 28th at 8:00 AM in the staff room. Let us have a productive term ahead.',
-        isRead: true,
-        createdAt: new Date('2025-05-01T08:00:00'),
-      },
-      {
-        senderId: teacher.id,
-        receiverId: admin.id,
-        subject: 'Re: Welcome to the New Term',
-        content: 'Thank you, Allan! I am ready for the term. My lesson plans for Grade 3A, 4A, and 5A are already prepared. I will attend the staff meeting. Looking forward to a great term.',
-        isRead: true,
-        createdAt: new Date('2025-05-01T10:30:00'),
-      },
-      {
-        senderId: admin.id,
-        receiverId: teacher.id,
-        subject: 'Term 2 CAT 1 Exam Schedule',
-        content: 'Dear John, the Term 2 CAT 1 exams have been scheduled for June 15-20. Please prepare your students accordingly. The exam papers should be submitted to the office by June 10th for review. Let me know if you need any additional resources.',
-        isRead: true,
-        createdAt: new Date('2025-06-01T09:00:00'),
-      },
-      {
-        senderId: teacher.id,
-        receiverId: admin.id,
-        subject: 'Re: Term 2 CAT 1 Exam Schedule',
-        content: 'Noted, Allan. I have started revision with all three classes. Could you confirm if we are using the same format as Term 1? Also, I would like to request extra chalk and manila papers for the exam period.',
-        isRead: true,
-        createdAt: new Date('2025-06-02T14:15:00'),
-      },
-      {
-        senderId: admin.id,
-        receiverId: teacher.id,
-        subject: 'Parent-Teacher Conference Preparation',
-        content: 'Dear John, the Term 2 Parent-Teacher Conference is on July 12th. Please prepare progress reports for all students in your classes (Grade 3A, 4A, 5A). I have attached the template. Each teacher will have a table in the school hall. Kindly be there by 8:30 AM for setup.',
-        isRead: true,
-        createdAt: new Date('2025-07-01T08:45:00'),
-      },
-      {
-        senderId: teacher.id,
-        receiverId: admin.id,
-        subject: 'CBC Training Registration',
-        content: 'Hi Allan, I would like to register for the CBC Training Workshop scheduled for August 11-15. Will the school cover the training costs? Also, who will cover my classes during the training week? Please advise.',
-        isRead: false,
-        createdAt: new Date('2025-07-10T11:00:00'),
-      },
-      {
-        senderId: admin.id,
-        receiverId: teacher.id,
-        subject: 'Student Performance Review - Grade 4A',
-        content: 'Dear John, I have reviewed the Term 1 performance data for Grade 4A. The average score in Mathematics dropped by 5% compared to Term 1. Could we schedule a meeting to discuss strategies for improvement? I am available on Wednesday or Thursday afternoon.',
-        isRead: false,
-        createdAt: new Date('2025-07-15T16:30:00'),
-      },
-      {
-        senderId: teacher.id,
-        receiverId: admin.id,
-        subject: 'Grade 3A Student - Attention Needed',
-        content: 'Dear Allan, I wanted to bring to your attention a student in Grade 3A, Brian Kipchoge (ADM/2025/0012). He has been consistently absent on Mondays for the past 3 weeks. I have tried reaching the parents but their phone numbers are not going through. Could the office help follow up?',
-        isRead: false,
-        createdAt: new Date('2025-07-18T09:20:00'),
-      },
-    ]
-  });
-
   console.log('\n✅ Seeding completed successfully!');
   console.log(`\n📊 Summary:`);
   console.log(`   Users: ${users.length}`);
@@ -739,7 +664,6 @@ async function main() {
   console.log(`   Exams: ${exams.length}`);
   console.log(`   Notices: 5`);
   console.log(`   Calendar Events: 42`);
-  console.log(`   Messages: 8`);
 
   console.log('\n🔑 Demo Login Credentials:');
   console.log('   Super Admin: admin@olives.co.ke / admin123');

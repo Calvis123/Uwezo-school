@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
+import { getInitials, getAvatarColor } from '@/lib/avatar'
 
 export function StudentDetail() {
   const { selectedStudentId, navigateTo, classes, setClasses } = useAppStore()
@@ -246,8 +247,11 @@ export function StudentDetail() {
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarFallback className="bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 text-xl font-bold">
-                  {student.firstName[0]}{student.lastName[0]}
+                <AvatarFallback
+                  className="text-xl font-bold text-white"
+                  style={{ backgroundColor: getAvatarColor(`${student.firstName} ${student.lastName}`).bg }}
+                >
+                  {getInitials(student.firstName, student.lastName)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">

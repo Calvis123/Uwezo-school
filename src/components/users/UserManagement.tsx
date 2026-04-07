@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { format } from 'date-fns'
+import { motion } from 'framer-motion'
 import {
   Plus,
   Search,
@@ -20,6 +21,7 @@ import {
   Mail,
   Phone,
   Calendar,
+  UserCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
@@ -115,16 +117,16 @@ const emptyForm: UserFormData = {
   status: 'ACTIVE',
 }
 
-const roleConfig: Record<string, { className: string; label: string; icon: typeof Users }> = {
-  SUPER_ADMIN: { className: 'bg-red-50 text-red-700 border border-red-200', label: 'Super Admin', icon: ShieldCheck },
-  ADMIN: { className: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'Admin', icon: UserCog },
-  TEACHER: { className: 'bg-sky-50 text-sky-700 border border-sky-200', label: 'Teacher', icon: GraduationCap },
-  PARENT: { className: 'bg-green-50 text-green-700 border border-green-200', label: 'Parent', icon: UserCheck },
+const roleConfig: Record<string, { className: string; label: string; icon: typeof Users; borderColor: string; gradientFrom: string; gradientTo: string; darkBorder: string }> = {
+  SUPER_ADMIN: { className: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', label: 'Super Admin', icon: ShieldCheck, borderColor: 'border-l-red-500', gradientFrom: 'from-red-500', gradientTo: 'to-rose-500', darkBorder: 'dark:border-l-red-500' },
+  ADMIN: { className: 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800', label: 'Admin', icon: UserCog, borderColor: 'border-l-orange-500', gradientFrom: 'from-orange-500', gradientTo: 'to-amber-500', darkBorder: 'dark:border-l-orange-500' },
+  TEACHER: { className: 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800', label: 'Teacher', icon: GraduationCap, borderColor: 'border-l-sky-500', gradientFrom: 'from-sky-500', gradientTo: 'to-blue-500', darkBorder: 'dark:border-l-sky-500' },
+  PARENT: { className: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800', label: 'Parent', icon: UserCheck, borderColor: 'border-l-green-500', gradientFrom: 'from-green-500', gradientTo: 'to-emerald-500', darkBorder: 'dark:border-l-green-500' },
 }
 
 const statusConfig: Record<string, { className: string; label: string }> = {
-  ACTIVE: { className: 'bg-green-50 text-green-700 border border-green-200', label: 'Active' },
-  INACTIVE: { className: 'bg-slate-50 text-slate-600 border border-slate-200', label: 'Inactive' },
+  ACTIVE: { className: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800', label: 'Active' },
+  INACTIVE: { className: 'bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-700/40 dark:text-slate-400 dark:border-slate-600', label: 'Inactive' },
 }
 
 // Validation
@@ -315,13 +317,13 @@ export function UserManagement() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               User Management
               <Badge variant="secondary" className="bg-teal-50 text-teal-700 text-xs font-semibold">
                 {counts.total}
               </Badge>
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {total} users found
               {filterRole && <span className="text-teal-600 ml-1">({roleLabels[filterRole] || filterRole})</span>}
               {filterStatus && <span className="text-slate-500 ml-1">· {statusConfig[filterStatus]?.label || filterStatus}</span>}
@@ -342,50 +344,58 @@ export function UserManagement() {
       {/* Stats Cards */}
       {!loading && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card className="shadow-sm border-slate-200/60">
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-teal-50 flex items-center justify-center">
-                <Users className="w-4 h-4 text-teal-600" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Total Users</p>
-                <p className="text-sm font-bold text-slate-900">{counts.total}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm border-slate-200/60">
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center">
-                <UserCheck className="w-4 h-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Active Users</p>
-                <p className="text-sm font-bold text-green-700">{counts.active}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm border-slate-200/60">
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-orange-50 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Staff / Admin</p>
-                <p className="text-sm font-bold text-orange-700">{counts.staff}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-sm border-slate-200/60">
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-sky-50 flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-sky-600" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Teachers</p>
-                <p className="text-sm font-bold text-sky-700">{counts.teachers}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} whileHover={{ y: -2 }}>
+            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-br from-teal-50/80 to-white dark:from-teal-900/20 dark:to-slate-800 hover:shadow-md transition-shadow duration-300">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-sm">
+                  <Users className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Total Users</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">{counts.total}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} whileHover={{ y: -2 }}>
+            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-br from-green-50/80 to-white dark:from-green-900/20 dark:to-slate-800 hover:shadow-md transition-shadow duration-300">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-sm">
+                  <UserCheck className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Active Users</p>
+                  <p className="text-sm font-bold text-green-700 dark:text-green-400 tabular-nums">{counts.active}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} whileHover={{ y: -2 }}>
+            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-br from-orange-50/80 to-white dark:from-orange-900/20 dark:to-slate-800 hover:shadow-md transition-shadow duration-300">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-sm">
+                  <ShieldCheck className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Staff / Admin</p>
+                  <p className="text-sm font-bold text-orange-700 dark:text-orange-400 tabular-nums">{counts.staff}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} whileHover={{ y: -2 }}>
+            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-br from-sky-50/80 to-white dark:from-sky-900/20 dark:to-slate-800 hover:shadow-md transition-shadow duration-300">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center shadow-sm">
+                  <GraduationCap className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Teachers</p>
+                  <p className="text-sm font-bold text-sky-700 dark:text-sky-400 tabular-nums">{counts.teachers}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       )}
 
@@ -425,17 +435,22 @@ export function UserManagement() {
       </div>
 
       {/* Users Table */}
-      <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="rounded-lg border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden shadow-sm"
+      >
         <div className="max-h-[600px] overflow-y-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 sticky top-0 z-10">
-                <TableHead className="text-xs font-semibold text-slate-600">Name</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 hidden sm:table-cell">Email</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 hidden md:table-cell">Phone</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Role</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 text-right">Actions</TableHead>
+              <TableRow className="bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/80 sticky top-0 z-10">
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Name</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Email</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Phone</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Role</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -458,44 +473,56 @@ export function UserManagement() {
               ) : users.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-12">
-                    <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500 text-sm font-medium">No users found</p>
-                    <p className="text-slate-400 text-xs mt-1">Try adjusting your search or filters</p>
+                    <UserCircle className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No users found</p>
+                    <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user) => {
+                users.map((user, index) => {
                   const rCfg = roleConfig[user.role] || roleConfig.TEACHER
                   const sCfg = statusConfig[user.status] || statusConfig.ACTIVE
                   const RoleIcon = rCfg.icon
                   return (
-                    <TableRow
+                    <motion.tr
                       key={user.id}
-                      className="hover:bg-teal-50/40 transition-colors"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                      className={cn(
+                        'hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all duration-200 border-l-2 border-l-transparent',
+                        rCfg.borderColor, rCfg.darkBorder,
+                        user.status === 'INACTIVE' && 'opacity-60',
+                      )}
                     >
                       <TableCell>
                         <div className="flex items-center gap-2.5">
-                          <Avatar className="h-8 w-8 ring-2 ring-slate-100">
-                            <AvatarFallback className={cn(
-                              'text-xs font-semibold',
-                              user.role === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700' :
-                              user.role === 'ADMIN' ? 'bg-orange-100 text-orange-700' :
-                              user.role === 'TEACHER' ? 'bg-sky-100 text-sky-700' :
-                              'bg-green-100 text-green-700'
-                            )}>
-                              {user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className={cn(
+                            'h-9 w-9 rounded-full bg-gradient-to-br p-[2px]',
+                            rCfg.gradientFrom, rCfg.gradientTo,
+                          )}>
+                            <Avatar className="h-full w-full rounded-full">
+                              <AvatarFallback className={cn(
+                                'text-xs font-semibold bg-white dark:bg-slate-800',
+                                user.role === 'SUPER_ADMIN' ? 'text-red-700 dark:text-red-400' :
+                                user.role === 'ADMIN' ? 'text-orange-700 dark:text-orange-400' :
+                                user.role === 'TEACHER' ? 'text-sky-700 dark:text-sky-400' :
+                                'text-green-700 dark:text-green-400'
+                              )}>
+                                {user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-900">{user.name}</p>
-                            <p className="text-xs text-slate-500 sm:hidden">{user.email}</p>
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{user.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 sm:hidden">{user.email}</p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-slate-600">
+                      <TableCell className="hidden sm:table-cell text-sm text-slate-600 dark:text-slate-300">
                         {user.email}
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-slate-500">
+                      <TableCell className="hidden md:table-cell text-sm text-slate-500 dark:text-slate-400">
                         {user.phone || '—'}
                       </TableCell>
                       <TableCell>
@@ -510,7 +537,7 @@ export function UserManagement() {
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className={cn('text-[10px] px-2 py-0.5 font-medium', sCfg.className)}
+                          className={cn('text-[10px] px-2 py-0.5 font-medium gap-1', sCfg.className)}
                         >
                           <div className={cn(
                             'w-1.5 h-1.5 rounded-full',
@@ -522,7 +549,7 @@ export function UserManagement() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-700">
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -557,14 +584,14 @@ export function UserManagement() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                    </TableRow>
+                    </motion.tr>
                   )
                 })
               )}
             </TableBody>
           </Table>
         </div>
-      </div>
+      </motion.div>
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -751,19 +778,25 @@ export function UserManagement() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-14 w-14 ring-2 ring-slate-100">
-                    <AvatarFallback className={cn(
-                      'text-lg font-semibold',
-                      viewUser.role === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700' :
-                      viewUser.role === 'ADMIN' ? 'bg-orange-100 text-orange-700' :
-                      viewUser.role === 'TEACHER' ? 'bg-sky-100 text-sky-700' :
-                      'bg-green-100 text-green-700'
-                    )}>
-                      {viewUser.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className={cn(
+                    'h-14 w-14 rounded-full bg-gradient-to-br p-[2px]',
+                    (roleConfig[viewUser.role] || roleConfig.TEACHER).gradientFrom,
+                    (roleConfig[viewUser.role] || roleConfig.TEACHER).gradientTo,
+                  )}>
+                    <Avatar className="h-full w-full rounded-full">
+                      <AvatarFallback className={cn(
+                        'text-lg font-semibold bg-white dark:bg-slate-800',
+                        viewUser.role === 'SUPER_ADMIN' ? 'text-red-700 dark:text-red-400' :
+                        viewUser.role === 'ADMIN' ? 'text-orange-700 dark:text-orange-400' :
+                        viewUser.role === 'TEACHER' ? 'text-sky-700 dark:text-sky-400' :
+                        'text-green-700 dark:text-green-400'
+                      )}>
+                        {viewUser.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                   <div>
-                    <h3 className="text-base font-semibold text-slate-900">{viewUser.name}</h3>
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{viewUser.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge
                         variant="outline"
@@ -786,30 +819,30 @@ export function UserManagement() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-sm">
                     <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <span className="text-slate-500 min-w-[56px]">Email</span>
-                    <span className="text-slate-900 font-medium">{viewUser.email}</span>
+                    <span className="text-slate-500 dark:text-slate-400 min-w-[56px]">Email</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-medium">{viewUser.email}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <span className="text-slate-500 min-w-[56px]">Phone</span>
-                    <span className="text-slate-900 font-medium">{viewUser.phone || 'Not set'}</span>
+                    <span className="text-slate-500 dark:text-slate-400 min-w-[56px]">Phone</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-medium">{viewUser.phone || 'Not set'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Users className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <span className="text-slate-500 min-w-[56px]">Gender</span>
-                    <span className="text-slate-900 font-medium">{viewUser.gender || 'Not set'}</span>
+                    <span className="text-slate-500 dark:text-slate-400 min-w-[56px]">Gender</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-medium">{viewUser.gender || 'Not set'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <span className="text-slate-500 min-w-[56px]">Joined</span>
-                    <span className="text-slate-900 font-medium">
+                    <span className="text-slate-500 dark:text-slate-400 min-w-[56px]">Joined</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-medium">
                       {viewUser.createdAt ? format(new Date(viewUser.createdAt), 'MMM d, yyyy') : '—'}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <UserCheck className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <span className="text-slate-500 min-w-[56px]">Linked</span>
-                    <span className="text-slate-900 font-medium">
+                    <span className="text-slate-500 dark:text-slate-400 min-w-[56px]">Linked</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-medium">
                       {viewUser._count?.students || 0} student{viewUser._count?.students !== 1 ? 's' : ''}
                     </span>
                   </div>

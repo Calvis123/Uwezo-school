@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, FileText, CalendarDays, Filter, Trash2, X } from 'lucide-react'
+import { Plus, Search, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
@@ -10,7 +10,15 @@ import { examsApi, refApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Select,
   SelectContent,
@@ -44,36 +52,6 @@ interface ExamRow {
   totalMarks: number
 }
 
-const statusBorderColors: Record<string, string> = {
-  DRAFT: 'border-l-slate-400 dark:border-l-slate-500',
-  ACTIVE: 'border-l-teal-500 dark:border-l-teal-400',
-  COMPLETED: 'border-l-green-500 dark:border-l-green-400',
-}
-
-const statusColors: Record<string, string> = {
-  DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600',
-  ACTIVE: 'bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 border border-teal-200 dark:border-teal-800',
-  COMPLETED: 'bg-green-50 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800',
-}
-
-const statusDotColors: Record<string, string> = {
-  DRAFT: 'bg-slate-400 dark:bg-slate-500',
-  ACTIVE: 'bg-teal-500 dark:bg-teal-400',
-  COMPLETED: 'bg-green-500 dark:bg-green-400',
-}
-
-const typeLabels: Record<string, string> = {
-  CAT_1: 'CAT 1',
-  CAT_2: 'CAT 2',
-  END_TERM: 'End Term',
-}
-
-const typeColors: Record<string, string> = {
-  CAT_1: 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border-sky-200 dark:border-sky-800',
-  CAT_2: 'bg-purple-50 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-  END_TERM: 'bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-}
-
 export function ExamList() {
   const { classes, terms, setClasses, setTerms, navigateTo, setSelectedExamId } = useAppStore()
   const [exams, setExams] = useState<ExamRow[]>([])
@@ -82,7 +60,6 @@ export function ExamList() {
   const [creating, setCreating] = useState(false)
   const [filterClass, setFilterClass] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
-  const [deleteId, setDeleteId] = useState<string | null>(null)
   const [localClasses, setLocalClasses] = useState(classes)
   const [localTerms, setLocalTerms] = useState(terms)
   const [newExam, setNewExam] = useState({
@@ -154,49 +131,24 @@ export function ExamList() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!deleteId) return
-    try {
-      const result = await examsApi.delete(deleteId)
-      if (result.success) {
-        toast.success('Exam deleted successfully')
-        loadExams()
-      } else {
-        toast.error(result.error || 'Failed to delete exam')
-      }
-    } catch {
-      toast.error('An error occurred')
-    }
-    setDeleteId(null)
+  const statusColors: Record<string, string> = {
+    DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+    COMPLETED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   }
 
-  const hasFilters = filterClass || filterStatus
+  const typeLabels: Record<string, string> = {
+    CAT_1: 'CAT 1',
+    CAT_2: 'CAT 2',
+    END_TERM: 'End Term',
+  }
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Exams & Results</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Manage exams, marks, and report cards</p>
-        </div>
-        <Button
-          className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" /> Create Exam
-        </Button>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/40">
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-          <Filter className="w-3.5 h-3.5" />
-          Filters
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
+        <div className="flex items-center gap-3">
           <Select value={filterClass} onValueChange={(v) => setFilterClass(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-full sm:w-44 h-9 bg-white dark:bg-slate-800">
+            <SelectTrigger className="w-40 h-9">
               <SelectValue placeholder="All Classes" />
             </SelectTrigger>
             <SelectContent>
@@ -207,7 +159,7 @@ export function ExamList() {
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-full sm:w-40 h-9 bg-white dark:bg-slate-800">
+            <SelectTrigger className="w-36 h-9">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -218,122 +170,103 @@ export function ExamList() {
             </SelectContent>
           </Select>
         </div>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-9 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300" onClick={() => { setFilterClass(''); setFilterStatus('') }}>
-            <X className="w-3 h-3 mr-1" /> Clear
-          </Button>
-        )}
+        <Button
+          className="bg-teal-600 hover:bg-teal-700 text-white"
+          onClick={() => setCreateOpen(true)}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Create Exam
+        </Button>
       </div>
 
-      {/* Exam Cards */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <CardContent className="p-5 space-y-3">
-                <Skeleton className="h-5 w-40" />
-                <Skeleton className="h-4 w-24" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
-                <Skeleton className="h-9 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : exams.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-20 h-20 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-5">
-            <CalendarDays className="w-10 h-10 text-slate-300 dark:text-slate-600" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">No exams scheduled</h3>
-          <p className="text-sm text-slate-400 dark:text-slate-500 mb-5 text-center max-w-xs">
-            Create your first exam to start tracking student performance and generating report cards.
-          </p>
-          <Button
-            className="bg-teal-600 hover:bg-teal-700 text-white"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Create First Exam
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {exams.map((exam, index) => (
-            <motion.div
-              key={exam.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-            >
-              <Card className={cn(
-                'border-l-4 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer hover:scale-[1.01] active:scale-[0.99] group',
-                'bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60',
-                statusBorderColors[exam.status] || 'border-l-slate-300'
-              )}>
-                <CardContent className="p-5">
-                  {/* Exam name and status */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{exam.name}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {exam.class?.name || '—'} · {exam.term ? `${exam.term.name} ${exam.term.year}` : '—'}
-                      </p>
+      <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/80">
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Exam Name</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Class</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Term</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Type</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Date Range</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-36" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-16" /></TableCell>
+                  </TableRow>
+                ))
+              ) : exams.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="flex flex-col items-center">
+                      <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
+                      <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No exams scheduled</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Create your first exam to get started</p>
                     </div>
-                    <Badge variant="outline" className={cn('text-[10px] font-medium flex-shrink-0 ml-2', statusColors[exam.status])}>
-                      <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5 inline-block', statusDotColors[exam.status])} />
-                      {exam.status}
-                    </Badge>
-                  </div>
-
-                  {/* Type badges */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="outline" className={cn('text-[10px]', typeColors[exam.type] || '')}>
-                      {typeLabels[exam.type] || exam.type}
-                    </Badge>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                      <CalendarDays className="w-3 h-3" />
-                      {format(new Date(exam.startDate), 'MMM d')} – {format(new Date(exam.endDate), 'MMM d')}
-                    </span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700/60">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 h-8 text-xs border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-800 dark:text-teal-400 dark:hover:bg-teal-900/30"
-                      onClick={(e) => { e.stopPropagation(); setSelectedExamId(exam.id); navigateTo('mark-entry') }}
-                    >
-                      <FileText className="w-3 h-3 mr-1.5" />
-                      Marks
-                    </Button>
-                    {exam.status === 'COMPLETED' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-8 text-xs"
-                        onClick={(e) => { e.stopPropagation(); setSelectedExamId(exam.id); navigateTo('report-cards') }}
-                      >
-                        Report
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); setDeleteId(exam.id) }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      )}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                exams.map((exam) => (
+                  <TableRow key={exam.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                    <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{exam.name}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-slate-600 dark:text-slate-400">
+                      {exam.class?.name || '—'}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">
+                      {exam.term ? `${exam.term.name} ${exam.term.year}` : '—'}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {typeLabels[exam.type] || exam.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs text-slate-500 dark:text-slate-400">
+                      {format(new Date(exam.startDate), 'MMM d')} - {format(new Date(exam.endDate), 'MMM d, yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={cn('text-[10px]', statusColors[exam.status] || '')}>
+                        {exam.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => { setSelectedExamId(exam.id); navigateTo('mark-entry') }}
+                        >
+                          Marks
+                        </Button>
+                        {exam.status === 'COMPLETED' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => { setSelectedExamId(exam.id); navigateTo('report-cards') }}
+                          >
+                            Report
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Create Exam Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -409,25 +342,6 @@ export function ExamList() {
             <Button className="bg-teal-600 hover:bg-teal-700" onClick={handleCreateExam} disabled={creating}>
               {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Exam
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="max-w-sm bg-white dark:bg-slate-800">
-          <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-slate-100">Delete Exam</DialogTitle>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-              Are you sure you want to delete this exam? This will also remove all associated marks. This action cannot be undone.
-            </p>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
