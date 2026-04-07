@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Loader2, Smartphone, FileDown } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { feesApi, refApi } from '@/lib/api'
+import { feesApi, refApi, studentsApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -96,6 +96,11 @@ export function FeeFormDialog({ open, onClose, editItem, onSuccess, mode = 'stru
       setBankName('')
       setBankReference('')
       setBankTransferDate('')
+      setPaymentStudentId('')
+      setPaymentFeeStructureId('')
+      setPaymentAmount('')
+      setPaymentMethod('CASH')
+      setPaymentNotes('')
 
       if (classes.length === 0) {
         refApi.classes().then((res) => {
@@ -111,8 +116,28 @@ export function FeeFormDialog({ open, onClose, editItem, onSuccess, mode = 'stru
       } else {
         setLocalTerms(terms)
       }
+
+      // Load students and fee structures for payment mode
+      if (mode === 'payment') {
+        if (students.length === 0) {
+          studentsApi.list({ limit: 500, status: 'ACTIVE' }).then((res) => {
+            if (res.success && res.data) {
+              const items = res.data.items || res.data || []
+              setStudents(items)
+            }
+          })
+        }
+        if (feeStructures.length === 0) {
+          feesApi.structures({ limit: 100 }).then((res) => {
+            if (res.success && res.data) {
+              const items = res.data.items || res.data || []
+              setFeeStructures(items)
+            }
+          })
+        }
+      }
     }
-  }, [open, classes, terms])
+  }, [open, classes, terms, mode])
 
   useEffect(() => {
     if (editItem) {

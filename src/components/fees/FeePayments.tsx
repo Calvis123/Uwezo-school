@@ -2,17 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, Search, Download, DollarSign, FileDown, TrendingUp, Wallet, Percent } from 'lucide-react'
+import { Plus, Search, DollarSign, FileDown, TrendingUp, Wallet, Percent, Smartphone, Landmark, Banknote, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { feesApi, refApi } from '@/lib/api'
+import { feesApi, refApi, studentsApi } from '@/lib/api'
 import { FeeFormDialog } from './FeeFormDialog'
+import { MpesaPaymentDialog } from './MpesaPaymentDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -32,8 +33,10 @@ import { cn } from '@/lib/utils'
 
 interface TransactionRow {
   id: string
+  studentId?: string
   studentName: string
   feeName?: string
+  feeStructureId?: string
   amount: number
   receiptNumber: string
   paymentMethod: string
@@ -43,7 +46,7 @@ interface TransactionRow {
 }
 
 // Circular Progress Component
-function CircularProgress({ value, size = 100, strokeWidth = 8, color = 'text-teal-600' }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
+function CircularProgress({ value, size = 100, strokeWidth = 8 }: { value: number; size?: number; strokeWidth?: number }) {
   const radius = (size - strokeWidth) / 2
   const circumference = radius * 2 * Math.PI
   const offset = circumference - (value / 100) * circumference
@@ -85,14 +88,32 @@ function CircularProgress({ value, size = 100, strokeWidth = 8, color = 'text-te
   )
 }
 
+const methodFilterOptions = [
+  { value: 'ALL', label: 'All', icon: Filter },
+  { value: 'CASH', label: 'Cash', icon: Banknote },
+  { value: 'MPESA', label: 'M-Pesa', icon: Smartphone },
+  { value: 'BANK', label: 'Bank Transfer', icon: Landmark },
+]
+
 export function FeePayments() {
-  const { classes, setClasses } = useAppStore()
+  const { classes, setClasses, terms, setTerms } = useAppStore()
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [filterClass, setFilterClass] = useState('')
   const [search, setSearch] = useState('')
   const [localClasses, setLocalClasses] = useState(classes)
+  const [methodFilter, setMethodFilter] = useState('ALL')
+
+  // M-Pesa quick pay dialog
+  const [mpesaQuickPayOpen, setMpesaQuickPayOpen] = useState(false)
+  const [mpesaResetKey, setMpesaResetKey] = useState(0)
+
+  // Students and fee structures for M-Pesa quick pay
+  const [students, setStudents] = useState<any[]>([])
+  const [feeStructures, setFeeStructures] = useState<any[]>([])
+  const [selectedStudent, setSelectedStudent] = useState('')
+  const [selectedFee, setSelectedFee] = useState('')
 
   const loadTransactions = useCallback(async () => {
     setLoading(true)
@@ -102,8 +123,10 @@ export function FeePayments() {
         const items = res.data.items || res.data || []
         setTransactions(items.map((t: any) => ({
           id: t.id,
+          studentId: t.student?.id,
           studentName: t.student?.firstName ? `${t.student.firstName} ${t.student.lastName}` : 'Unknown',
           feeName: t.feeStructure?.name,
+          feeStructureId: t.feeStructure?.id,
           amount: t.amount,
           receiptNumber: t.receiptNumber,
           paymentMethod: t.paymentMethod,
@@ -112,16 +135,7 @@ export function FeePayments() {
           term: t.term,
         })))
       } else {
-        setTransactions([
-          { id: '1', studentName: 'John Kamau', feeName: 'Term 1 Tuition', amount: 15000, receiptNumber: 'RCT-001', paymentMethod: 'MPESA', status: 'COMPLETED', createdAt: new Date().toISOString(), term: '2025-1' },
-          { id: '2', studentName: 'Mary Wanjiku', feeName: 'Term 1 Tuition', amount: 25000, receiptNumber: 'RCT-002', paymentMethod: 'BANK', status: 'COMPLETED', createdAt: new Date().toISOString(), term: '2025-1' },
-          { id: '3', studentName: 'Peter Ochieng', feeName: 'Transport Fee', amount: 10000, receiptNumber: 'RCT-003', paymentMethod: 'CASH', status: 'COMPLETED', createdAt: new Date().toISOString(), term: '2025-1' },
-          { id: '4', studentName: 'Grace Akinyi', feeName: 'Term 1 Tuition', amount: 20000, receiptNumber: 'RCT-004', paymentMethod: 'MPESA', status: 'COMPLETED', createdAt: new Date().toISOString(), term: '2025-1' },
-          { id: '5', studentName: 'David Mwangi', feeName: 'Lunch Program', amount: 5000, receiptNumber: 'RCT-005', paymentMethod: 'MPESA', status: 'COMPLETED', createdAt: new Date().toISOString(), term: '2025-1' },
-          { id: '6', studentName: 'Sarah Njeri', feeName: 'Term 1 Tuition', amount: 35000, receiptNumber: 'RCT-006', paymentMethod: 'BANK', status: 'COMPLETED', createdAt: new Date().toISOString(), term: '2025-1' },
-          { id: '7', studentName: 'James Otieno', feeName: 'Term 1 Tuition', amount: 15000, receiptNumber: 'RCT-007', paymentMethod: 'CASH', status: 'PENDING', createdAt: new Date().toISOString(), term: '2025-1' },
-          { id: '8', studentName: 'Ann Muthoni', feeName: 'Term 1 Tuition', amount: 30000, receiptNumber: 'RCT-008', paymentMethod: 'MPESA', status: 'COMPLETED', createdAt: new Date().toISOString(), term: '2025-1' },
-        ])
+        setTransactions([])
       }
     } catch {
       setTransactions([])
@@ -141,16 +155,43 @@ export function FeePayments() {
     } else {
       setLocalClasses(classes)
     }
-  }, [classes, setClasses])
+    if (terms.length === 0) {
+      refApi.terms().then((res) => {
+        if (res.success && res.data) setTerms(res.data)
+      })
+    }
+  }, [classes, setClasses, terms, setTerms])
 
   useEffect(() => {
     loadTransactions()
   }, [loadTransactions])
 
-  const filtered = transactions.filter((t) =>
-    t.studentName.toLowerCase().includes(search.toLowerCase()) ||
-    t.receiptNumber.toLowerCase().includes(search.toLowerCase())
-  )
+  // Load students and fee structures for M-Pesa quick pay
+  useEffect(() => {
+    if (mpesaQuickPayOpen) {
+      Promise.all([
+        studentsApi.list({ limit: 500, status: 'ACTIVE' }),
+        feesApi.structures({ limit: 100 }),
+      ]).then(([studentRes, feeRes]) => {
+        if (studentRes.success && studentRes.data) {
+          const items = studentRes.data.items || studentRes.data || []
+          setStudents(items)
+        }
+        if (feeRes.success && feeRes.data) {
+          const items = feeRes.data.items || feeRes.data || []
+          setFeeStructures(items)
+        }
+      })
+    }
+  }, [mpesaQuickPayOpen])
+
+  // Apply all filters
+  const filtered = transactions.filter((t) => {
+    const matchesSearch = t.studentName.toLowerCase().includes(search.toLowerCase()) ||
+      t.receiptNumber.toLowerCase().includes(search.toLowerCase())
+    const matchesMethod = methodFilter === 'ALL' || t.paymentMethod === methodFilter
+    return matchesSearch && matchesMethod
+  })
 
   const totalCollected = filtered
     .filter((t) => t.status === 'COMPLETED')
@@ -193,6 +234,9 @@ export function FeePayments() {
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
+
+  const selectedStudentObj = students.find((s: any) => s.id === selectedStudent)
+  const selectedFeeObj = feeStructures.find((f: any) => f.id === selectedFee)
 
   return (
     <div className="space-y-4">
@@ -279,12 +323,46 @@ export function FeePayments() {
             ))}
           </SelectContent>
         </Select>
-        <Button
-          className="bg-teal-600 hover:bg-teal-700 text-white"
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" /> Record Payment
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-sm shadow-green-500/20"
+            onClick={() => {
+              setMpesaResetKey((prev) => prev + 1)
+              setMpesaQuickPayOpen(true)
+            }}
+          >
+            <Smartphone className="w-4 h-4 mr-2" /> Pay via M-Pesa
+          </Button>
+          <Button
+            className="bg-teal-600 hover:bg-teal-700 text-white"
+            onClick={() => setDialogOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Record Payment
+          </Button>
+        </div>
+      </div>
+
+      {/* Payment Method Filter Tabs */}
+      <div className="flex items-center gap-2">
+        {methodFilterOptions.map((filter) => {
+          const isActive = methodFilter === filter.value
+          const Icon = filter.icon
+          return (
+            <button
+              key={filter.value}
+              onClick={() => setMethodFilter(filter.value)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
+                isActive
+                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {filter.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Summary strip */}
@@ -393,12 +471,166 @@ export function FeePayments() {
         </CardContent>
       </Card>
 
+      {/* Record Payment Dialog */}
       <FeeFormDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onSuccess={loadTransactions}
         mode="payment"
       />
+
+      {/* M-Pesa Quick Pay Dialog - Selector */}
+      {mpesaQuickPayOpen && (
+        <MpesaQuickPaySelector
+          open={mpesaQuickPayOpen}
+          onClose={() => setMpesaQuickPayOpen(false)}
+          students={students}
+          feeStructures={feeStructures}
+          selectedStudent={selectedStudent}
+          setSelectedStudent={setSelectedStudent}
+          selectedFee={selectedFee}
+          setSelectedFee={setSelectedFee}
+          onStartPayment={() => {
+            if (!selectedStudent || !selectedFee) {
+              toast.error('Please select a student and fee structure')
+              return
+            }
+            setMpesaQuickPayOpen(false)
+          }}
+        />
+      )}
+
+      {/* M-Pesa Payment Dialog (after selection) */}
+      {selectedStudent && selectedFee && (
+        <MpesaPaymentDialog
+          open={!mpesaQuickPayOpen && selectedStudent !== ''}
+          onClose={() => {
+            setSelectedStudent('')
+            setSelectedFee('')
+          }}
+          resetKey={mpesaResetKey}
+          amount={selectedFeeObj?.amount || 0}
+          feeDescription={selectedFeeObj?.name || 'School Fees'}
+          studentName={selectedStudentObj ? `${selectedStudentObj.firstName} ${selectedStudentObj.lastName}` : 'Student'}
+          studentId={selectedStudent}
+          feeStructureId={selectedFee}
+          term={terms.length > 0 ? `${new Date().getFullYear()}-1` : '2025-1'}
+          onSuccess={() => {
+            setSelectedStudent('')
+            setSelectedFee('')
+            loadTransactions()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// M-Pesa Quick Pay Selector - Dialog for selecting student and fee before M-Pesa payment
+function MpesaQuickPaySelector({
+  open,
+  onClose,
+  students,
+  feeStructures,
+  selectedStudent,
+  setSelectedStudent,
+  selectedFee,
+  setSelectedFee,
+  onStartPayment,
+}: {
+  open: boolean
+  onClose: () => void
+  students: any[]
+  feeStructures: any[]
+  selectedStudent: string
+  setSelectedStudent: (v: string) => void
+  selectedFee: string
+  setSelectedFee: (v: string) => void
+  onStartPayment: () => void
+}) {
+  const selectedFeeObj = feeStructures.find((f: any) => f.id === selectedFee)
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative w-full max-w-md mx-4 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
+      >
+        {/* Green Header */}
+        <div className="relative bg-gradient-to-br from-green-600 via-green-600 to-emerald-700 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <Smartphone className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Quick M-Pesa Payment</h2>
+              <p className="text-green-100 text-sm">Select student and fee to pay</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Student</label>
+            <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+              <SelectTrigger>
+                <SelectValue placeholder="Search and select student..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {students.map((s: any) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.firstName} {s.lastName} — {s.admissionNumber}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Fee Structure</label>
+            <Select value={selectedFee} onValueChange={(val) => {
+              setSelectedFee(val)
+            }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select fee to pay..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {feeStructures.map((f: any) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name} — KES {f.amount?.toLocaleString()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedFeeObj && (
+            <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 p-3 text-center">
+              <p className="text-xs text-green-600 dark:text-green-400 font-medium">Amount to Pay</p>
+              <p className="text-2xl font-bold text-green-700 dark:text-green-300 tabular-nums">
+                KES {selectedFeeObj.amount?.toLocaleString()}
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button
+              onClick={onStartPayment}
+              disabled={!selectedStudent || !selectedFee}
+              className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+            >
+              <Smartphone className="w-4 h-4 mr-2" />
+              Continue to M-Pesa
+            </Button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   )
 }

@@ -19,6 +19,8 @@ import {
   FileDown,
   Printer,
   DollarSign,
+  LayoutGrid,
+  ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImportStudentsDialog } from './ImportStudentsDialog'
@@ -92,6 +94,16 @@ export function StudentList() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [localClasses, setLocalClasses] = useState(classes)
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
+
+  // On mobile, default to card view
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 640px)')
+    if (mql.matches) setViewMode('card')
+    const handler = (e: MediaQueryListEvent) => setViewMode(e.matches ? 'card' : 'table')
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
 
   const totalPages = Math.ceil(total / limit)
 
@@ -304,6 +316,33 @@ export function StudentList() {
           />
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {/* View mode toggle */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 h-10">
+            <button
+              onClick={() => setViewMode('table')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 btn-press',
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+              )}
+              title="Table view"
+            >
+              <ListChecks className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('card')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 btn-press',
+                viewMode === 'card'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+              )}
+              title="Card view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
           <Select value={filterClass} onValueChange={(v) => { setFilterClass(v === 'all' ? '' : v); setPage(1) }}>
             <SelectTrigger className="w-full sm:w-44 h-10 bg-white dark:bg-slate-800">
               <SelectValue placeholder="All Classes" />
@@ -357,20 +396,21 @@ export function StudentList() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table / Card View */}
+      {viewMode === 'table' ? (
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden shadow-sm">
         <div className="max-h-[520px] overflow-y-auto">
           <Table className="w-full">
             <TableHeader className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
               <TableRow className="hover:bg-slate-50/95 dark:hover:bg-slate-800/95">
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-10 text-center">#</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Admission #</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Admission #</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Name</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Gender</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Class</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Fees Due</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right">Actions</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right w-10">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -415,7 +455,7 @@ export function StudentList() {
                       <TableCell className="text-xs font-mono text-slate-400 dark:text-slate-500 text-center">
                         {rowNumber}
                       </TableCell>
-                      <TableCell className="text-sm font-mono text-slate-500 dark:text-slate-400">
+                      <TableCell className="text-sm font-mono text-slate-500 dark:text-slate-400 hidden sm:table-cell">
                         {student.admissionNumber}
                       </TableCell>
                       <TableCell>
@@ -462,10 +502,10 @@ export function StudentList() {
                           {statusCfg.label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="text-right sm:w-10" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 transition-opacity focus-visible:opacity-100">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-700 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity focus-visible:opacity-100" title="Actions">
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -493,6 +533,93 @@ export function StudentList() {
           </Table>
         </div>
       </div>
+      ) : (
+        // Mobile Card View
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {loading ? (
+            [...Array(6)].map((_, i) => (
+              <Card key={i} className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                <CardContent className="p-4 space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-6 w-36" />
+                  <Skeleton className="h-4 w-20" />
+                </CardContent>
+              </Card>
+            ))
+          ) : students.length === 0 ? (
+            <div className="col-span-2 text-center py-12">
+              <GraduationCap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No students found</p>
+              <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
+            </div>
+          ) : (
+            students.map((student) => {
+              const statusCfg = statusConfig[student.status] || statusConfig.ACTIVE
+              return (
+                <motion.div
+                  key={student.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Card
+                    className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 hover:shadow-md dark:hover:shadow-slate-900/50 transition-shadow duration-200 cursor-pointer active:scale-[0.99]"
+                    onClick={() => navigateTo('student-detail', { studentId: student.id })}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                          style={{ backgroundColor: getAvatarColor(`${student.firstName} ${student.lastName}`).bg }}
+                        >
+                          {getInitials(student.firstName, student.lastName)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                            {student.firstName} {student.lastName}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                            {student.admissionNumber}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-xs text-slate-600 dark:text-slate-400">
+                              {student.class?.name || '—'}
+                            </span>
+                            <span className={cn(
+                              'text-[10px] px-2 py-0.5 font-medium',
+                              statusCfg.className
+                            )}>
+                              {statusCfg.label}
+                            </span>
+                          </div>
+                          {student.feesDue !== undefined && student.feesDue > 0 && (
+                            <p className="text-xs text-red-500 dark:text-red-400 font-medium mt-1.5 flex items-center gap-1">
+                              <DollarSign className="w-3 h-3" />
+                              KES {student.feesDue.toLocaleString()} due
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigateTo('student-detail', { studentId: student.id })
+                          }}
+                          title="View details"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )
+            })
+          )}
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

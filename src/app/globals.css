@@ -201,6 +201,28 @@ tbody tr {
     min-height: 36px;
     min-width: 36px;
   }
+
+  /* Smooth touch scrolling on mobile */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Ensure horizontal scroll containers hide scrollbar on mobile */
+  .overflow-x-auto {
+    scrollbar-width: none;
+  }
+  .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Card hover effect disabled on touch */
+  .card-hover-lift:hover {
+    transform: none;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+  }
 }
 
 /* Responsive table scroll containers - sticky headers */
@@ -224,6 +246,46 @@ nav button {
   box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.08);
 }
 
+/* Smooth transition for all interactive elements */
+button, a, [role="button"], summary {
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease, opacity 0.12s ease;
+}
+button:active:not(:disabled), a:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Tabular numbers for data display */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Horizontal scroll container with hidden scrollbar */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animate in */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+/* Pulse dot animation for live indicators */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
 /* Number input spinner removal */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
@@ -232,4 +294,167 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Skeleton shimmer with dark mode support */
+.dark .skeleton-shimmer {
+  --skeleton-color: #334155;
+  background: linear-gradient(90deg, var(--skeleton-color, #334155) 25%, #3e4c5e 37%, var(--skeleton-color, #334155) 63%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Micro-interaction: Button press effect */
+.btn-press {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.btn-press:active {
+  transform: scale(0.98);
+}
+
+/* Card hover micro-interaction */
+.card-interactive {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card-interactive:hover {
+  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.08);
+}
+.dark .card-interactive:hover {
+  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.3);
+}
+
+/* Sticky first column in tables */
+.sticky-first-col td:first-child,
+.sticky-first-col th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: inherit;
+}
+.sticky-first-col th:first-child {
+  z-index: 10;
+}
+.dark .sticky-first-col td:first-child,
+.dark .sticky-first-col th:first-child {
+  background: var(--color-card, #1e293b);
+}
+
+/* ==================== PRINT STYLES ==================== */
+@layer utilities {
+  .print\:hidden {
+    display: none !important;
+  }
+  .hidden\.print\:block {
+    display: block !important;
+  }
+}
+
+@media print {
+  /* Reset page layout */
+  html, body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Remove shadows and backgrounds from layout */
+  [class*="shadow-"] {
+    box-shadow: none !important;
+  }
+
+  /* Force light backgrounds to white in print */
+  [class*="bg-slate-"], [class*="bg-gray-"], [class*="bg-dark"] {
+    background: white !important;
+  }
+
+  /* Ensure tables have borders */
+  table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+
+  thead tr {
+    background: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  th, td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 4px 8px !important;
+  }
+
+  /* Ensure badges with colors print correctly */
+  [class*="bg-green-"], [class*="bg-blue-"], [class*="bg-amber-"], [class*="bg-red-"],
+  [class*="bg-teal-"], [class*="bg-rose-"], [class*="bg-violet-"], [class*="bg-purple-"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide gradients, show solid colors */
+  [class*="bg-gradient"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  [class*="bg-gradient"] * {
+    color: white !important;
+  }
+
+  /* Remove animations */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Page breaks */
+  .print-break-before {
+    page-break-before: always;
+  }
+
+  .print-break-after {
+    page-break-after: always;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid;
+  }
+
+  /* Remove overflow scroll, show all content */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Print footer styling */
+  .print-footer {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 12px;
+    margin-top: 24px;
+    font-size: 9pt;
+    color: #94a3b8;
+  }
+
+  /* A4 page formatting */
+  @page {
+    size: A4;
+    margin: 15mm 15mm 20mm 15mm;
+  }
+
+  /* Backdrop blur removal */
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Remove absolute positioning for print content */
+  .absolute {
+    position: static !important;
+  }
+
+  /* Force sidebar/header hiding */
+  aside, header, .sidebar {
+    display: none !important;
+  }
 }

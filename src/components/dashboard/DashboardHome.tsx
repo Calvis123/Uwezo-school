@@ -18,6 +18,7 @@ import {
   Smartphone,
   Landmark,
   CalendarDays,
+  BarChart3,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
@@ -321,7 +322,7 @@ function AdminDashboard() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-gradient-to-r from-teal-600 via-teal-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg dark:shadow-xl dark:shadow-teal-900/40 relative overflow-hidden"
+        className="bg-gradient-to-r from-teal-600 via-teal-600 to-teal-700 rounded-2xl p-4 sm:p-6 text-white shadow-lg dark:shadow-xl dark:shadow-teal-900/40 relative overflow-hidden"
       >
         {/* Decorative circles */}
         <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/5" />
@@ -329,11 +330,11 @@ function AdminDashboard() {
 
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
               Welcome back, {user?.name?.split(' ')[0] || 'Admin'}! 👋
             </h2>
             <p className="text-teal-100 text-sm mt-1 flex items-center gap-2">
-              <CalendarDays className="w-3.5 h-3.5" />
+              <CalendarDays className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               {todayStr}
               {stats?.activeTerm && (
                 <span className="inline-flex items-center ml-2">
@@ -363,7 +364,7 @@ function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.15 }}
         >
-          <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden">
+          <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden card-interactive">
             <div className="h-px bg-gradient-to-r from-teal-500 via-teal-300 to-transparent" />
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -373,41 +374,41 @@ function AdminDashboard() {
                   {format(new Date(), 'MMM d, yyyy')}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-teal-50/60 dark:bg-teal-900/20 border border-teal-100/60 dark:border-teal-800/30">
-                  <div className="h-9 w-9 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center">
-                    <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-teal-50/60 dark:bg-teal-900/20 border border-teal-100/60 dark:border-teal-800/30">
+                  <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center flex-shrink-0">
+                    <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600 dark:text-teal-400" />
                   </div>
-                  <div>
-                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{stats.totalStudents}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Students</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50/60 dark:bg-green-900/20 border border-green-100/60 dark:border-green-800/30">
-                  <div className="h-9 w-9 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
-                    <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">KES {(stats.feeCollection / 1000).toFixed(0)}K</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Collected</p>
+                  <div className="min-w-0">
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums truncate">{stats.totalStudents}</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Students</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50/60 dark:bg-amber-900/20 border border-amber-100/60 dark:border-amber-800/30">
-                  <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
-                    <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-green-50/60 dark:bg-green-900/20 border border-green-100/60 dark:border-green-800/30">
+                  <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                    <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 dark:text-green-400" />
                   </div>
-                  <div>
-                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">KES {(stats.feeOutstanding / 1000).toFixed(0)}K</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Outstanding</p>
+                  <div className="min-w-0">
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums truncate">KES {(stats.feeCollection / 1000).toFixed(0)}K</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Collected</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-sky-50/60 dark:bg-sky-900/20 border border-sky-100/60 dark:border-sky-800/30">
-                  <div className="h-9 w-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">
-                    <ClipboardCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-amber-50/60 dark:bg-amber-900/20 border border-amber-100/60 dark:border-amber-800/30">
+                  <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                    <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <div>
-                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{stats.attendanceRate}%</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Attendance</p>
+                  <div className="min-w-0">
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums truncate">KES {(stats.feeOutstanding / 1000).toFixed(0)}K</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Outstanding</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-sky-50/60 dark:bg-sky-900/20 border border-sky-100/60 dark:border-sky-800/30">
+                  <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center flex-shrink-0">
+                    <ClipboardCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600 dark:text-sky-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{stats.attendanceRate}%</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">Attendance</p>
                   </div>
                 </div>
               </div>
@@ -428,7 +429,7 @@ function AdminDashboard() {
       />
 
       {/* Quick Actions, Recent Payments & Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -439,7 +440,7 @@ function AdminDashboard() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button
                   variant="outline"
@@ -482,6 +483,36 @@ function AdminDashboard() {
                   <div className="text-left">
                     <p className="text-sm font-medium">Take Attendance</p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">Mark daily attendance</p>
+                  </div>
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-200 dark:hover:border-violet-800 transition-colors"
+                  onClick={() => navigateTo('class-reports')}
+                >
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/40 dark:to-purple-900/40 flex items-center justify-center">
+                    <BarChart3 className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Class Report</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Generate class academic reports</p>
+                  </div>
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-700 dark:hover:text-teal-300 hover:border-teal-200 dark:hover:border-teal-800 transition-colors"
+                  onClick={() => navigateTo('fees')}
+                >
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-teal-100 to-green-100 dark:from-teal-900/40 dark:to-green-900/40 flex items-center justify-center">
+                    <Smartphone className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">M-Pesa Payment</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Process mobile money payment</p>
                   </div>
                 </Button>
               </motion.div>

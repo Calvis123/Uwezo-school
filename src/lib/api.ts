@@ -85,6 +85,12 @@ export const feesApi = {
     }),
   ledger: (studentId: string) => request(`/api/fees/ledger/${studentId}`),
   stats: () => request('/api/fees/stats'),
+  mpesa: (data: { studentId: string; amount: number; phoneNumber: string; feeStructureId: string }) =>
+    request('/api/fees/mpesa', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  mpesaStatus: (ref: string) => request(`/api/fees/mpesa/status?ref=${ref}`),
 }
 
 // Exams
@@ -255,11 +261,37 @@ export const searchApi = {
   },
 }
 
+// Student Academics
+export const academicsApi = {
+  get: (studentId: string) => request(`/api/students/${studentId}/academics`),
+}
+
+// Reports
+export const reportsApi = {
+  classReport: (classId: string, examId: string) =>
+    request(`/api/reports/class-report?classId=${classId}&examId=${examId}`),
+}
+
 // Notifications
 export const notificationsApi = {
-  list: () => request('/api/notifications'),
+  list: (userId?: string) => {
+    const searchParams = new URLSearchParams()
+    if (userId) searchParams.set('userId', userId)
+    return request(`/api/notifications?${searchParams.toString()}`)
+  },
   markRead: (id: string) =>
     request(`/api/notifications/${id}`, { method: 'PUT' }),
   markAllRead: () =>
     request('/api/notifications/all', { method: 'PUT' }),
+}
+
+// Activity Feed
+export const activityApi = {
+  list: (params?: { type?: string; page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.type) searchParams.set('type', params.type)
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    return request(`/api/activity?${searchParams.toString()}`)
+  },
 }

@@ -29,12 +29,18 @@ function getRelativeTime(date: Date): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const cookie = request.headers.get('cookie') || '';
-    const userMatch = cookie.match(/user=([^;]+)/);
-    const user = userMatch ? JSON.parse(decodeURIComponent(userMatch[1])) : null;
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
+    }
+
+    // Fetch user from DB to get role
+    const user = await db.user.findUnique({ where: { id: userId } });
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
     const now = new Date();

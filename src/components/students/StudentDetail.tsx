@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { format } from 'date-fns'
+import { useEffect, useState, useCallback } from 'react'
+import { format, differenceInYears } from 'date-fns'
 import {
   ArrowLeft,
   Phone,
@@ -12,18 +12,33 @@ import {
   BookOpen,
   DollarSign,
   ClipboardCheck,
-  AlertTriangle,
-  Heart,
   Edit2,
   Copy,
   RefreshCw,
   KeyRound,
+  Printer,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Shield,
+  FileText,
+  MessageSquare,
+  Users,
+  Send,
+  Award,
+  BarChart3,
+  Clock,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Banknote,
+  Smartphone,
+  Landmark,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAppStore } from '@/lib/store'
-import { studentsApi, feesApi, examsApi, attendanceApi } from '@/lib/api'
+import { studentsApi, feesApi, academicsApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -57,16 +72,106 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
-import { getInitials, getAvatarColor } from '@/lib/avatar'
+import { getInitials } from '@/lib/avatar'
+
+function calculateAge(dob: string | null | undefined): number | null {
+  if (!dob) return null
+  try {
+    return differenceInYears(new Date(), new Date(dob))
+  } catch {
+    return null
+  }
+}
+
+function getGradeColor(grade: string): string {
+  const g = grade.toUpperCase()
+  if (['A', 'EE', '1'].includes(g)) return 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+  if (['B', 'ME', '2'].includes(g)) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+  if (['C', 'AE', '3'].includes(g)) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+  return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 80) return 'text-green-600 dark:text-green-400'
+  if (score >= 60) return 'text-amber-600 dark:text-amber-400'
+  return 'text-red-600 dark:text-red-400'
+}
+
+function getBarColor(score: number): string {
+  if (score >= 80) return 'bg-green-500'
+  if (score >= 60) return 'bg-amber-500'
+  return 'bg-red-500'
+}
+
+function getGenderColor(gender: string): { bg: string; text: string } {
+  if (gender === 'MALE') return { bg: 'bg-teal-100 dark:bg-teal-900/40', text: 'text-teal-700 dark:text-teal-300' }
+  if (gender === 'FEMALE') return { bg: 'bg-rose-100 dark:bg-rose-900/40', text: 'text-rose-700 dark:text-rose-300' }
+  return { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-700 dark:text-slate-300' }
+}
+
+function getAvatarBg(gender: string): string {
+  if (gender === 'MALE') return 'from-teal-500 to-teal-700'
+  if (gender === 'FEMALE') return 'from-rose-500 to-rose-700'
+  return 'from-slate-500 to-slate-700'
+}
+
+const statusColors: Record<string, string> = {
+  ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  INACTIVE: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  GRADUATED: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+  TRANSFERRED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+}
+
+const methodIcons: Record<string, React.ReactNode> = {
+  CASH: <Banknote className="w-3.5 h-3.5" />,
+  MPESA: <Smartphone className="w-3.5 h-3.5" />,
+  BANK: <Landmark className="w-3.5 h-3.5" />,
+}
+
+interface AcademicsData {
+  overview: {
+    averageScore: number
+    totalExams: number
+    totalSubjects: number
+    bestSubject: { name: string; average: number; grade: string } | null
+    worstSubject: { name: string; average: number; grade: string } | null
+    attendanceRate: number
+    overallGrade: string
+  }
+  examHistory: Array<{
+    examId: string
+    examName: string
+    term: string
+    examType: string
+    subjects: Array<{ subjectName: string; marks: number; grade: string; remarks: string }>
+    totalMarks: number
+    average: number
+    grade: string
+    rank?: number
+    classSize?: number
+  }>
+  subjectPerformance: Array<{
+    name: string
+    average: number
+    grade: string
+    totalMarks: number
+    examCount: number
+  }>
+  attendanceTrend: Array<{
+    month: string
+    rate: number
+    present: number
+    total: number
+  }>
+}
 
 export function StudentDetail() {
-  const { selectedStudentId, navigateTo, classes, setClasses } = useAppStore()
+  const { selectedStudentId, navigateTo, classes, user } = useAppStore()
   const [student, setStudent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [feeLedger, setFeeLedger] = useState<any>(null)
-  const [results, setResults] = useState<any>(null)
-  const [attendanceStats, setAttendanceStats] = useState<any>(null)
+  const [academics, setAcademics] = useState<AcademicsData | null>(null)
+  const [academicsLoading, setAcademicsLoading] = useState(true)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [payLoading, setPayLoading] = useState(false)
   const [regenPinLoading, setRegenPinLoading] = useState(false)
@@ -76,7 +181,7 @@ export function StudentDetail() {
     loadStudent()
   }, [selectedStudentId])
 
-  const loadStudent = async () => {
+  const loadStudent = useCallback(async () => {
     if (!selectedStudentId) return
     setLoading(true)
     try {
@@ -84,105 +189,48 @@ export function StudentDetail() {
       if (res.success && res.data) {
         setStudent(res.data)
       } else {
-        // Demo data
-        setStudent({
-          id: selectedStudentId,
-          admissionNumber: 'ADM-001',
-          firstName: 'John',
-          lastName: 'Kamau',
-          gender: 'MALE',
-          dateOfBirth: '2015-03-15',
-          class: { id: '1', name: 'Grade 4' },
-          status: 'ACTIVE',
-          address: '123 School Road, Nairobi',
-          medicalNotes: 'None',
-          allergies: 'None',
-          admissionDate: '2023-01-15',
-          guardians: [
-            { guardian: { name: 'James Kamau', phone: '0712345678', email: 'james@email.com' }, relationship: 'FATHER', isPrimary: true },
-          ],
-        })
+        setStudent(null)
       }
     } catch {
       setStudent(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedStudentId])
 
-  const loadFeeLedger = async () => {
+  const loadFeeLedger = useCallback(async () => {
     if (!selectedStudentId) return
     try {
       const res = await feesApi.ledger(selectedStudentId)
       if (res.success && res.data) {
         setFeeLedger(res.data)
-      } else {
-        setFeeLedger({
-          totalFees: 45000,
-          totalPaid: 30000,
-          balance: 15000,
-          structures: [{ name: 'Term 1 Tuition', amount: 30000, category: 'TUITION' }, { name: 'Transport Fee', amount: 10000, category: 'TRANSPORT' }, { name: 'Lunch Program', amount: 5000, category: 'OTHER' }],
-          transactions: [
-            { receiptNumber: 'RCT-001', amount: 15000, paymentMethod: 'MPESA', createdAt: new Date().toISOString(), feeStructure: { name: 'Term 1 Tuition' }, status: 'COMPLETED' },
-            { receiptNumber: 'RCT-002', amount: 15000, paymentMethod: 'BANK', createdAt: new Date().toISOString(), feeStructure: { name: 'Term 1 Tuition' }, status: 'COMPLETED' },
-          ],
-        })
       }
     } catch {
-      setFeeLedger(null)
+      // silent
     }
-  }
+  }, [selectedStudentId])
 
-  const loadResults = async () => {
+  const loadAcademics = useCallback(async () => {
     if (!selectedStudentId) return
+    setAcademicsLoading(true)
     try {
-      const res = await examsApi.studentResults(selectedStudentId)
+      const res = await academicsApi.get(selectedStudentId)
       if (res.success && res.data) {
-        setResults(res.data)
-      } else {
-        setResults([
-          { examName: 'Term 1 CAT 1', subject: 'Mathematics', marks: 85, grade: 'A-', remarks: 'Excellent' },
-          { examName: 'Term 1 CAT 1', subject: 'English', marks: 72, grade: 'B+', remarks: 'Good' },
-          { examName: 'Term 1 CAT 1', subject: 'Kiswahili', marks: 78, grade: 'B+', remarks: 'Good' },
-          { examName: 'Term 1 CAT 1', subject: 'Science', marks: 90, grade: 'A', remarks: 'Excellent' },
-          { examName: 'Term 1 CAT 1', subject: 'Social Studies', marks: 68, grade: 'B', remarks: 'Good' },
-          { examName: 'Term 1 End Term', subject: 'Mathematics', marks: 92, grade: 'A', remarks: 'Excellent' },
-          { examName: 'Term 1 End Term', subject: 'English', marks: 75, grade: 'B+', remarks: 'Good' },
-          { examName: 'Term 1 End Term', subject: 'Kiswahili', marks: 82, grade: 'A-', remarks: 'Very Good' },
-          { examName: 'Term 1 End Term', subject: 'Science', marks: 88, grade: 'A-', remarks: 'Excellent' },
-          { examName: 'Term 1 End Term', subject: 'Social Studies', marks: 70, grade: 'B+', remarks: 'Good' },
-        ])
+        setAcademics(res.data)
       }
     } catch {
-      setResults(null)
+      // silent
+    } finally {
+      setAcademicsLoading(false)
     }
-  }
+  }, [selectedStudentId])
 
-  const loadAttendance = async () => {
-    if (!selectedStudentId) return
-    try {
-      const res = await attendanceApi.stats({ studentId: selectedStudentId })
-      if (res.success && res.data) {
-        setAttendanceStats(res.data)
-      } else {
-        setAttendanceStats({
-          totalDays: 90,
-          present: 85,
-          absent: 3,
-          late: 2,
-          excused: 0,
-          rate: 94.4,
-          monthly: [
-            { month: 'Jan', rate: 96, present: 20, absent: 1 },
-            { month: 'Feb', rate: 95, present: 19, absent: 1 },
-            { month: 'Mar', rate: 92, present: 22, absent: 2 },
-          ],
-        })
-      }
-    } catch {
-      setAttendanceStats(null)
+  useEffect(() => {
+    if (student) {
+      loadFeeLedger()
+      loadAcademics()
     }
-  }
+  }, [student, loadFeeLedger, loadAcademics])
 
   const handleCopyPin = () => {
     if (student?.resultsPin) {
@@ -212,19 +260,24 @@ export function StudentDetail() {
     }
   }
 
-  useEffect(() => {
-    if (student) {
-      loadFeeLedger()
-      loadResults()
-      loadAttendance()
-    }
-  }, [student])
+  const handlePrintProfile = () => {
+    window.print()
+  }
+
+  const handlePrintFeeStatement = () => {
+    window.print()
+  }
+
+  const age = student?.dateOfBirth ? calculateAge(student.dateOfBirth) : null
+  const genderColor = student?.gender ? getGenderColor(student.gender) : { bg: '', text: '' }
+  const avatarGradient = student?.gender ? getAvatarBg(student.gender) : 'from-slate-500 to-slate-700'
+  const feePaid = feeLedger ? (feeLedger.totalPaid / Math.max(feeLedger.totalFees, 1)) * 100 : 0
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 print:hidden">
         <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-40 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
         <Skeleton className="h-96 w-full rounded-xl" />
       </div>
     )
@@ -232,7 +285,7 @@ export function StudentDetail() {
 
   if (!student) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 print:hidden">
         <p className="text-slate-500 dark:text-slate-400">Student not found</p>
         <Button variant="outline" className="mt-4" onClick={() => navigateTo('students')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
@@ -241,53 +294,32 @@ export function StudentDetail() {
     )
   }
 
-  const statusColors: Record<string, string> = {
-    ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    INACTIVE: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-    GRADUATED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  }
-
-  const feePaid = feeLedger ? (feeLedger.totalPaid / feeLedger.totalFees) * 100 : 0
-
-  const performanceChartData = results?.length
-    ? Object.entries(
-        results.reduce((acc: any, r: any) => {
-          if (!acc[r.subject]) acc[r.subject] = { total: 0, count: 0 }
-          acc[r.subject].total += r.marks
-          acc[r.subject].count++
-          return acc
-        }, {})
-      ).map(([subject, data]: any) => ({
-        subject: subject.split(' ').pop()?.slice(0, 3) || subject,
-        marks: Math.round(data.total / data.count),
-      }))
-    : []
+  const initials = getInitials(student.firstName, student.lastName)
 
   return (
     <div className="space-y-4">
       {/* Back button */}
-      <Button variant="ghost" size="sm" onClick={() => navigateTo('students')} className="text-slate-500 dark:text-slate-400">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
-      </Button>
+      <div className="flex items-center justify-between print:hidden">
+        <Button variant="ghost" size="sm" onClick={() => navigateTo('students')} className="text-slate-500 dark:text-slate-400">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Students
+        </Button>
+      </div>
 
       {/* Profile Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 print:shadow-none print:border print:border-slate-300" id="student-profile-print">
           <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-start gap-4">
-              <Avatar className="h-16 w-16">
-                <AvatarFallback
-                  className="text-xl font-bold text-white"
-                  style={{ backgroundColor: getAvatarColor(`${student.firstName} ${student.lastName}`).bg }}
-                >
-                  {getInitials(student.firstName, student.lastName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-start gap-5">
+              {/* Large Avatar */}
+              <div className={cn('h-20 w-20 rounded-full bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg', avatarGradient)}>
+                <span className="text-2xl font-bold text-white">{initials}</span>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap">
                   <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {student.firstName} {student.lastName}
                   </h2>
@@ -295,60 +327,146 @@ export function StudentDetail() {
                     {student.status}
                   </Badge>
                 </div>
+
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  {student.admissionNumber} • {student.class?.name}
+                  {student.admissionNumber} • {student.class?.name}{student.stream ? ` - Stream ${student.stream}` : ''}
                 </p>
-                <div className="flex flex-wrap gap-4 mt-3">
+
+                <div className="flex flex-wrap gap-3 mt-3">
+                  <div className={cn('flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full', genderColor.bg, genderColor.text)}>
+                    <User className="w-3.5 h-3.5" />
+                    {student.gender === 'MALE' ? '♂ Male' : student.gender === 'FEMALE' ? '♀ Female' : student.gender}
+                  </div>
+                  {age !== null && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2.5 py-1 rounded-full">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {age} years old
+                    </div>
+                  )}
                   {student.dateOfBirth && (
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                       <Calendar className="w-3.5 h-3.5" />
                       {format(new Date(student.dateOfBirth), 'MMM d, yyyy')}
                     </div>
                   )}
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <User className="w-3.5 h-3.5" />
-                    {student.gender}
-                  </div>
-                  {student.address && (
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {student.address}
-                    </div>
-                  )}
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0 print:hidden">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => navigateTo('student-detail')}
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  Edit Student
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handlePrintProfile}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print Profile
+                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
+      {/* Hidden Print Content */}
+      <div className="hidden print:block" id="print-profile-content">
+        <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
+          <h1 className="text-2xl font-bold">Olives Schools</h1>
+          <p className="text-sm text-slate-600">Eldoret, Kenya</p>
+          <p className="text-xs text-slate-500 mt-1">Student Profile Report</p>
+        </div>
+
+        <div className="flex items-start gap-6 mb-6">
+          <div className={cn('h-24 w-24 rounded-full bg-gradient-to-br flex items-center justify-center flex-shrink-0 mx-auto print:mx-0 border-4 border-slate-200', avatarGradient)}>
+            <span className="text-3xl font-bold text-white">{initials}</span>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">{student.firstName} {student.lastName}</h2>
+            <p className="text-sm text-slate-600">Admission #: {student.admissionNumber}</p>
+            <p className="text-sm text-slate-600">Class: {student.class?.name}{student.stream ? ` - Stream ${student.stream}` : ''}</p>
+            <p className="text-sm text-slate-600">Status: {student.status}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+          <div><span className="font-medium">Date of Birth:</span> {student.dateOfBirth ? format(new Date(student.dateOfBirth), 'MMM d, yyyy') : '—'}</div>
+          <div><span className="font-medium">Gender:</span> {student.gender}</div>
+          <div><span className="font-medium">Age:</span> {age !== null ? `${age} years` : '—'}</div>
+          <div><span className="font-medium">Admission Date:</span> {format(new Date(student.admissionDate), 'MMM d, yyyy')}</div>
+          <div className="col-span-2"><span className="font-medium">Address:</span> {student.address || '—'}</div>
+        </div>
+
+        {student.guardians?.length > 0 && (
+          <div className="mb-6">
+            <h3 className="font-semibold text-sm mb-2 border-b pb-1">Guardian Information</h3>
+            {student.guardians.map((g: any, i: number) => (
+              <div key={i} className="text-sm mb-1">
+                <span className="font-medium">{g.guardian?.name}</span> — {g.relationship} {g.isPrimary && '(Primary)'}
+                {g.guardian?.phone && <span className="ml-2">📞 {g.guardian.phone}</span>}
+                {g.guardian?.email && <span className="ml-2">✉ {g.guardian.email}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {academics && (
+          <div className="mb-6">
+            <h3 className="font-semibold text-sm mb-2 border-b pb-1">Academic Summary</h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div><span className="font-medium">Average Score:</span> {academics.overview.averageScore}</div>
+              <div><span className="font-medium">Total Exams:</span> {academics.overview.totalExams}</div>
+              <div><span className="font-medium">Attendance Rate:</span> {academics.overview.attendanceRate}%</div>
+            </div>
+          </div>
+        )}
+
+        <div className="text-center text-xs text-slate-400 mt-8 border-t pt-4">
+          Generated on {format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')} — Olives Schools Management System
+        </div>
+      </div>
+
       {/* Tabs */}
-      <Tabs defaultValue="overview">
-        <TabsList className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-0 h-auto">
+      <Tabs defaultValue="overview" className="print:hidden">
+        <div className="overflow-x-auto -mx-1 px-1">
+        <TabsList className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-0 h-auto min-w-max">
           <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Overview
-          </TabsTrigger>
-          <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
-            Fees
           </TabsTrigger>
           <TabsTrigger value="academics" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Academics
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
-            Attendance
+          <TabsTrigger value="communication" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
+            Communication
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
+            Documents
+          </TabsTrigger>
+          <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
+            Fees
           </TabsTrigger>
         </TabsList>
+        </div>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Personal Info */}
-            <Card>
+            <Card className="bg-white dark:bg-slate-800">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-700">Personal Information</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Personal Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {/* Results PIN Section */}
+                {/* Results PIN */}
                 <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-3 -mx-1 border border-teal-100 dark:border-teal-800/40">
                   <div className="flex items-center gap-2 mb-2">
                     <KeyRound className="w-4 h-4 text-teal-600 dark:text-teal-400" />
@@ -360,175 +478,487 @@ export function StudentDetail() {
                         {student.resultsPin}
                       </span>
                       <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-teal-600 hover:text-teal-700 hover:bg-teal-100 dark:text-teal-400 dark:hover:bg-teal-900/40"
-                          onClick={handleCopyPin}
-                          title="Copy PIN"
-                        >
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-teal-600 hover:text-teal-700 hover:bg-teal-100 dark:text-teal-400 dark:hover:bg-teal-900/40" onClick={handleCopyPin} title="Copy PIN">
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40"
-                          onClick={handleRegeneratePin}
-                          disabled={regenPinLoading}
-                          title="Regenerate PIN"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${regenPinLoading ? 'animate-spin' : ''}`} />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40" onClick={handleRegeneratePin} disabled={regenPinLoading} title="Regenerate PIN">
+                          <RefreshCw className={cn('w-3.5 h-3.5', regenPinLoading && 'animate-spin')} />
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-teal-600/60 dark:text-teal-400/60">No PIN assigned</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-teal-600 hover:text-teal-700 hover:bg-teal-100 dark:text-teal-400 dark:hover:bg-teal-900/40 text-xs"
-                        onClick={handleRegeneratePin}
-                        disabled={regenPinLoading}
-                      >
-                        {regenPinLoading ? (
-                          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                        ) : (
-                          <KeyRound className="w-3.5 h-3.5 mr-1" />
-                        )}
+                      <Button variant="ghost" size="sm" className="h-7 text-teal-600 hover:text-teal-700 hover:bg-teal-100 dark:text-teal-400 dark:hover:bg-teal-900/40 text-xs btn-press" onClick={handleRegeneratePin} disabled={regenPinLoading}>
+                        {regenPinLoading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <KeyRound className="w-3.5 h-3.5 mr-1" />}
                         Generate PIN
                       </Button>
                     </div>
                   )}
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Date of Birth</span>
-                  <span className="font-medium">{student.dateOfBirth ? format(new Date(student.dateOfBirth), 'MMM d, yyyy') : '—'}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Date of Birth</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{student.dateOfBirth ? format(new Date(student.dateOfBirth), 'MMM d, yyyy') : '—'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Gender</span>
-                  <span className="font-medium">{student.gender}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Age</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{age !== null ? `${age} years` : '—'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Class</span>
-                  <span className="font-medium">{student.class?.name}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Gender</span>
+                  <span className={cn('font-medium px-2 py-0.5 rounded text-xs', genderColor.bg, genderColor.text)}>
+                    {student.gender}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Admission Date</span>
-                  <span className="font-medium">{format(new Date(student.admissionDate), 'MMM d, yyyy')}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Class</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{student.class?.name}{student.stream ? ` - Stream ${student.stream}` : ''}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500 dark:text-slate-400">Admission Date</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{format(new Date(student.admissionDate), 'MMM d, yyyy')}</span>
                 </div>
                 {student.address && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Address</span>
-                    <span className="font-medium text-right max-w-[60%]">{student.address}</span>
+                    <span className="text-slate-500 dark:text-slate-400">Address</span>
+                    <span className="font-medium text-right max-w-[60%] text-slate-900 dark:text-slate-100">{student.address}</span>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Guardian Info */}
-            <Card>
+            {/* Quick Stats */}
+            <Card className="bg-white dark:bg-slate-800">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-700">Guardian Information</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Quick Stats</CardTitle>
               </CardHeader>
-              <CardContent>
-                {student.guardians?.length > 0 ? (
-                  <div className="space-y-3">
-                    {student.guardians.map((g: any, i: number) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-slate-500" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{g.guardian?.name}</p>
-                          <p className="text-xs text-slate-500">{g.relationship} {g.isPrimary && '(Primary)'}</p>
-                          {g.guardian?.phone && (
-                            <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                              <Phone className="w-3 h-3" /> {g.guardian.phone}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-blue-500" /> Average Score
+                  </span>
+                  <span className={cn('text-sm font-bold', getScoreColor(academics?.overview.averageScore || 0))}>
+                    {academics?.overview.averageScore?.toFixed(1) || '—'}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <ClipboardCheck className="w-4 h-4 text-green-500" /> Attendance
+                  </span>
+                  <span className={cn('text-sm font-bold', getScoreColor(academics?.overview.attendanceRate || 0))}>
+                    {academics?.overview.attendanceRate?.toFixed(1) || '—'}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-purple-500" /> Total Exams
+                  </span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    {academics?.overview.totalExams || 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-amber-500" /> Fee Balance
+                  </span>
+                  <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                    KES {feeLedger?.balance?.toLocaleString() || student.feeSummary?.outstanding?.toLocaleString() || '0'}
+                  </span>
+                </div>
+                {academics?.overview.bestSubject && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-green-500" /> Best Subject
+                    </span>
+                    <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                      {academics.overview.bestSubject.name} ({academics.overview.bestSubject.average})
+                    </span>
                   </div>
-                ) : (
-                  <p className="text-sm text-slate-400">No guardian information</p>
+                )}
+                {academics?.overview.worstSubject && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                      <TrendingDown className="w-4 h-4 text-red-500" /> Needs Improvement
+                    </span>
+                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                      {academics.overview.worstSubject.name} ({academics.overview.worstSubject.average})
+                    </span>
+                  </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Medical Info */}
-            <Card>
+            <Card className="bg-white dark:bg-slate-800">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-700">Medical Information</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Medical Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Medical Notes</span>
-                  <span className="font-medium">{student.medicalNotes || 'None'}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Medical Notes</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{student.medicalNotes || 'None'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Allergies</span>
-                  <span className="font-medium">{student.allergies || 'None'}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-700">Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-amber-500" /> Fee Balance
-                  </span>
-                  <span className="text-sm font-bold text-red-600">
-                    KES {feeLedger?.balance?.toLocaleString() || '15,000'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-blue-500" /> Average Score
-                  </span>
-                  <span className="text-sm font-bold text-blue-600">
-                    {results?.length ? Math.round(results.reduce((a: number, r: any) => a + r.marks, 0) / results.length) : '—'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500 flex items-center gap-2">
-                    <ClipboardCheck className="w-4 h-4 text-green-500" /> Attendance
-                  </span>
-                  <span className="text-sm font-bold text-green-600">
-                    {attendanceStats?.rate ? `${attendanceStats.rate.toFixed(1)}%` : '94.4%'}
-                  </span>
+                  <span className="text-slate-500 dark:text-slate-400">Allergies</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{student.allergies || 'None'}</span>
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
+        {/* Academics Tab */}
+        <TabsContent value="academics" className="mt-4 space-y-4">
+          {academicsLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-32 w-full rounded-xl" />
+              <Skeleton className="h-64 w-full rounded-xl" />
+            </div>
+          ) : academics ? (
+            <>
+              {/* Performance Overview Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Avg Score</p>
+                    <p className={cn('text-2xl font-bold', getScoreColor(academics.overview.averageScore))}>
+                      {academics.overview.averageScore.toFixed(1)}
+                    </p>
+                    <Badge className={cn('mt-1 text-[10px]', getGradeColor(academics.overview.overallGrade))}>
+                      {academics.overview.overallGrade}
+                    </Badge>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total Exams</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{academics.overview.totalExams}</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Best Subject</p>
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
+                      {academics.overview.bestSubject?.name || '—'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Worst Subject</p>
+                    <p className="text-sm font-semibold text-red-600 dark:text-red-400 mt-1">
+                      {academics.overview.worstSubject?.name || '—'}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Attendance</p>
+                    <p className={cn('text-2xl font-bold', getScoreColor(academics.overview.attendanceRate))}>
+                      {academics.overview.attendanceRate.toFixed(1)}%
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Subject Performance - Horizontal Bar Chart */}
+              {academics.subjectPerformance.length > 0 && (
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-teal-600" />
+                      Subject Performance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {academics.subjectPerformance.map((subject) => (
+                        <div key={subject.name} className="flex items-center gap-3">
+                          <span className="text-xs text-slate-700 dark:text-slate-300 w-28 truncate font-medium flex-shrink-0">
+                            {subject.name}
+                          </span>
+                          <div className="flex-1 h-6 bg-slate-100 dark:bg-slate-700/50 rounded-md overflow-hidden relative">
+                            <div
+                              className={cn('h-full rounded-md transition-all duration-500', getBarColor(subject.average))}
+                              style={{ width: `${Math.min(subject.average, 100)}%` }}
+                            />
+                          </div>
+                          <span className={cn('text-xs font-bold w-10 text-right tabular-nums', getScoreColor(subject.average))}>
+                            {subject.average.toFixed(1)}
+                          </span>
+                          <Badge className={cn('text-[10px] w-8 justify-center', getGradeColor(subject.grade))}>
+                            {subject.grade}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Exam History */}
+              <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Exam History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-h-96 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Exam</TableHead>
+                          <TableHead className="text-xs">Term</TableHead>
+                          <TableHead className="text-xs">Subjects</TableHead>
+                          <TableHead className="text-xs">Average</TableHead>
+                          <TableHead className="text-xs">Grade</TableHead>
+                          <TableHead className="text-xs hidden sm:table-cell">Rank</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {academics.examHistory.map((exam, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{exam.examName}</TableCell>
+                            <TableCell className="text-sm text-slate-500">{exam.term}</TableCell>
+                            <TableCell className="text-sm text-slate-500">{exam.subjects.length}</TableCell>
+                            <TableCell className={cn('text-sm font-semibold', getScoreColor(exam.average))}>
+                              {exam.average.toFixed(1)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={cn('text-[10px]', getGradeColor(exam.grade))}>{exam.grade}</Badge>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-sm text-slate-500">
+                              {exam.rank ? `${exam.rank}/${exam.classSize}` : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {academics.examHistory.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-sm text-slate-400 py-8">
+                              No exam results found
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Attendance Trend */}
+              {academics.attendanceTrend.length > 0 && (
+                <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-emerald-600" />
+                      Attendance Trend
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {academics.attendanceTrend.map((item) => (
+                        <div key={item.month} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{item.month}</span>
+                            <span className={cn('text-xs font-bold', getScoreColor(item.rate))}>{item.rate}%</span>
+                          </div>
+                          <Progress value={item.rate} className="h-1.5" />
+                          <div className="flex justify-between mt-1.5 text-[10px] text-slate-400">
+                            <span>{item.present} present</span>
+                            <span>{item.total - item.present} absent</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            <Card className="bg-white dark:bg-slate-800">
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No academic data available</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Communication Tab */}
+        <TabsContent value="communication" className="mt-4 space-y-4">
+          <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-teal-600" />
+                  Linked Guardians
+                </CardTitle>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{student.guardians?.length || 0} guardians</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {student.guardians?.length > 0 ? (
+                <div className="space-y-3">
+                  {student.guardians.map((g: any, i: number) => (
+                    <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-white">
+                          {g.guardian?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{g.guardian?.name}</p>
+                          <Badge variant="secondary" className="text-[10px] bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                            {g.relationship}
+                          </Badge>
+                          {g.isPrimary && (
+                            <Badge variant="secondary" className="text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                              Primary
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-4 mt-2">
+                          {g.guardian?.phone && (
+                            <a href={`tel:${g.guardian.phone}`} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
+                              <Phone className="w-3.5 h-3.5" />
+                              {g.guardian.phone}
+                            </a>
+                          )}
+                          {g.guardian?.email && (
+                            <a href={`mailto:${g.guardian.email}`} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
+                              <Mail className="w-3.5 h-3.5" />
+                              {g.guardian.email}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 gap-1.5 flex-shrink-0"
+                        onClick={() => navigateTo('messages')}
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Message</span>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Users className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No guardian information linked</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="mt-4 space-y-4">
+          {/* Fee Payment History */}
+          <Card className="border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-600" />
+                  Fee Payment History
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs gap-1.5"
+                  onClick={handlePrintFeeStatement}
+                >
+                  <Printer className="w-3 h-3" />
+                  Print Statement
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Fee Summary Mini */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/30">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Total Fees</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    KES {(feeLedger?.totalFees || student.feeSummary?.totalFees || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Total Paid</p>
+                  <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                    KES {(feeLedger?.totalPaid || student.feeSummary?.totalPaid || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Outstanding</p>
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400">
+                    KES {(feeLedger?.balance || student.feeSummary?.outstanding || 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Receipt #</TableHead>
+                      <TableHead className="text-xs">Fee Type</TableHead>
+                      <TableHead className="text-xs">Amount</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Method</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(student.feeTransactions || []).map((t: any) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="text-sm font-mono">{t.receiptNumber}</TableCell>
+                        <TableCell className="text-sm">{t.feeStructure?.name || '—'}</TableCell>
+                        <TableCell className="text-sm font-semibold">KES {t.amount?.toLocaleString()}</TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant="secondary" className="text-[10px] flex items-center gap-1 w-fit">
+                            {methodIcons[t.paymentMethod] || <Banknote className="w-3 h-3" />}
+                            {t.paymentMethod}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-sm text-slate-500">
+                          {format(new Date(t.createdAt), 'MMM d, yyyy')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!student.feeTransactions || student.feeTransactions.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-sm text-slate-400 py-8">
+                          No payment transactions found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Fees Tab */}
         <TabsContent value="fees" className="mt-4 space-y-4">
-          {/* Fee Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
+            <Card className="bg-white dark:bg-slate-800 card-interactive">
               <CardContent className="p-4">
-                <p className="text-xs text-slate-500">Total Fees</p>
-                <p className="text-xl font-bold text-slate-900">KES {feeLedger?.totalFees?.toLocaleString() || '45,000'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Total Fees</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">KES {(feeLedger?.totalFees || student.feeSummary?.totalFees || 0).toLocaleString()}</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-white dark:bg-slate-800 card-interactive">
               <CardContent className="p-4">
-                <p className="text-xs text-slate-500">Total Paid</p>
-                <p className="text-xl font-bold text-green-600">KES {feeLedger?.totalPaid?.toLocaleString() || '30,000'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Total Paid</p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400">KES {(feeLedger?.totalPaid || student.feeSummary?.totalPaid || 0).toLocaleString()}</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-white dark:bg-slate-800 card-interactive">
               <CardContent className="p-4">
-                <p className="text-xs text-slate-500">Balance</p>
-                <p className="text-xl font-bold text-red-600">KES {feeLedger?.balance?.toLocaleString() || '15,000'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Balance</p>
+                <p className="text-xl font-bold text-red-600 dark:text-red-400">KES {(feeLedger?.balance || student.feeSummary?.outstanding || 0).toLocaleString()}</p>
                 {feeLedger && (
                   <Progress value={feePaid} className="mt-2 h-2" />
                 )}
@@ -537,49 +967,11 @@ export function StudentDetail() {
           </div>
 
           <div className="flex justify-end">
-            <Button
-              className="bg-teal-600 hover:bg-teal-700 text-white"
-              onClick={() => setPaymentDialogOpen(true)}
-            >
+            <Button className="bg-teal-600 hover:bg-teal-700 text-white btn-press" onClick={() => setPaymentDialogOpen(true)}>
               <DollarSign className="w-4 h-4 mr-2" />
               Record Payment
             </Button>
           </div>
-
-          {/* Payment History */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-700">Payment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Receipt #</TableHead>
-                    <TableHead className="text-xs">Fee Type</TableHead>
-                    <TableHead className="text-xs">Amount</TableHead>
-                    <TableHead className="text-xs hidden sm:table-cell">Method</TableHead>
-                    <TableHead className="text-xs hidden sm:table-cell">Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(feeLedger?.transactions || []).map((t: any) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="text-sm font-mono">{t.receiptNumber}</TableCell>
-                      <TableCell className="text-sm">{t.feeStructure?.name || '—'}</TableCell>
-                      <TableCell className="text-sm font-semibold">KES {t.amount?.toLocaleString()}</TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge variant="secondary" className="text-[10px]">{t.paymentMethod}</Badge>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-slate-500">
-                        {format(new Date(t.createdAt), 'MMM d, yyyy')}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
 
           {/* Record Payment Dialog */}
           <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
@@ -631,6 +1023,7 @@ export function StudentDetail() {
                       if (result.success) {
                         toast.success('Payment recorded successfully')
                         setPaymentDialogOpen(false)
+                        loadStudent()
                         loadFeeLedger()
                       } else {
                         toast.error(result.error || 'Failed to record payment')
@@ -649,138 +1042,6 @@ export function StudentDetail() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </TabsContent>
-
-        {/* Academics Tab */}
-        <TabsContent value="academics" className="mt-4 space-y-4">
-          {/* Performance Chart */}
-          {performanceChartData.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700">Performance Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={performanceChartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="subject" tick={{ fontSize: 11, fill: '#64748b' }} />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} />
-                      <Tooltip />
-                      <Bar dataKey="marks" fill="#0d9488" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Results Table */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-700">Exam Results</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="max-h-96 overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Exam</TableHead>
-                      <TableHead className="text-xs">Subject</TableHead>
-                      <TableHead className="text-xs">Marks</TableHead>
-                      <TableHead className="text-xs">Grade</TableHead>
-                      <TableHead className="text-xs hidden sm:table-cell">Remarks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(results || []).map((r: any, i: number) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-sm">{r.examName}</TableCell>
-                        <TableCell className="text-sm">{r.subject}</TableCell>
-                        <TableCell className="text-sm font-semibold">{r.marks}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={cn(
-                            'text-[10px]',
-                            r.marks >= 80 ? 'bg-green-100 text-green-700' :
-                            r.marks >= 60 ? 'bg-blue-100 text-blue-700' :
-                            r.marks >= 40 ? 'bg-amber-100 text-amber-700' :
-                            'bg-red-100 text-red-700'
-                          )}>
-                            {r.grade}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-sm text-slate-500">{r.remarks}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Attendance Tab */}
-        <TabsContent value="attendance" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-slate-500">Rate</p>
-                <p className="text-xl font-bold text-green-600">{attendanceStats?.rate?.toFixed(1) || '94.4'}%</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-slate-500">Present</p>
-                <p className="text-xl font-bold text-teal-600">{attendanceStats?.present || 85}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-slate-500">Absent</p>
-                <p className="text-xl font-bold text-red-600">{attendanceStats?.absent || 3}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-slate-500">Late</p>
-                <p className="text-xl font-bold text-amber-600">{attendanceStats?.late || 2}</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Monthly Summary */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-700">Monthly Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Month</TableHead>
-                    <TableHead className="text-xs">Attendance Rate</TableHead>
-                    <TableHead className="text-xs">Days Present</TableHead>
-                    <TableHead className="text-xs">Days Absent</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(attendanceStats?.monthly || []).map((m: any, i: number) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm">{m.month}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={m.rate} className="h-2 w-20" />
-                          <span className="text-sm font-medium">{m.rate}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{m.present}</TableCell>
-                      <TableCell className="text-sm text-red-600">{m.absent}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

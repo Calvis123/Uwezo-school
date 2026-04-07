@@ -25,6 +25,7 @@ import { ClassManagement } from '@/components/classes/ClassManagement'
 import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
 import { ActivityFeed } from '@/components/activity/ActivityFeed'
 import { FeesPage } from '@/components/fees/FeesPage'
+import { ClassReport } from '@/components/reports/ClassReport'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -44,6 +45,7 @@ function ViewRouter() {
     exams: <ExamsPage />,
     'mark-entry': <MarkEntry />,
     'report-cards': <ReportCards />,
+    'class-reports': <ClassReport />,
     attendance: <AttendanceMarking />,
     calendar: <CalendarView />,
     'teacher-dashboard': <TeacherDashboard />,

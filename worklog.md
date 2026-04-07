@@ -1528,3 +1528,74 @@ Stage Summary:
 - `/download/qa-round5-search.png` — Global Search Modal closed state
 - `/download/qa-round5-analytics.png` — Analytics page with fee collection data
 - `/download/qa-round5-settings.png` — Settings page with profile banner
+
+---
+Task ID: 6a
+Agent: Full-stack Developer
+Task: M-Pesa UI + Activity Feed + Fees Enhancements
+
+Work Log:
+- Read worklog.md, existing FeePayments.tsx, FeeFormDialog.tsx, ActivityFeed.tsx, api.ts, store.ts, prisma schema
+- Created `/src/app/api/fees/mpesa/route.ts` — POST endpoint simulating M-Pesa STK push with random transaction ref (QKR...) and receipt (SBK...)
+- Created `/src/app/api/fees/mpesa/status/route.ts` — GET endpoint with 2-second simulated delay, returns COMPLETED status
+- Created `/src/components/fees/MpesaPaymentDialog.tsx` — Professional 3-step payment dialog (Enter Details → Processing → Success) with green gradient header, phone number input with Kenyan format, amount editing, animated STK push with pulse rings, checkmark success animation, receipt details card
+- Updated `/src/lib/api.ts` — Added `feesApi.mpesa()` and `feesApi.mpesaStatus()` methods; added `activityApi.list()` with type/page/limit params; fixed `notificationsApi.list()` to accept optional userId
+- Created `/src/app/api/activity/route.ts` — GET endpoint aggregating recent activity from all tables (payments, attendance, exam marks, notices), with relative timestamps, type counts, and pagination
+- Rewrote `/src/components/activity/ActivityFeed.tsx` — Full timeline with color-coded type icons (green/teal/amber/sky), user avatar initials, relative timestamps (Just now, 5m ago, etc.), filter by type with counts, Load More pagination, animated timeline line, extra detail badges per type (amount for payments, marks for exams, status for attendance)
+- Enhanced `/src/components/fees/FeePayments.tsx` — Added green "Pay via M-Pesa" button alongside "Record Payment", added payment method filter tabs (All/Cash/M-Pesa/Bank Transfer), added M-Pesa quick pay selector dialog for student+fee selection, wired MpesaPaymentDialog with full flow
+- Updated `/src/components/fees/FeeFormDialog.tsx` — Added student and fee structure loading when opening in payment mode, auto-fill amount when fee selected, reset all fields on dialog open
+- Fixed pre-existing lint error in StudentList.tsx: added missing `ArrowRight` import from lucide-react
+- All APIs tested and verified working: M-Pesa STK push, M-Pesa status, activity feed
+
+Stage Summary:
+- M-Pesa payment integration complete with 3-step dialog, simulated STK push, status polling, and auto-recording
+- Activity feed fully rebuilt with real database aggregation, timeline UI, type filtering, and pagination
+- Fees page enhanced with M-Pesa quick pay, method filter tabs, and auto-loading record payment dialog
+- ESLint passes with zero errors
+- APIs verified: `/api/fees/mpesa` (POST), `/api/fees/mpesa/status` (GET), `/api/activity` (GET)
+---
+Task ID: 6c
+Agent: Full-stack Developer
+Task: Student Profiles + Print + Academic Reports
+
+Work Log:
+- Read worklog.md and analyzed existing project structure
+- Read StudentDetail.tsx, page.tsx, DashboardLayout.tsx, DashboardHome.tsx, api.ts, store.ts, db.ts, globals.css, schema.prisma
+- Created `/src/app/api/students/[id]/academics/route.ts` — Academic performance API returning overview (avg score, best/worst subject, attendance rate), exam history (with class rank), subject performance (averages, grades), monthly attendance trend
+- Created `/src/app/api/reports/class-report/route.ts` — Class-level report API accepting classId+examId, returning all students ranked with subject scores, totals, averages, grades, class averages per subject
+- Added `academicsApi` and `reportsApi` to `/src/lib/api.ts`
+- Rewrote `/src/components/students/StudentDetail.tsx` with:
+  - Enhanced profile header: Large gradient avatar (teal for male, rose for female), full name, admission number, class/stream, status badge, gender badge (colored pill), calculated age
+  - "Edit Student" and "Print Profile" action buttons
+  - New "Academics" tab: 5 overview stat cards (avg score, total exams, best/worst subject, attendance), CSS-based horizontal bar chart for subject performance (color-coded green/amber/red), exam history table with rank, monthly attendance trend cards
+  - New "Communication" tab: Guardian cards with avatar, name, relationship badge, primary indicator, phone/email links, "Message" action button
+  - New "Documents" tab: Fee payment history with summary cards, print fee statement button, payment method icons
+  - Print-friendly profile view: School header, student details, guardian info, academic summary, generation date footer
+  - CBC grading scale with color-coded badges
+- Created `/src/components/reports/ClassReport.tsx` — Complete class-level report page with:
+  - Class and exam selector dropdowns with student counts
+  - School header card with teal gradient
+  - Summary stats (total students, subjects, class average, grading scale)
+  - Professional ranked table: rank (with trophy icon for #1), admission #, student name, gender, per-subject scores (color-coded), total, average, grade badge, remarks
+  - Subject class averages grid
+  - "Export CSV" button with proper CSV generation
+  - "Print Report" button
+  - Empty states for no class/exam/data scenarios
+  - Print footer with class/exam/student info
+- Updated `/src/components/layout/DashboardLayout.tsx`: Added "Class Reports" nav item with BarChart3 icon and breadcrumbs
+- Updated `/src/app/page.tsx`: Added ClassReport import and 'class-reports' view route (was already done in prior iteration)
+- Updated `/src/components/dashboard/DashboardHome.tsx`: Added "Class Report" quick action button (violet gradient, BarChart3 icon) and "M-Pesa Payment" quick action button (teal gradient, Smartphone icon)
+- Added comprehensive `@media print` CSS to `/src/app/globals.css`: Hides non-print elements, removes shadows/blur, forces white background, table borders, A4 page formatting, gradient→solid colors, removes animations, removes overflow scroll
+- Fixed pre-existing bugs in StudentList.tsx (JSX comment syntax error) and academics API route (unused eslint-disable directive)
+- All new components have dark mode support
+- ESLint passes with zero errors
+
+Stage Summary:
+- 2 new backend API routes: student academics and class reports
+- 1 completely rewritten frontend component (StudentDetail.tsx) with 5 tabs
+- 1 new frontend component (ClassReport.tsx) for class-level academic reports
+- Print support added for student profiles and class reports
+- Dashboard quick links enhanced with Class Report and M-Pesa Payment buttons
+- Class Reports added to sidebar navigation
+- Comprehensive print CSS added for A4 formatting
+- `bun run lint` — ✅ Zero errors, zero warnings

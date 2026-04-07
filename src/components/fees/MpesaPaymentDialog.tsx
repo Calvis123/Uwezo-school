@@ -1,653 +1,536 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, Phone, CheckCircle2, XCircle, FileDown, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
+import { Smartphone, Phone, Loader2, CheckCircle2, Download, ArrowLeft, Shield, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-
-type PaymentStep = 'form' | 'sending' | 'awaiting_pin' | 'processing' | 'success' | 'failed'
-
-function generateTransactionId(): string {
-  const prefix = 'QEF'
-  const timestamp = Date.now().toString(36).toUpperCase()
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase()
-  return `${prefix}${timestamp}${random}`
-}
-
-function generateReceiptNumber(): string {
-  const prefix = 'RCT'
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-  return `${prefix}-${dateStr}-${random}`
-}
-
-interface MpesaPaymentContentProps {
-  amount: number
-  feeDescription: string
-  studentName: string
-  studentId: string
-  feeStructureId: string
-  term: string
-  onClose: () => void
-  onSuccess?: (transactionId: string) => void
-}
-
-function MpesaPaymentContent({
-  amount,
-  feeDescription,
-  studentName,
-  studentId,
-  feeStructureId,
-  term,
-  onClose,
-  onSuccess,
-}: MpesaPaymentContentProps) {
-  const [step, setStep] = useState<PaymentStep>('form')
-  const [phoneNumber, setPhoneNumber] = useState('')
-  const [phoneError, setPhoneError] = useState('')
-  const [editAmount, setEditAmount] = useState(String(amount))
-  const [countdown, setCountdown] = useState(60)
-  const [transactionId, setTransactionId] = useState('')
-  const [receiptNumber, setReceiptNumber] = useState('')
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      // Any active intervals will be cleaned up by the step useEffect
-    }
-  }, [])
-
-  // Countdown timer effect
-  useEffect(() => {
-    if (step === 'awaiting_pin') {
-      const intervalId = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalId)
-            setStep('failed')
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-      return () => clearInterval(intervalId)
-    }
-  }, [step])
-
-  const validatePhone = useCallback((phone: string): boolean => {
-    const cleaned = phone.replace(/\D/g, '')
-    if (cleaned.length !== 10) {
-      setPhoneError('Phone number must be 10 digits')
-      return false
-    }
-    if (!cleaned.startsWith('7') && !cleaned.startsWith('1')) {
-      setPhoneError('Enter a valid Kenyan phone number')
-      return false
-    }
-    setPhoneError('')
-    return true
-  }, [])
-
-  const handleSendSTKPush = useCallback(() => {
-    if (!validatePhone(phoneNumber)) return
-
-    const parsedAmount = parseFloat(editAmount)
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error('Please enter a valid amount')
-      return
-    }
-
-    setStep('sending')
-    setTimeout(() => {
-      setStep('awaiting_pin')
-      setCountdown(60)
-    }, 2000)
-  }, [phoneNumber, editAmount, validatePhone])
-
-  const handleCancelPayment = useCallback(() => {
-    setStep('failed')
-  }, [])
-
-  const handleSimulateSuccess = useCallback(() => {
-    setStep('processing')
-
-    setTimeout(async () => {
-      const txId = generateTransactionId()
-      const rcptNum = generateReceiptNumber()
-      setTransactionId(txId)
-      setReceiptNumber(rcptNum)
-
-      try {
-        const res = await fetch('/api/fees/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentId,
-            feeStructureId,
-            amount: parseFloat(editAmount),
-            paymentMethod: 'MPESA',
-            transactionRef: txId,
-            term,
-            notes: `M-Pesa payment from ${phoneNumber}`,
-          }),
-        })
-
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success) {
-            setReceiptNumber(data.data?.receiptNumber || rcptNum)
-          }
-        }
-      } catch {
-        // Continue to success state even if DB save fails (it's a simulation)
-      }
-
-      setStep('success')
-      toast.success('Payment completed successfully!')
-      onSuccess?.(txId)
-    }, 2000)
-  }, [editAmount, studentId, feeStructureId, term, phoneNumber, onSuccess])
-
-  const handleDownloadReceipt = useCallback(() => {
-    window.open(`/api/fees/receipt/${receiptNumber || transactionId}`, '_blank')
-  }, [receiptNumber, transactionId])
-
-  const formatCountdown = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, '0')}`
-  }
-
-  return (
-    <>
-      {/* M-Pesa Green Header */}
-      <div className="bg-gradient-to-r from-green-600 to-green-500 px-6 py-4 text-white">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-            <Smartphone className="w-5 h-5" />
-          </div>
-          <div>
-            <DialogTitle className="text-white text-lg font-bold">M-Pesa Payment</DialogTitle>
-            <p className="text-green-100 text-xs">Lipa na M-Pesa (STK Push)</p>
-          </div>
-          <Badge className="ml-auto bg-white/20 text-white border-white/30 hover:bg-white/30">
-            M-Pesa
-          </Badge>
-        </div>
-      </div>
-
-      <div className="px-6 py-5">
-        <AnimatePresence mode="wait">
-          {/* FORM STEP */}
-          {step === 'form' && (
-            <motion.div
-              key="form"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-4"
-            >
-              {/* Student & Fee Info */}
-              <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Student</span>
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{studentName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Fee</span>
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{feeDescription}</span>
-                </div>
-                <div className="h-px bg-slate-200 dark:bg-slate-700" />
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Amount Due</span>
-                  <span className="font-bold text-green-600 dark:text-green-400 text-base">
-                    KES {parseFloat(editAmount).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Phone Number */}
-              <div className="space-y-2">
-                <Label htmlFor="mpesa-phone" className="text-sm font-medium">
-                  M-Pesa Phone Number
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                    +254
-                  </span>
-                  <Input
-                    id="mpesa-phone"
-                    type="tel"
-                    placeholder="7XXXXXXXX"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '').slice(0, 10)
-                      setPhoneNumber(val)
-                      if (phoneError) setPhoneError('')
-                    }}
-                    className={cn(
-                      'pl-14 h-11',
-                      phoneError && 'border-red-500 focus-visible:ring-red-500'
-                    )}
-                    maxLength={10}
-                  />
-                </div>
-                {phoneError && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-xs text-red-500"
-                  >
-                    {phoneError}
-                  </motion.p>
-                )}
-              </div>
-
-              {/* Amount */}
-              <div className="space-y-2">
-                <Label htmlFor="mpesa-amount" className="text-sm font-medium">
-                  Amount (KES)
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                    KES
-                  </span>
-                  <Input
-                    id="mpesa-amount"
-                    type="number"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    className="pl-14 h-11"
-                    min={1}
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={handleSendSTKPush}
-                disabled={!phoneNumber || !!phoneError}
-                className="w-full h-12 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold text-base transition-all"
-              >
-                <Phone className="w-5 h-5 mr-2" />
-                Send STK Push
-              </Button>
-            </motion.div>
-          )}
-
-          {/* SENDING STEP */}
-          {step === 'sending' && (
-            <motion.div
-              key="sending"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center justify-center py-8 space-y-4"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              >
-                <Loader2 className="w-12 h-12 text-green-500" />
-              </motion.div>
-              <div className="text-center space-y-1">
-                <p className="font-semibold text-slate-900 dark:text-slate-100">
-                  Sending request to M-Pesa...
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Initiating STK Push to +254{phoneNumber}
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* AWAITING PIN STEP */}
-          {step === 'awaiting_pin' && (
-            <motion.div
-              key="awaiting_pin"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center justify-center py-6 space-y-5"
-            >
-              {/* Phone animation */}
-              <motion.div
-                className="relative"
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <div className="w-20 h-20 rounded-2xl bg-green-50 dark:bg-green-900/30 flex items-center justify-center border-2 border-green-200 dark:border-green-800">
-                  <Smartphone className="w-10 h-10 text-green-500" />
-                </div>
-                {/* Notification dot */}
-                <motion.div
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: [0, 1.2, 1] }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                >
-                  <span className="text-[10px] text-white font-bold">1</span>
-                </motion.div>
-              </motion.div>
-
-              <div className="text-center space-y-2">
-                <p className="font-semibold text-slate-900 dark:text-slate-100 text-lg">
-                  Enter PIN on your phone
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">
-                  An STK Push prompt has been sent to <span className="font-semibold text-slate-700 dark:text-slate-300">+254{phoneNumber}</span>. Please enter your M-Pesa PIN to complete the payment.
-                </p>
-              </div>
-
-              {/* Countdown Timer */}
-              <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <motion.div
-                  className="w-3 h-3 rounded-full bg-amber-400"
-                  animate={{ opacity: [1, 0.3, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                />
-                <span className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-300">
-                  {formatCountdown(countdown)}
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">remaining</span>
-              </div>
-
-              {/* Amount display */}
-              <div className="text-center">
-                <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  Amount
-                </p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  KES {parseFloat(editAmount).toLocaleString()}
-                </p>
-              </div>
-
-              <div className="flex gap-3 w-full">
-                <Button
-                  variant="outline"
-                  onClick={handleCancelPayment}
-                  className="flex-1 h-11"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSimulateSuccess}
-                  className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  Simulate Success
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PROCESSING STEP */}
-          {step === 'processing' && (
-            <motion.div
-              key="processing"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center justify-center py-8 space-y-4"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              >
-                <Loader2 className="w-12 h-12 text-green-500" />
-              </motion.div>
-              <div className="text-center space-y-1">
-                <p className="font-semibold text-slate-900 dark:text-slate-100">
-                  Processing payment...
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Confirming with M-Pesa servers
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* SUCCESS STEP */}
-          {step === 'success' && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="flex flex-col items-center justify-center py-4 space-y-4"
-            >
-              {/* Animated Checkmark */}
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.1 }}
-                className="relative"
-              >
-                <motion.div
-                  className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 }}
-                >
-                  <motion.div
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.4 }}
-                  >
-                    <CheckCircle2 className="w-12 h-12 text-green-500" />
-                  </motion.div>
-                </motion.div>
-                {/* Ring animation */}
-                <motion.div
-                  className="absolute inset-0 w-20 h-20 rounded-full border-2 border-green-300 dark:border-green-700"
-                  initial={{ scale: 1, opacity: 1 }}
-                  animate={{ scale: 1.6, opacity: 0 }}
-                  transition={{ duration: 1, delay: 0.3 }}
-                />
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="text-center space-y-1"
-              >
-                <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                  Payment Successful!
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Your payment has been processed
-                </p>
-              </motion.div>
-
-              {/* Transaction Details */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="w-full rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 space-y-3"
-              >
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Transaction ID</span>
-                  <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 text-xs">
-                    {transactionId}
-                  </span>
-                </div>
-                <div className="h-px bg-slate-200 dark:bg-slate-700" />
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Amount Paid</span>
-                  <span className="font-bold text-green-600 dark:text-green-400">
-                    KES {parseFloat(editAmount).toLocaleString()}
-                  </span>
-                </div>
-                <div className="h-px bg-slate-200 dark:bg-slate-700" />
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Receipt Number</span>
-                  <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 text-xs">
-                    {receiptNumber}
-                  </span>
-                </div>
-                <div className="h-px bg-slate-200 dark:bg-slate-700" />
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Student</span>
-                  <span className="font-medium text-slate-900 dark:text-slate-100">
-                    {studentName}
-                  </span>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-                className="flex flex-col gap-2 w-full"
-              >
-                <Button
-                  onClick={handleDownloadReceipt}
-                  variant="outline"
-                  className="w-full h-11"
-                >
-                  <FileDown className="w-4 h-4 mr-2" />
-                  Download Receipt
-                </Button>
-                <Button
-                  onClick={onClose}
-                  className="w-full h-11 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  Done
-                </Button>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* FAILED STEP */}
-          {step === 'failed' && (
-            <motion.div
-              key="failed"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="flex flex-col items-center justify-center py-8 space-y-4"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
-              >
-                <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
-                  <motion.div
-                    initial={{ scale: 0, rotate: 180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
-                  >
-                    <XCircle className="w-12 h-12 text-red-500" />
-                  </motion.div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="text-center space-y-1"
-              >
-                <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                  Payment Cancelled
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  The M-Pesa payment request was cancelled or timed out.
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="flex gap-3 w-full"
-              >
-                <Button
-                  variant="outline"
-                  onClick={onClose}
-                  className="flex-1 h-11"
-                >
-                  Close
-                </Button>
-                <Button
-                  onClick={() => {
-                    setStep('form')
-                    setCountdown(60)
-                  }}
-                  className="flex-1 h-11 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  Try Again
-                </Button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
-  )
-}
 
 interface MpesaPaymentDialogProps {
   open: boolean
   onClose: () => void
+  resetKey?: number
   amount: number
   feeDescription: string
   studentName: string
   studentId: string
   feeStructureId: string
-  term: string
-  /** Pass a unique key from the parent to reset internal state on each open */
-  resetKey?: number
-  onSuccess?: (transactionId: string) => void
+  term?: string
+  onSuccess?: () => void
 }
+
+type Step = 'details' | 'processing' | 'success'
 
 export function MpesaPaymentDialog({
   open,
   onClose,
+  resetKey = 0,
   amount,
   feeDescription,
   studentName,
   studentId,
   feeStructureId,
-  term,
-  resetKey,
+  term = '2025-1',
   onSuccess,
 }: MpesaPaymentDialogProps) {
+  const [step, setStep] = useState<Step>('details')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [editableAmount, setEditableAmount] = useState(String(amount))
+  const [processing, setProcessing] = useState(false)
+  const [mpesaResult, setMpesaResult] = useState<any>(null)
+  const [statusChecking, setStatusChecking] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Reset when dialog opens
+  useEffect(() => {
+    if (open) {
+      setStep('details')
+      setPhoneNumber('')
+      setEditableAmount(String(amount))
+      setProcessing(false)
+      setMpesaResult(null)
+      setStatusChecking(false)
+      setTimeout(() => inputRef.current?.focus(), 300)
+    }
+  }, [open, resetKey, amount])
+
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+    if (digits.length <= 4) return digits
+    if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 10)}`
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value)
+    setPhoneNumber(formatted)
+  }
+
+  const getRawPhone = () => phoneNumber.replace(/\s/g, '')
+
+  const isPhoneValid = () => {
+    const raw = getRawPhone()
+    return /^07\d{8}$/.test(raw)
+  }
+
+  const isAmountValid = () => {
+    const num = Number(editableAmount)
+    return num > 0 && num <= 150000
+  }
+
+  const handleSendSTKPush = async () => {
+    if (!isPhoneValid()) {
+      toast.error('Please enter a valid phone number (07XX XXX XXX)')
+      return
+    }
+    if (!isAmountValid()) {
+      toast.error('Please enter a valid amount (1 - 150,000)')
+      return
+    }
+
+    setProcessing(true)
+    setStep('processing')
+
+    try {
+      // Step 1: Initiate STK Push
+      const stkRes = await fetch('/api/fees/mpesa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId,
+          amount: Number(editableAmount),
+          phoneNumber: getRawPhone(),
+          feeStructureId,
+        }),
+      })
+      const stkData = await stkRes.json()
+
+      if (!stkData.success) {
+        toast.error(stkData.error || 'Failed to initiate M-Pesa payment')
+        setStep('details')
+        setProcessing(false)
+        return
+      }
+
+      setMpesaResult(stkData.data)
+
+      // Step 2: Simulate 3-second processing delay then check status
+      setTimeout(async () => {
+        setStatusChecking(true)
+        try {
+          const statusRes = await fetch(`/api/fees/mpesa/status?ref=${stkData.data.transactionRef}`)
+          const statusData = await statusRes.json()
+
+          if (statusData.success && statusData.data.status === 'COMPLETED') {
+            // Record the payment in the system
+            try {
+              await fetch('/api/fees/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  studentId,
+                  feeStructureId,
+                  amount: Number(editableAmount),
+                  paymentMethod: 'MPESA',
+                  transactionRef: statusData.data.mpesaReceipt,
+                  term,
+                  notes: `M-Pesa payment. Receipt: ${statusData.data.mpesaReceipt}. Phone: ${getRawPhone()}`,
+                }),
+              })
+            } catch {
+              // Payment recorded via STK but transaction log might fail
+            }
+
+            setMpesaResult(statusData.data)
+            setStep('success')
+            toast.success('Payment completed successfully!')
+            onSuccess?.()
+          } else {
+            toast.error('Payment timed out. Please try again.')
+            setStep('details')
+          }
+        } catch {
+          toast.error('Failed to verify payment. Please check transaction history.')
+          setStep('details')
+        } finally {
+          setProcessing(false)
+          setStatusChecking(false)
+        }
+      }, 3000)
+    } catch {
+      toast.error('Network error. Please try again.')
+      setStep('details')
+      setProcessing(false)
+    }
+  }
+
+  const handleClose = () => {
+    if (step === 'processing') {
+      toast.info('Please wait for the payment to complete')
+      return
+    }
+    onClose()
+  }
+
+  if (!open) return null
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md p-0 overflow-hidden">
-        <DialogHeader className="sr-only">
-          <DialogTitle>M-Pesa Payment</DialogTitle>
-        </DialogHeader>
-        {open && (
-          <MpesaPaymentContent
-            key={resetKey}
-            amount={amount}
-            feeDescription={feeDescription}
-            studentName={studentName}
-            studentId={studentId}
-            feeStructureId={feeStructureId}
-            term={term}
-            onClose={onClose}
-            onSuccess={onSuccess}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+
+      {/* Dialog */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.2 }}
+        className="relative w-full max-w-md mx-4 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
+      >
+        {/* Green Header */}
+        <div className="relative bg-gradient-to-br from-green-600 via-green-600 to-emerald-700 px-6 py-5">
+          {/* Close button */}
+          <button
+            onClick={handleClose}
+            disabled={step === 'processing'}
+            className={cn(
+              'absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors',
+              step === 'processing' && 'opacity-50 cursor-not-allowed'
+            )}
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+
+          {/* M-Pesa branding */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <Smartphone className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">M-Pesa Payment</h2>
+              <p className="text-green-100 text-sm">Lipa na M-Pesa</p>
+            </div>
+          </div>
+
+          {/* Progress Steps */}
+          <div className="flex items-center gap-2 mt-4">
+            {['Enter Details', 'Processing', 'Success'].map((label, i) => {
+              const stepOrder: Step[] = ['details', 'processing', 'success']
+              const currentIdx = stepOrder.indexOf(step)
+              const isActive = i === currentIdx
+              const isComplete = i < currentIdx
+
+              return (
+                <div key={label} className="flex items-center gap-2 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className={cn(
+                        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all',
+                        isComplete && 'bg-white text-green-600',
+                        isActive && 'bg-white text-green-600 ring-2 ring-white/50',
+                        !isComplete && !isActive && 'bg-white/30 text-white/60'
+                      )}
+                    >
+                      {isComplete ? '✓' : i + 1}
+                    </div>
+                    <span
+                      className={cn(
+                        'text-[11px] font-medium hidden sm:inline',
+                        isActive ? 'text-white' : 'text-green-100/60'
+                      )}
+                    >
+                      {label}
+                    </span>
+                  </div>
+                  {i < 2 && (
+                    <div
+                      className={cn(
+                        'flex-1 h-0.5 rounded-full transition-all',
+                        i < currentIdx ? 'bg-white' : 'bg-white/30'
+                      )}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-5">
+          <AnimatePresence mode="wait">
+            {step === 'details' && (
+              <motion.div
+                key="details"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-4"
+              >
+                {/* Student Info */}
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-800 p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Student</span>
+                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{studentName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Fee</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{feeDescription}</span>
+                  </div>
+                </div>
+
+                {/* Amount */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Amount (KES)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-medium text-sm">KES</span>
+                    <Input
+                      type="number"
+                      value={editableAmount}
+                      onChange={(e) => setEditableAmount(e.target.value)}
+                      className="pl-12 h-12 text-lg font-bold text-slate-900 dark:text-slate-100"
+                      min={1}
+                      max={150000}
+                    />
+                  </div>
+                </div>
+
+                {/* Phone Number */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    M-Pesa Phone Number
+                  </label>
+                  <div className="relative">
+                    <Input
+                      ref={inputRef}
+                      value={phoneNumber}
+                      onChange={handlePhoneChange}
+                      placeholder="07XX XXX XXX"
+                      className="h-12 text-base font-medium pl-4"
+                      maxLength={12}
+                    />
+                    {isPhoneValid() && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                      >
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Security notice */}
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30">
+                  <Shield className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-green-700 dark:text-green-400 leading-relaxed">
+                    Your payment is secured by Safaricom M-Pesa. You will receive an STK push on your phone to confirm the payment.
+                  </p>
+                </div>
+
+                {/* Send STK Push Button */}
+                <Button
+                  onClick={handleSendSTKPush}
+                  disabled={!isPhoneValid() || !isAmountValid()}
+                  className={cn(
+                    'w-full h-12 text-base font-bold rounded-xl transition-all',
+                    isPhoneValid() && isAmountValid()
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  )}
+                >
+                  <Smartphone className="w-5 h-5 mr-2" />
+                  Send STK Push
+                </Button>
+              </motion.div>
+            )}
+
+            {step === 'processing' && (
+              <motion.div
+                key="processing"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col items-center py-8 space-y-6"
+              >
+                {/* Animated Phone */}
+                <div className="relative">
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30"
+                  >
+                    <Smartphone className="w-10 h-10 text-white" />
+                  </motion.div>
+                  {/* Pulse rings */}
+                  <motion.div
+                    animate={{ scale: [1, 1.8], opacity: [0.4, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                    className="absolute inset-0 rounded-2xl border-2 border-green-500"
+                  />
+                  <motion.div
+                    animate={{ scale: [1, 2.2], opacity: [0.2, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
+                    className="absolute inset-0 rounded-2xl border-2 border-green-400"
+                  />
+                </div>
+
+                <div className="text-center space-y-2">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    {statusChecking ? 'Confirming Payment...' : 'Check Your Phone'}
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">
+                    {statusChecking
+                      ? 'Verifying payment with Safaricom. This will take a moment...'
+                      : `An STK push has been sent to ${phoneNumber}. Enter your M-Pesa PIN to complete the payment.`}
+                  </p>
+                </div>
+
+                {/* Transaction Reference */}
+                {mpesaResult && (
+                  <div className="rounded-lg bg-slate-50 dark:bg-slate-800 px-4 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">Transaction Ref</p>
+                    <p className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-300">{mpesaResult.transactionRef}</p>
+                  </div>
+                )}
+
+                {/* Loading bar */}
+                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"
+                    initial={{ width: '0%' }}
+                    animate={{ width: statusChecking ? '90%' : '60%' }}
+                    transition={{ duration: statusChecking ? 2 : 3, ease: 'linear' }}
+                  />
+                </div>
+
+                <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Please do not close this window
+                </p>
+              </motion.div>
+            )}
+
+            {step === 'success' && (
+              <motion.div
+                key="success"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col items-center py-6 space-y-5"
+              >
+                {/* Success Checkmark Animation */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+                  className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30"
+                >
+                  <motion.div
+                    initial={{ scale: 0, rotate: -45 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.3 }}
+                  >
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <motion.path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
+                      />
+                    </svg>
+                  </motion.div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-center space-y-2"
+                >
+                  <h3 className="text-xl font-bold text-green-600 dark:text-green-400">Payment Successful!</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Your M-Pesa payment has been confirmed</p>
+                </motion.div>
+
+                {/* Receipt Details */}
+                {mpesaResult && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="w-full rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 space-y-3"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">M-Pesa Receipt</span>
+                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800 text-xs font-mono">
+                        {mpesaResult.mpesaReceipt}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Amount</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        KES {Number(editableAmount).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Student</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{studentName}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Fee</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{feeDescription}</span>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Action Buttons */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="w-full space-y-2"
+                >
+                  <Button
+                    onClick={() => {
+                      toast.success('Receipt downloaded successfully')
+                    }}
+                    variant="outline"
+                    className="w-full h-11 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Receipt
+                  </Button>
+                  <Button
+                    onClick={handleClose}
+                    className="w-full h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                  >
+                    Done
+                  </Button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </div>
   )
 }

@@ -48,14 +48,15 @@ export function NotificationCenter() {
   const [loading, setLoading] = useState(false)
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL')
-  const { setNotificationCount, setCurrentView } = useAppStore()
+  const { user, setNotificationCount, setCurrentView } = useAppStore()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hasFetchedRef = useRef(false)
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await notificationsApi.list()
+      if (!user?.id) return
+      const res = await notificationsApi.list(user.id)
       if (res.success && res.data) {
         setNotifications(res.data.notifications)
         setNotificationCount(res.data.unreadCount)
