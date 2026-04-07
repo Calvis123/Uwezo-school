@@ -15,6 +15,7 @@ export interface ClassItem {
   stream?: string
   teacherId?: string
   capacity?: number
+  status?: string
   studentCount: number
 }
 

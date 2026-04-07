@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, Search, Download, DollarSign } from 'lucide-react'
+import { Plus, Search, Download, DollarSign, FileDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
@@ -34,7 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, FileDown } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface TransactionRow {
@@ -140,6 +140,10 @@ export function FeePayments() {
     BANK: '🏦',
   }
 
+  const handleDownloadReceipt = (receiptNumber: string) => {
+    window.open(`/api/fees/receipt/${receiptNumber}`, '_blank')
+  }
+
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
@@ -216,6 +220,7 @@ export function FeePayments() {
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Method</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Date</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,11 +234,12 @@ export function FeePayments() {
                     <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
+                  <TableCell colSpan={8} className="text-center py-12">
                     <div className="flex flex-col items-center">
                       <DollarSign className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
                       <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No transactions found</p>
@@ -265,6 +271,19 @@ export function FeePayments() {
                       )}>
                         {t.status === 'COMPLETED' ? '✓ ' : t.status === 'PENDING' ? '◷ ' : '✗ '}{t.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {t.status === 'COMPLETED' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          onClick={() => handleDownloadReceipt(t.receiptNumber)}
+                          title="Download Receipt"
+                        >
+                          <FileDown className="w-4 h-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

@@ -17,6 +17,8 @@ import {
   Calendar,
   MessageSquare,
   Download,
+  School,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -39,14 +41,17 @@ import { useAppStore } from '@/lib/store'
 import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { SearchDialog } from './SearchDialog'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'users', label: 'Users', icon: Users, adminOnly: true },
   { id: 'students', label: 'Students', icon: GraduationCap },
+  { id: 'classes', label: 'Classes', icon: School },
   { id: 'teacher-dashboard', label: 'Teachers View', icon: GraduationCap, teacherOnly: true },
   { id: 'fees', label: 'Fees', icon: DollarSign },
   { id: 'export', label: 'Export', icon: Download },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'exams', label: 'Exams & Results', icon: FileText },
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -226,6 +231,8 @@ const viewInfo: Record<string, { title: string; breadcrumbs?: string[] }> = {
   'report-cards': { title: 'Report Cards', breadcrumbs: ['Dashboard', 'Exams', 'Reports'] },
   attendance: { title: 'Attendance', breadcrumbs: ['Dashboard', 'Attendance'] },
   calendar: { title: 'Calendar', breadcrumbs: ['Dashboard', 'Calendar'] },
+  analytics: { title: 'Analytics', breadcrumbs: ['Dashboard', 'Analytics'] },
+  classes: { title: 'Class Management', breadcrumbs: ['Dashboard', 'Classes'] },
   messages: { title: 'Messages', breadcrumbs: ['Dashboard', 'Messages'] },
   'teacher-dashboard': { title: 'Teachers View', breadcrumbs: ['Dashboard', 'Teachers View'] },
   notices: { title: 'Notices', breadcrumbs: ['Dashboard', 'Notices'] },
@@ -368,7 +375,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 relative">
           <div className="h-px bg-gradient-to-r from-teal-500 via-teal-300/50 to-transparent absolute top-0 left-0 right-0 z-10" />
           <div className="relative">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

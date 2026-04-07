@@ -1,16 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { rateLimit } from '@/lib/rate-limit'
+
+// 30 requests per minute per IP
+const SEARCH_RATE_LIMIT = 30
+const SEARCH_WINDOW_MS = 60 * 1000 // 1 minute
 
 export async function GET(request: NextRequest) {
   try {
+    // ── Rate limiting ──────────────────────────────────────────────
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
+
+    const { success, remaining } = rateLimit(
+      `search:${ip}`,
+      SEARCH_RATE_LIMIT,
+      SEARCH_WINDOW_MS
+    )
+
+    if (!success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Too many search requests. Please slow down.',
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': '60',
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      )
+    }
+
+    // ── Search logic ───────────────────────────────────────────────
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')?.trim()
 
     if (!q || q.length < 2) {
-      return NextResponse.json({
-        success: true,
-        data: { students: [], users: [], classes: [] },
-      })
+      return NextResponse.json(
+        {
+          success: true,
+          data: { students: [], users: [], classes: [] },
+        },
+        {
+          headers: {
+            'X-RateLimit-Remaining': String(remaining),
+          },
+        }
+      )
     }
 
     // Search students (by name, admission number) - SQLite contains is case-insensitive
@@ -84,17 +124,25 @@ export async function GET(request: NextRequest) {
       level: c.level,
     }))
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        students: studentResults,
-        users: userResults,
-        classes: classResults,
-      },
-    })
-  } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error.message },
+      {
+        success: true,
+        data: {
+          students: studentResults,
+          users: userResults,
+          classes: classResults,
+        },
+      },
+      {
+        headers: {
+          'X-RateLimit-Remaining': String(remaining),
+        },
+      }
+    )
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json(
+      { success: false, error: message },
       { status: 500 }
     )
   }

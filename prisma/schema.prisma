@@ -39,6 +39,7 @@ model SchoolClass {
   stream          String?  // "A", "B", "C"
   teacherId       String?
   capacity        Int      @default(40)
+  status          String   @default("ACTIVE") // ACTIVE, INACTIVE
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -93,6 +94,7 @@ model Student {
   stream          String?
   status          String   @default("ACTIVE") // ACTIVE, GRADUATED, TRANSFERRED, INACTIVE
   photo           String?
+  resultsPin      String?  @unique
   address         String?
   medicalNotes    String?
   allergies       String?

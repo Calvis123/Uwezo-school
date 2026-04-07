@@ -21,9 +21,12 @@ import { CalendarView } from '@/components/calendar/CalendarView'
 import { TeacherDashboard } from '@/components/teacher/TeacherDashboard'
 import { MessagingPage } from '@/components/messaging/MessagingPage'
 import { ExportData } from '@/components/export/ExportData'
+import { ClassManagement } from '@/components/classes/ClassManagement'
+import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
 import { FeesPage } from '@/components/fees/FeesPage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 function ViewRouter() {
   const { currentView } = useAppStore()
@@ -33,6 +36,8 @@ function ViewRouter() {
     users: <UserManagement />,
     students: <StudentList />,
     'student-detail': <StudentDetail />,
+    classes: <ClassManagement />,
+    analytics: <AnalyticsPage />,
     fees: <FeesPage />,
     export: <ExportData />,
     exams: <ExamsPage />,
@@ -96,8 +101,10 @@ export default function Home() {
   }
 
   return (
-    <DashboardLayout>
-      <ViewRouter />
-    </DashboardLayout>
+    <ErrorBoundary>
+      <DashboardLayout>
+        <ViewRouter />
+      </DashboardLayout>
+    </ErrorBoundary>
   )
 }

@@ -122,11 +122,39 @@ export const dashboardApi = {
   stats: () => request('/api/dashboard/stats'),
 }
 
+// Classes
+export const classesApi = {
+  list: (params?: { level?: string; status?: string; search?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.level) searchParams.set('level', params.level)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.search) searchParams.set('search', params.search)
+    return request(`/api/classes?${searchParams.toString()}`)
+  },
+  get: (id: string) => request(`/api/classes/${id}`),
+  create: (data: any) =>
+    request('/api/classes', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    request(`/api/classes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request(`/api/classes/${id}`, { method: 'DELETE' }),
+}
+
 // Reference data
 export const refApi = {
   classes: () => request('/api/classes'),
   subjects: () => request('/api/subjects'),
   terms: () => request('/api/terms'),
+}
+
+// Analytics
+export const analyticsApi = {
+  get: (params?: { from?: string; to?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.from) searchParams.set('from', params.from)
+    if (params?.to) searchParams.set('to', params.to)
+    return request(`/api/analytics?${searchParams.toString()}`)
+  },
 }
 
 // Notices

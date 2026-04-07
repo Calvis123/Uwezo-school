@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   Heart,
   Edit2,
+  Copy,
+  RefreshCw,
+  KeyRound,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
@@ -66,6 +69,7 @@ export function StudentDetail() {
   const [attendanceStats, setAttendanceStats] = useState<any>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [payLoading, setPayLoading] = useState(false)
+  const [regenPinLoading, setRegenPinLoading] = useState(false)
 
   useEffect(() => {
     if (!selectedStudentId) return
@@ -177,6 +181,34 @@ export function StudentDetail() {
       }
     } catch {
       setAttendanceStats(null)
+    }
+  }
+
+  const handleCopyPin = () => {
+    if (student?.resultsPin) {
+      navigator.clipboard.writeText(student.resultsPin)
+      toast.success('PIN copied to clipboard')
+    }
+  }
+
+  const handleRegeneratePin = async () => {
+    if (!selectedStudentId) return
+    setRegenPinLoading(true)
+    try {
+      const res = await fetch(`/api/students/${selectedStudentId}/regenerate-pin`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (data.success) {
+        setStudent({ ...student, resultsPin: data.data.resultsPin })
+        toast.success(`New PIN generated: ${data.data.resultsPin}`)
+      } else {
+        toast.error(data.error || 'Failed to regenerate PIN')
+      }
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setRegenPinLoading(false)
     }
   }
 
@@ -316,6 +348,59 @@ export function StudentDetail() {
                 <CardTitle className="text-sm font-semibold text-slate-700">Personal Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {/* Results PIN Section */}
+                <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-3 -mx-1 border border-teal-100 dark:border-teal-800/40">
+                  <div className="flex items-center gap-2 mb-2">
+                    <KeyRound className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span className="text-sm font-semibold text-teal-700 dark:text-teal-300">Results PIN</span>
+                  </div>
+                  {student.resultsPin ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-mono font-bold text-teal-800 dark:text-teal-200 tracking-widest">
+                        {student.resultsPin}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-teal-600 hover:text-teal-700 hover:bg-teal-100 dark:text-teal-400 dark:hover:bg-teal-900/40"
+                          onClick={handleCopyPin}
+                          title="Copy PIN"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40"
+                          onClick={handleRegeneratePin}
+                          disabled={regenPinLoading}
+                          title="Regenerate PIN"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${regenPinLoading ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-teal-600/60 dark:text-teal-400/60">No PIN assigned</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-teal-600 hover:text-teal-700 hover:bg-teal-100 dark:text-teal-400 dark:hover:bg-teal-900/40 text-xs"
+                        onClick={handleRegeneratePin}
+                        disabled={regenPinLoading}
+                      >
+                        {regenPinLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <KeyRound className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Generate PIN
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Date of Birth</span>
                   <span className="font-medium">{student.dateOfBirth ? format(new Date(student.dateOfBirth), 'MMM d, yyyy') : '—'}</span>

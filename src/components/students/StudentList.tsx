@@ -21,6 +21,7 @@ import {
   DollarSign,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ImportStudentsDialog } from './ImportStudentsDialog'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { studentsApi, refApi } from '@/lib/api'
@@ -89,6 +90,7 @@ export function StudentList() {
   const [formOpen, setFormOpen] = useState(false)
   const [editStudent, setEditStudent] = useState<any | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [localClasses, setLocalClasses] = useState(classes)
 
   const totalPages = Math.ceil(total / limit)
@@ -209,7 +211,7 @@ export function StudentList() {
             variant="outline"
             size="sm"
             className="h-9 gap-1.5 text-slate-600 dark:text-slate-400 hidden sm:flex"
-            onClick={() => toast.info('Import feature coming soon')}
+            onClick={() => setImportDialogOpen(true)}
           >
             <Upload className="w-3.5 h-3.5" />
             Import
@@ -551,6 +553,13 @@ export function StudentList() {
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditStudent(null) }}
         editStudent={editStudent}
+        onSuccess={loadStudents}
+      />
+
+      {/* Import Students Dialog */}
+      <ImportStudentsDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
         onSuccess={loadStudents}
       />
 
