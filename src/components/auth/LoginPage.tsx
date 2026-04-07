@@ -132,13 +132,8 @@ export function LoginPage() {
       >
         {/* School Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-200/50 dark:shadow-teal-900/50 mb-4 relative">
-            <GraduationCap className="w-10 h-10 text-white" />
-            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center shadow-sm">
-              <span className="text-[8px] text-white font-bold">✓</span>
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Olives School</h1>
+          <img src="/logo.png" alt="Olives Schools" className="w-20 h-20 rounded-2xl shadow-lg shadow-teal-200/50 dark:shadow-teal-900/50 mb-3 object-contain" />
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Olives Schools</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Nurturing Excellence, Building Futures</p>
         </div>
 

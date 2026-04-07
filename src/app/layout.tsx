@@ -16,8 +16,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Olives School Management System",
-  description: "Comprehensive school management system for Olives School. Manage students, fees, exams, attendance and more.",
-  keywords: ["Olives School", "School Management", "Education", "Students", "Fees", "Exams"],
+  description: "Comprehensive school management system for Olives Schools, Eldoret, Kenya. Manage students, fees, exams, attendance and more.",
+  keywords: ["Olives School", "School Management", "Education", "Students", "Fees", "Exams", "Kenya", "CBC"],
+  icons: {
+    icon: '/favicon.ico.png',
+  },
 };
 
 export default function RootLayout({

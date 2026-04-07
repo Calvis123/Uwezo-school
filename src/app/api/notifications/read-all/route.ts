@@ -18,21 +18,3 @@ export async function POST() {
     );
   }
 }
-
-// PUT /api/notifications/all
-// Mark all notifications as read (legacy support)
-export async function PUT() {
-  try {
-    markAllRead();
-    return NextResponse.json({
-      success: true,
-      data: { message: 'All notifications marked as read' },
-    });
-  } catch (error: unknown) {
-    console.error('Error marking all notifications as read:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to mark all notifications as read' },
-      { status: 500 }
-    );
-  }
-}

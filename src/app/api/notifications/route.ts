@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isNotificationRead, isAllRead } from '@/lib/notification-state';
 
 interface NotificationItem {
   id: string;
@@ -10,6 +11,8 @@ interface NotificationItem {
   isRead: boolean;
   link: string;
   actorName?: string;
+  relativeTime: string;
+  timeGroup: 'today' | 'yesterday' | 'earlier';
 }
 
 function getRelativeTime(date: Date): string {
@@ -25,6 +28,17 @@ function getRelativeTime(date: Date): string {
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getTimeGroup(date: Date): 'today' | 'yesterday' | 'earlier' {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const notifDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (notifDate.getTime() >= today.getTime()) return 'today';
+  if (notifDate.getTime() >= yesterday.getTime()) return 'yesterday';
+  return 'earlier';
 }
 
 export async function GET(request: NextRequest) {
@@ -145,15 +159,18 @@ export async function GET(request: NextRequest) {
     // Build payment notifications
     for (const payment of recentPayments) {
       const studentName = `${payment.student.firstName} ${payment.student.lastName}`;
+      const id = `payment-${payment.id}`;
       notifications.push({
-        id: `payment-${payment.id}`,
+        id,
         type: 'PAYMENT',
         title: 'Fee Payment Received',
         description: `${studentName} paid KES ${payment.amount.toLocaleString()} for ${payment.feeStructure.name}`,
         timestamp: payment.createdAt.toISOString(),
-        isRead: true, // Historical data is considered read
-        link: `fees`,
+        isRead: isNotificationRead(id) || isAllRead(),
+        link: 'fees',
         actorName: studentName,
+        relativeTime: getRelativeTime(payment.createdAt),
+        timeGroup: getTimeGroup(payment.createdAt),
       });
     }
 
@@ -180,14 +197,18 @@ export async function GET(request: NextRequest) {
     }
 
     for (const [, entry] of attendanceByDate) {
+      const id = `attendance-${entry.date}-${entry.className}`;
+      const timestamp = entry.records[0].createdAt;
       notifications.push({
-        id: `attendance-${entry.date}-${entry.className}`,
+        id,
         type: 'ATTENDANCE',
         title: 'Attendance Marked',
         description: `${entry.className}: ${entry.present}/${entry.total} students present${entry.absent > 0 ? ` (${entry.absent} absent)` : ''}`,
-        timestamp: entry.records[0].createdAt.toISOString(),
-        isRead: true,
+        timestamp: timestamp.toISOString(),
+        isRead: isNotificationRead(id) || isAllRead(),
         link: 'attendance',
+        relativeTime: getRelativeTime(timestamp),
+        timeGroup: getTimeGroup(timestamp),
       });
     }
 
@@ -195,30 +216,36 @@ export async function GET(request: NextRequest) {
     for (const mark of recentExamMarks) {
       const studentName = `${mark.student.firstName} ${mark.student.lastName}`;
       const grade = mark.marks >= 80 ? 'A' : mark.marks >= 70 ? 'B' : mark.marks >= 60 ? 'C' : mark.marks >= 50 ? 'D' : 'E';
+      const id = `exam-${mark.id}`;
       notifications.push({
-        id: `exam-${mark.id}`,
+        id,
         type: 'EXAM',
-        title: 'Exam Marks Entered',
+        title: 'Exam Results Available',
         description: `${studentName} scored ${mark.marks}/${mark.exam.name || 'Exam'} in ${mark.subject.name} (Grade: ${grade})`,
         timestamp: mark.createdAt.toISOString(),
-        isRead: true,
+        isRead: isNotificationRead(id) || isAllRead(),
         link: 'exams',
         actorName: studentName,
+        relativeTime: getRelativeTime(mark.createdAt),
+        timeGroup: getTimeGroup(mark.createdAt),
       });
     }
 
     // Build message notifications
     for (const msg of recentMessages) {
       const isIncoming = msg.receiverId === user.id;
+      const id = `message-${msg.id}`;
       notifications.push({
-        id: `message-${msg.id}`,
+        id,
         type: 'MESSAGE',
         title: isIncoming ? `New Message from ${msg.sender.name}` : `Message Sent to ${msg.receiver.name}`,
         description: msg.subject,
         timestamp: msg.createdAt.toISOString(),
-        isRead: isIncoming ? msg.isRead : true,
+        isRead: isIncoming ? (msg.isRead || isNotificationRead(id) || isAllRead()) : (isNotificationRead(id) || isAllRead()),
         link: 'messages',
         actorName: isIncoming ? msg.sender.name : undefined,
+        relativeTime: getRelativeTime(msg.createdAt),
+        timeGroup: getTimeGroup(msg.createdAt),
       });
     }
 
@@ -229,16 +256,20 @@ export async function GET(request: NextRequest) {
         notice.targetRoles.split(',').includes('ALL');
 
       if (isTargeted) {
+        const id = `notice-${notice.id}`;
+        const publishDate = notice.publishedAt || notice.createdAt;
         notifications.push({
-          id: `notice-${notice.id}`,
+          id,
           type: 'NOTICE',
           title: notice.title,
           description: notice.content.length > 100
             ? notice.content.substring(0, 100) + '...'
             : notice.content,
-          timestamp: (notice.publishedAt || notice.createdAt).toISOString(),
-          isRead: false, // Notices are considered unread
+          timestamp: publishDate.toISOString(),
+          isRead: isNotificationRead(id) || isAllRead(),
           link: 'notices',
+          relativeTime: getRelativeTime(publishDate),
+          timeGroup: getTimeGroup(publishDate),
         });
       }
     }
@@ -247,15 +278,18 @@ export async function GET(request: NextRequest) {
     for (const absence of recentAbsences) {
       if (absence.student) {
         const studentName = `${absence.student.firstName} ${absence.student.lastName}`;
+        const id = `absence-${absence.id}`;
         notifications.push({
-          id: `absence-${absence.id}`,
+          id,
           type: 'ATTENDANCE',
-          title: 'Student Absence',
+          title: 'Student Absence Alert',
           description: `${studentName} (${absence.class?.name || 'Unknown class'}) was absent`,
           timestamp: absence.createdAt.toISOString(),
-          isRead: true,
+          isRead: isNotificationRead(id) || isAllRead(),
           link: 'attendance',
           actorName: studentName,
+          relativeTime: getRelativeTime(absence.createdAt),
+          timeGroup: getTimeGroup(absence.createdAt),
         });
       }
     }
@@ -266,21 +300,23 @@ export async function GET(request: NextRequest) {
     // Count unread
     const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-    // Add relative time
-    const enrichedNotifications = notifications.slice(0, 20).map((n) => ({
-      ...n,
-      relativeTime: getRelativeTime(new Date(n.timestamp)),
-    }));
+    // Group by time
+    const grouped: { today: NotificationItem[]; yesterday: NotificationItem[]; earlier: NotificationItem[] } = {
+      today: notifications.filter((n) => n.timeGroup === 'today'),
+      yesterday: notifications.filter((n) => n.timeGroup === 'yesterday'),
+      earlier: notifications.filter((n) => n.timeGroup === 'earlier'),
+    };
 
     return NextResponse.json({
       success: true,
       data: {
-        notifications: enrichedNotifications,
+        notifications: notifications.slice(0, 30),
+        grouped,
         unreadCount,
         totalCount: notifications.length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching notifications:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch notifications' },

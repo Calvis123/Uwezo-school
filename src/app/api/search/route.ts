@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
+import { Prisma } from '@prisma/client'
 
 // 30 requests per minute per IP
 const SEARCH_RATE_LIMIT = 30
@@ -68,14 +69,64 @@ export async function GET(request: NextRequest) {
       orderBy: { firstName: 'asc' },
     })
 
-    const studentResults = students.map((s) => ({
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`,
-      subtitle: s.admissionNumber,
-      type: 'student' as const,
-      href: `students-${s.id}`,
-      className: s.class?.name || '',
-    }))
+    // ── Compute fee balances for matched students ──────────────────
+    const studentIds = students.map(s => s.id)
+    const classIds = [...new Set(students.map(s => s.classId))]
+
+    // Get active term for fee structure lookup
+    const activeTerm = await db.term.findFirst({
+      where: { status: 'ACTIVE' },
+    })
+
+    // Sum of fee transactions per student (total paid)
+    const paidAggregates = studentIds.length > 0
+      ? await db.feeTransaction.groupBy({
+          by: ['studentId'],
+          where: {
+            studentId: { in: studentIds },
+            status: 'COMPLETED',
+          },
+          _sum: { amount: true },
+        })
+      : []
+
+    // Sum of fee structures per class (total owed this term)
+    const feeStructures = classIds.length > 0
+      ? await db.feeStructure.findMany({
+          where: {
+            classId: { in: classIds },
+            status: 'ACTIVE',
+            ...(activeTerm ? { termId: activeTerm.id } : {}),
+          },
+        })
+      : []
+
+    // Map: studentId -> totalPaid
+    const paidMap = new Map(paidAggregates.map(p => [p.studentId, p._sum.amount || 0]))
+
+    // Map: classId -> totalOwed
+    const owedMap = new Map<string, number>()
+    for (const fs of feeStructures) {
+      owedMap.set(fs.classId, (owedMap.get(fs.classId) || 0) + fs.amount)
+    }
+
+    const studentResults = students.map((s) => {
+      const totalPaid = paidMap.get(s.id) || 0
+      const totalOwed = owedMap.get(s.classId) || 0
+      const balance = totalOwed - totalPaid
+      return {
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`,
+        subtitle: s.admissionNumber,
+        type: 'student' as const,
+        href: `students-${s.id}`,
+        className: s.class?.name || '',
+        gender: s.gender,
+        feeBalance: Math.max(0, balance),
+        feeTotal: totalOwed,
+        feePaid: totalPaid,
+      }
+    })
 
     // Search users (by name, email)
     const users = await db.user.findMany({

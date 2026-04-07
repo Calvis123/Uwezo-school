@@ -339,6 +339,56 @@ input[type="number"] {
   background: var(--color-card, #1e293b);
 }
 
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #0d9488 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass morphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dark .glass {
+  background: rgba(15, 23, 42, 0.7);
+}
+
+/* Smooth badge pulse */
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* Content fade-in for page transitions */
+@keyframes contentFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.content-fade-in > * {
+  animation: contentFadeIn 0.25s ease-out both;
+}
+.content-fade-in > *:nth-child(1) { animation-delay: 0ms; }
+.content-fade-in > *:nth-child(2) { animation-delay: 50ms; }
+.content-fade-in > *:nth-child(3) { animation-delay: 100ms; }
+.content-fade-in > *:nth-child(4) { animation-delay: 150ms; }
+.content-fade-in > *:nth-child(5) { animation-delay: 200ms; }
+.content-fade-in > *:nth-child(6) { animation-delay: 250ms; }
+
+/* Progress bar animation */
+@keyframes progressGrow {
+  from { width: 0%; }
+}
+.progress-animate > div {
+  animation: progressGrow 0.8s ease-out both;
+}
+
 /* ==================== PRINT STYLES ==================== */
 @layer utilities {
   .print\:hidden {

@@ -93,13 +93,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex flex-col h-full">
       {/* Logo / School Name */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-200/80 dark:border-slate-700/60">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/20">
-          <GraduationCap className="w-5 h-5 text-white" />
-        </div>
+        <img src="/logo.png" alt="Olives Schools" className="w-10 h-10 rounded-xl flex-shrink-0 shadow-md object-contain" />
         <div>
           <div className="flex items-center gap-1.5">
             <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight">Olives</h1>
-            <span className="text-sm font-bold text-teal-600 dark:text-teal-400 leading-tight">School</span>
+            <span className="text-sm font-bold text-teal-600 dark:text-teal-400 leading-tight">Schools</span>
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">Management System</p>
         </div>

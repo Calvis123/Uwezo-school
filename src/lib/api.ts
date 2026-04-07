@@ -280,9 +280,9 @@ export const notificationsApi = {
     return request(`/api/notifications?${searchParams.toString()}`)
   },
   markRead: (id: string) =>
-    request(`/api/notifications/${id}`, { method: 'PUT' }),
+    request(`/api/notifications/${id}`, { method: 'POST' }),
   markAllRead: () =>
-    request('/api/notifications/all', { method: 'PUT' }),
+    request('/api/notifications/read-all', { method: 'POST' }),
 }
 
 // Activity Feed

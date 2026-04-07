@@ -367,9 +367,7 @@ export function ReportCards() {
               <div className="bg-gradient-to-r from-teal-700 to-teal-800 text-white px-6 py-5 print:bg-white print:text-slate-900 print:border-b-2 print:border-slate-800 print:py-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center print:bg-teal-700 print:hidden">
-                      <GraduationCap className="w-8 h-8 text-white" />
-                    </div>
+                    <img src="/logo.png" alt="" className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center print:hidden object-contain shadow-md" />
                     <div>
                       <h1 className="text-xl font-bold tracking-tight print:text-2xl print:text-teal-800">
                         Olives Schools

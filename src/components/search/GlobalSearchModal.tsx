@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import {
   Search,
   GraduationCap,
@@ -10,6 +10,17 @@ import {
   ArrowRight,
   X,
   CircleDot,
+  LayoutDashboard,
+  DollarSign,
+  FileText,
+  ClipboardCheck,
+  Bell,
+  Settings,
+  Clock,
+  Trash2,
+  Sparkles,
+  GraduationCapIcon,
+  School,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
@@ -25,17 +36,39 @@ import { cn } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────
 
-interface SearchResultItem {
+interface StudentSearchResult {
   id: string
   name: string
   subtitle: string
-  type: 'student' | 'user' | 'class' | 'notice'
+  type: 'student'
   href: string
-  className?: string
+  className: string
+  gender: string
+  feeBalance: number
+  feeTotal: number
+  feePaid: number
+}
+
+interface GenericSearchResult {
+  id: string
+  name: string
+  subtitle: string
+  type: 'user' | 'class' | 'notice'
+  href: string
   role?: string
   level?: string
   category?: string
   publishedAt?: string | null
+}
+
+type SearchResultItem = StudentSearchResult | GenericSearchResult
+
+interface NavigationItem {
+  id: string
+  label: string
+  icon: React.ElementType
+  viewId: string
+  keywords: string[]
 }
 
 interface SearchResponse {
@@ -49,6 +82,75 @@ interface SearchResponse {
   error?: string
 }
 
+interface RecentSearch {
+  query: string
+  timestamp: number
+}
+
+// ── Constants ─────────────────────────────────────────────────────
+
+const NAVIGATION_ITEMS: NavigationItem[] = [
+  {
+    id: 'nav-dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    viewId: 'dashboard',
+    keywords: ['home', 'overview', 'main', 'stats', 'summary'],
+  },
+  {
+    id: 'nav-students',
+    label: 'Students',
+    icon: GraduationCap,
+    viewId: 'students',
+    keywords: ['pupil', 'learner', 'enroll', 'admission', 'register'],
+  },
+  {
+    id: 'nav-classes',
+    label: 'Class Management',
+    icon: School,
+    viewId: 'classes',
+    keywords: ['classroom', 'stream', 'form', 'grade'],
+  },
+  {
+    id: 'nav-fees',
+    label: 'Fees Management',
+    icon: DollarSign,
+    viewId: 'fees',
+    keywords: ['payment', 'transaction', 'balance', 'invoice', 'mpesa', 'money'],
+  },
+  {
+    id: 'nav-exams',
+    label: 'Exams & Results',
+    icon: FileText,
+    viewId: 'exams',
+    keywords: ['test', 'assessment', 'marks', 'scores', 'grade', 'cat', 'report'],
+  },
+  {
+    id: 'nav-attendance',
+    label: 'Attendance',
+    icon: ClipboardCheck,
+    viewId: 'attendance',
+    keywords: ['present', 'absent', 'late', 'register', 'daily'],
+  },
+  {
+    id: 'nav-notices',
+    label: 'Notices',
+    icon: Bell,
+    viewId: 'notices',
+    keywords: ['announcement', 'bulletin', 'news', 'circular', 'memo'],
+  },
+  {
+    id: 'nav-settings',
+    label: 'Settings',
+    icon: Settings,
+    viewId: 'settings',
+    keywords: ['config', 'preference', 'admin', 'system'],
+  },
+]
+
+const RECENT_SEARCHES_KEY = 'olives-search-recent'
+const MAX_RECENT_SEARCHES = 5
+
 // ── Category config ───────────────────────────────────────────────
 
 const categoryConfig: Record<string, {
@@ -58,6 +160,20 @@ const categoryConfig: Record<string, {
   bg: string
   badgeBg: string
 }> = {
+  navigation: {
+    icon: Sparkles,
+    label: 'Quick Navigate',
+    color: 'text-slate-600 dark:text-slate-300',
+    bg: 'bg-slate-100 dark:bg-slate-800',
+    badgeBg: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  },
+  recent: {
+    icon: Clock,
+    label: 'Recent',
+    color: 'text-slate-500 dark:text-slate-400',
+    bg: 'bg-slate-50 dark:bg-slate-800/50',
+    badgeBg: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
+  },
   students: {
     icon: GraduationCap,
     label: 'Students',
@@ -88,7 +204,45 @@ const categoryConfig: Record<string, {
   },
 }
 
-const categoryOrder = ['students', 'users', 'classes', 'notices'] as const
+const API_CATEGORY_ORDER = ['students', 'users', 'classes', 'notices'] as const
+
+// ── Helpers ───────────────────────────────────────────────────────
+
+function formatCurrency(amount: number): string {
+  if (amount === 0) return 'Paid'
+  return `KES ${amount.toLocaleString()}`
+}
+
+function loadRecentSearches(): RecentSearch[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecentSearch(query: string) {
+  if (typeof window === 'undefined') return
+  try {
+    const existing = loadRecentSearches()
+    const filtered = existing.filter(r => r.query.toLowerCase() !== query.toLowerCase())
+    const updated = [{ query, timestamp: Date.now() }, ...filtered].slice(0, MAX_RECENT_SEARCHES)
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
+  } catch {
+    // Silently fail - localStorage might be unavailable
+  }
+}
+
+function clearRecentSearches() {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(RECENT_SEARCHES_KEY)
+  } catch {
+    // Silently fail
+  }
+}
 
 // ── Component ─────────────────────────────────────────────────────
 
@@ -98,23 +252,92 @@ interface GlobalSearchModalProps {
 }
 
 export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps) {
-  const { navigateTo, setCurrentView } = useAppStore()
+  const { navigateTo } = useAppStore()
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResponse['data'] | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedIdx, setSelectedIdx] = useState(-1)
   const [error, setError] = useState<string | null>(null)
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Build flat list for keyboard navigation
-  const flatResults: SearchResultItem[] = results
-    ? categoryOrder.flatMap((cat) => results[cat] || [])
-    : []
+  // ── Filter navigation items by query ──────────────────────────
+  const filteredNavItems = useMemo(() => {
+    if (!query.trim()) return NAVIGATION_ITEMS
+    const lower = query.toLowerCase()
+    return NAVIGATION_ITEMS.filter(
+      (item) =>
+        item.label.toLowerCase().includes(lower) ||
+        item.keywords.some((kw) => kw.includes(lower))
+    )
+  }, [query])
 
-  // ── Focus input when dialog opens ──────────────────────────────
+  // ── Filtered recent searches ──────────────────────────────────
+  const filteredRecentSearches = useMemo(() => {
+    if (!query.trim()) return recentSearches
+    const lower = query.toLowerCase()
+    return recentSearches.filter((r) => r.query.toLowerCase().includes(lower))
+  }, [query, recentSearches])
+
+  // ── Flat list for keyboard navigation ─────────────────────────
+  const flatResults = useMemo(() => {
+    const items: Array<{ type: string; id: string; label: string; action: () => void }> = []
+
+    // Navigation items
+    for (const nav of filteredNavItems) {
+      items.push({
+        type: 'navigation',
+        id: nav.id,
+        label: nav.label,
+        action: () => {
+          navigateTo(nav.viewId)
+          onOpenChange(false)
+        },
+      })
+    }
+
+    // Recent searches
+    for (const recent of filteredRecentSearches) {
+      items.push({
+        type: 'recent',
+        id: `recent-${recent.query}`,
+        label: recent.query,
+        action: () => {
+          setQuery(recent.query)
+          // The useEffect watching query will trigger a search
+        },
+      })
+    }
+
+    // API results
+    if (results) {
+      for (const cat of API_CATEGORY_ORDER) {
+        const catItems = results[cat] || []
+        for (const item of catItems) {
+          items.push({
+            type: item.type,
+            id: item.id,
+            label: item.name,
+            action: () => handleSelect(item),
+          })
+        }
+      }
+    }
+
+    return items
+  }, [filteredNavItems, filteredRecentSearches, results, navigateTo, onOpenChange])
+
+  // ── Load recent searches from localStorage ───────────────────
+  useEffect(() => {
+    if (open) {
+      setRecentSearches(loadRecentSearches())
+    }
+  }, [open])
+
+  // ── Focus input when dialog opens ────────────────────────────
   useEffect(() => {
     if (open) {
       setQuery('')
@@ -122,6 +345,7 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
       setSelectedIdx(-1)
       setError(null)
       setLoading(false)
+      setRecentSearches(loadRecentSearches())
       setTimeout(() => inputRef.current?.focus(), 80)
     }
   }, [open])
@@ -184,6 +408,28 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
     }
   }, [selectedIdx])
 
+  // ── Handle API result selection ───────────────────────────────
+  const handleSelect = (result: SearchResultItem) => {
+    // Save to recent searches
+    saveRecentSearch(result.name)
+
+    onOpenChange(false)
+    switch (result.type) {
+      case 'student':
+        navigateTo('student-detail', { studentId: result.id })
+        break
+      case 'user':
+        navigateTo('users')
+        break
+      case 'class':
+        navigateTo('students')
+        break
+      case 'notice':
+        navigateTo('notices')
+        break
+    }
+  }
+
   // ── Keyboard navigation ───────────────────────────────────────
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -195,40 +441,24 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (selectedIdx >= 0 && flatResults[selectedIdx]) {
-        handleSelect(flatResults[selectedIdx])
+        flatResults[selectedIdx].action()
       }
     } else if (e.key === 'Escape') {
       onOpenChange(false)
     }
   }
 
-  // ── Handle result selection ───────────────────────────────────
-  const handleSelect = (result: SearchResultItem) => {
-    onOpenChange(false)
-    switch (result.type) {
-      case 'student':
-        navigateTo('student-detail', { studentId: result.id })
-        break
-      case 'user':
-        setCurrentView('users')
-        break
-      case 'class':
-        setCurrentView('students')
-        break
-      case 'notice':
-        setCurrentView('notices')
-        break
-    }
-  }
-
-  // ── Total result count ────────────────────────────────────────
-  const totalResults = results
-    ? categoryOrder.reduce((sum, cat) => sum + (results[cat]?.length || 0), 0)
+  // ── Total API result count ────────────────────────────────────
+  const totalApiResults = results
+    ? API_CATEGORY_ORDER.reduce((sum, cat) => sum + (results[cat]?.length || 0), 0)
     : 0
+
+  // ── Has any results to display ────────────────────────────────
+  const hasAnyContent = filteredNavItems.length > 0 || filteredRecentSearches.length > 0 || totalApiResults > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] p-0 gap-0 overflow-hidden bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-700/80 shadow-2xl shadow-black/10 dark:shadow-black/40 rounded-xl">
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-700/80 shadow-2xl shadow-black/10 dark:shadow-black/40 rounded-xl">
         <DialogTitle className="sr-only">Global Search</DialogTitle>
 
         {/* ── Search Input ─────────────────────────────────────── */}
@@ -237,7 +467,7 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search students, staff, classes, notices..."
+            placeholder="Search students, classes, navigate anywhere..."
             className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -260,43 +490,61 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
         </div>
 
         {/* ── Results Area ─────────────────────────────────────── */}
-        <div ref={listRef} className="max-h-[380px] overflow-y-auto">
-          {/* Empty initial state */}
+        <div ref={listRef} className="max-h-[420px] overflow-y-auto">
           <AnimatePresence mode="wait">
-            {query.length < 2 && !results && (
+            {/* ── Empty initial state (no query) ──────────────── */}
+            {!query.trim() && (
               <motion.div
                 key="empty-initial"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="py-14 text-center"
               >
-                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
-                  <Search className="w-5 h-5 text-slate-400 dark:text-slate-500" />
-                </div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                  Search for anything
-                </p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[240px] mx-auto">
-                  Type at least 2 characters to search across students, staff, classes, and notices
-                </p>
-                <div className="flex items-center justify-center gap-3 mt-4">
-                  {categoryOrder.map((cat) => {
-                    const config = categoryConfig[cat]
-                    const Icon = config.icon
-                    return (
-                      <div key={cat} className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-                        <Icon className={cn('w-3 h-3', config.color)} />
-                        <span>{config.label}</span>
-                      </div>
-                    )
-                  })}
-                </div>
+                {/* Navigation suggestions */}
+                {filteredNavItems.length > 0 && (
+                  <NavigationGroup
+                    items={filteredNavItems}
+                    selectedIdx={selectedIdx}
+                    flatResults={flatResults}
+                    onSelect={(item) => {
+                      navigateTo(item.viewId)
+                      onOpenChange(false)
+                    }}
+                    onMouseEnter={(idx) => setSelectedIdx(idx)}
+                  />
+                )}
+
+                {/* Recent searches */}
+                {filteredRecentSearches.length > 0 && (
+                  <RecentSearchGroup
+                    searches={filteredRecentSearches}
+                    selectedIdx={selectedIdx}
+                    flatResults={flatResults}
+                    onClearAll={clearRecentSearches}
+                    onSelect={(query) => setQuery(query)}
+                    onMouseEnter={(idx) => setSelectedIdx(idx)}
+                  />
+                )}
+
+                {/* Placeholder when no recent searches */}
+                {filteredRecentSearches.length === 0 && (
+                  <div className="px-4 py-3">
+                    <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/20 py-8 text-center">
+                      <Search className="w-5 h-5 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Type at least 2 characters to search
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                        Search across students, staff, classes, and notices
+                      </p>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
-            {/* Loading state */}
+            {/* ── Loading state ─────────────────────────────────── */}
             {loading && query.length >= 2 && (
               <motion.div
                 key="loading"
@@ -306,20 +554,38 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
                 transition={{ duration: 0.15 }}
                 className="py-4 px-4 space-y-3"
               >
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-[60%]" />
-                      <Skeleton className="h-3 w-[40%]" />
+                {/* Navigation skeleton */}
+                <div className="space-y-1 mb-3">
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  {[0, 1].map((i) => (
+                    <div key={`nav-${i}`} className="flex items-center gap-3 py-1.5">
+                      <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <Skeleton className="h-3.5 w-28" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
                     </div>
-                    <Skeleton className="h-4 w-4 rounded" />
-                  </div>
-                ))}
+                  ))}
+                </div>
+                {/* Student skeleton */}
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  {[0, 1, 2].map((i) => (
+                    <div key={`stu-${i}`} className="flex items-center gap-3 py-1.5">
+                      <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <Skeleton className="h-3.5 w-[60%]" />
+                        <Skeleton className="h-3 w-[40%]" />
+                      </div>
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                      <Skeleton className="h-4 w-4 rounded" />
+                    </div>
+                  ))}
+                </div>
               </motion.div>
             )}
 
-            {/* Error state */}
+            {/* ── Error state ───────────────────────────────────── */}
             {!loading && error && query.length >= 2 && (
               <motion.div
                 key="error"
@@ -341,8 +607,8 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
               </motion.div>
             )}
 
-            {/* No results state */}
-            {!loading && !error && query.length >= 2 && totalResults === 0 && (
+            {/* ── No results state ──────────────────────────────── */}
+            {!loading && !error && query.length >= 2 && !hasAnyContent && (
               <motion.div
                 key="no-results"
                 initial={{ opacity: 0 }}
@@ -363,8 +629,8 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
               </motion.div>
             )}
 
-            {/* Results list */}
-            {!loading && !error && totalResults > 0 && results && (
+            {/* ── Results with query ───────────────────────────── */}
+            {query.length >= 2 && !loading && !error && hasAnyContent && (
               <motion.div
                 key="results"
                 initial={{ opacity: 0 }}
@@ -373,7 +639,22 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
                 transition={{ duration: 0.15 }}
                 className="py-2"
               >
-                {categoryOrder.map((category) => {
+                {/* Navigation matches */}
+                {filteredNavItems.length > 0 && (
+                  <NavigationGroup
+                    items={filteredNavItems}
+                    selectedIdx={selectedIdx}
+                    flatResults={flatResults}
+                    onSelect={(item) => {
+                      navigateTo(item.viewId)
+                      onOpenChange(false)
+                    }}
+                    onMouseEnter={(idx) => setSelectedIdx(idx)}
+                  />
+                )}
+
+                {/* API result categories */}
+                {results && API_CATEGORY_ORDER.map((category) => {
                   const items = results[category]
                   if (!items || items.length === 0) return null
 
@@ -403,6 +684,7 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
                       {items.map((item, idx) => {
                         const flatIdx = globalStartIdx + idx
                         const isSelected = flatIdx === selectedIdx
+
                         return (
                           <motion.button
                             key={item.id}
@@ -438,30 +720,74 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
                               )}>
                                 {item.name}
                               </p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                  {item.subtitle}
-                                </p>
-                                {item.type === 'student' && item.className && (
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
-                                    · {item.className}
-                                  </span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {item.type === 'student' && (
+                                  <>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                      {item.subtitle}
+                                    </span>
+                                    {item.className && (
+                                      <>
+                                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                                        <span className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                                          {item.className}
+                                        </span>
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                                {item.type !== 'student' && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                    {item.subtitle}
+                                  </p>
                                 )}
                               </div>
                             </div>
 
-                            {/* Category badge + arrow */}
+                            {/* Right side badges */}
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              {item.type === 'user' && item.role && (
+                              {/* Student fee balance badge */}
+                              {item.type === 'student' && 'feeBalance' in item && (
+                                <Badge
+                                  variant="secondary"
+                                  className={cn(
+                                    'text-[10px] h-5 px-2 font-medium tabular-nums hidden sm:inline-flex',
+                                    item.feeBalance === 0
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                      : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                  )}
+                                >
+                                  {item.feeBalance === 0 ? '✓ Paid' : formatCurrency(item.feeBalance)}
+                                </Badge>
+                              )}
+
+                              {/* Gender indicator for students */}
+                              {item.type === 'student' && 'gender' in item && (
+                                <span className={cn(
+                                  'text-xs',
+                                  item.gender === 'MALE'
+                                    ? 'text-sky-500 dark:text-sky-400'
+                                    : 'text-pink-500 dark:text-pink-400'
+                                )}>
+                                  {item.gender === 'MALE' ? '♂' : '♀'}
+                                </span>
+                              )}
+
+                              {/* Role badge for users */}
+                              {item.type === 'user' && 'role' in item && item.role && (
                                 <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-medium hidden sm:inline-flex">
                                   {item.role.replace('_', ' ')}
                                 </Badge>
                               )}
-                              {item.type === 'notice' && item.category && (
+
+                              {/* Category badge for notices */}
+                              {item.type === 'notice' && 'category' in item && item.category && (
                                 <Badge variant="secondary" className={cn('text-[9px] h-4 px-1.5 font-medium hidden sm:inline-flex', config.badgeBg)}>
                                   {item.category.charAt(0) + item.category.slice(1).toLowerCase()}
                                 </Badge>
                               )}
+
+                              {/* Arrow */}
                               <ArrowRight className={cn(
                                 'w-3.5 h-3.5 transition-all duration-100',
                                 isSelected
@@ -475,16 +801,30 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
                     </div>
                   )
                 })}
+
+                {/* Recent searches matching query */}
+                {!loading && query.trim() && filteredRecentSearches.length > 0 && results && totalApiResults > 0 && (
+                  <RecentSearchGroup
+                    searches={filteredRecentSearches}
+                    selectedIdx={selectedIdx}
+                    flatResults={flatResults}
+                    onClearAll={clearRecentSearches}
+                    onSelect={(q) => setQuery(q)}
+                    onMouseEnter={(idx) => setSelectedIdx(idx)}
+                  />
+                )}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* ── Footer ──────────────────────────────────────────── */}
-        {query.length >= 2 && !loading && totalResults > 0 && (
+        {query.length >= 2 && !loading && hasAnyContent && (
           <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
             <span className="text-[11px] text-slate-400 dark:text-slate-500">
-              {totalResults} result{totalResults !== 1 ? 's' : ''} found
+              {totalApiResults > 0
+                ? `${totalApiResults} result${totalApiResults !== 1 ? 's' : ''} found`
+                : 'Navigate to a page'}
             </span>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
@@ -510,5 +850,164 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ── Sub-components ─────────────────────────────────────────────────
+
+function NavigationGroup({
+  items,
+  selectedIdx,
+  flatResults,
+  onSelect,
+  onMouseEnter,
+}: {
+  items: NavigationItem[]
+  selectedIdx: number
+  flatResults: Array<{ type: string; id: string; label: string }>
+  onSelect: (item: NavigationItem) => void
+  onMouseEnter: (idx: number) => void
+}) {
+  const config = categoryConfig.navigation
+
+  return (
+    <div className="mb-1">
+      <div className="flex items-center gap-2 px-4 py-1.5">
+        <Sparkles className={cn('w-3.5 h-3.5', config.color)} />
+        <span className={cn('text-[11px] font-semibold uppercase tracking-wider', config.color)}>
+          {config.label}
+        </span>
+      </div>
+      {items.map((item, idx) => {
+        const flatIdx = flatResults.findIndex(
+          (r) => r.type === 'navigation' && r.id === item.id
+        )
+        const isSelected = flatIdx === selectedIdx
+        const Icon = item.icon
+
+        return (
+          <motion.button
+            key={item.id}
+            data-result-idx={flatIdx}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.025, duration: 0.15 }}
+            onClick={() => onSelect(item)}
+            onMouseEnter={() => onMouseEnter(flatIdx)}
+            className={cn(
+              'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100',
+              isSelected
+                ? 'bg-teal-50 dark:bg-teal-900/20'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+            )}
+          >
+            <div className={cn(
+              'h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors',
+              config.bg,
+              isSelected && 'ring-1 ring-teal-200 dark:ring-teal-700'
+            )}>
+              <Icon className={cn('w-4 h-4', config.color)} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={cn(
+                'text-sm font-medium truncate',
+                isSelected
+                  ? 'text-teal-700 dark:text-teal-300'
+                  : 'text-slate-900 dark:text-slate-100'
+              )}>
+                {item.label}
+              </p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                Go to {item.label.toLowerCase()}
+              </p>
+            </div>
+            <ArrowRight className={cn(
+              'w-3.5 h-3.5 transition-all duration-100',
+              isSelected
+                ? 'text-teal-500 translate-x-0.5'
+                : 'text-slate-300 dark:text-slate-600'
+            )} />
+          </motion.button>
+        )
+      })}
+    </div>
+  )
+}
+
+function RecentSearchGroup({
+  searches,
+  selectedIdx,
+  flatResults,
+  onClearAll,
+  onSelect,
+  onMouseEnter,
+}: {
+  searches: RecentSearch[]
+  selectedIdx: number
+  flatResults: Array<{ type: string; id: string; label: string }>
+  onClearAll: () => void
+  onSelect: (query: string) => void
+  onMouseEnter: (idx: number) => void
+}) {
+  const config = categoryConfig.recent
+
+  return (
+    <div className="mb-1">
+      <div className="flex items-center justify-between px-4 py-1.5">
+        <div className="flex items-center gap-2">
+          <Clock className={cn('w-3.5 h-3.5', config.color)} />
+          <span className={cn('text-[11px] font-semibold uppercase tracking-wider', config.color)}>
+            {config.label}
+          </span>
+        </div>
+        <button
+          onClick={onClearAll}
+          className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+        >
+          <Trash2 className="w-3 h-3" />
+          Clear
+        </button>
+      </div>
+      {searches.map((recent, idx) => {
+        const flatIdx = flatResults.findIndex(
+          (r) => r.type === 'recent' && r.id === `recent-${recent.query}`
+        )
+        const isSelected = flatIdx === selectedIdx
+
+        return (
+          <motion.button
+            key={recent.query}
+            data-result-idx={flatIdx}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: idx * 0.025, duration: 0.15 }}
+            onClick={() => onSelect(recent.query)}
+            onMouseEnter={() => onMouseEnter(flatIdx)}
+            className={cn(
+              'w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-100',
+              isSelected
+                ? 'bg-teal-50 dark:bg-teal-900/20'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+            )}
+          >
+            <div className={cn(
+              'h-7 w-7 rounded-md flex items-center justify-center flex-shrink-0',
+              config.bg
+            )}>
+              <Clock className={cn('w-3.5 h-3.5', config.color)} />
+            </div>
+            <p className={cn(
+              'text-sm truncate flex-1',
+              isSelected
+                ? 'text-teal-700 dark:text-teal-300'
+                : 'text-slate-600 dark:text-slate-300'
+            )}>
+              {recent.query}
+            </p>
+            <ArrowRight className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+          </motion.button>
+        )
+      })}
+    </div>
   )
 }

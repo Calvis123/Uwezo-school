@@ -503,6 +503,7 @@ export function FeePayments() {
       {/* M-Pesa Payment Dialog (after selection) */}
       {selectedStudent && selectedFee && (
         <MpesaPaymentDialog
+          key={mpesaResetKey}
           open={!mpesaQuickPayOpen && selectedStudent !== ''}
           onClose={() => {
             setSelectedStudent('')
