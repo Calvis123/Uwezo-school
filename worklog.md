@@ -99,6 +99,44 @@ Stage Summary:
 - Total Classes: **19**
 - Fee Collection: **KES 9,310,105** (71.35% collected this term)
 - Attendance Rate: **59.5%** (this term)
+
+---
+Task ID: r6-styling
+Agent: Frontend Styling Expert
+Task: Improve login page animations, add app loading spinner, enhance footer
+
+Work Log:
+- **Zustand Store Update**: Changed `isAuthenticated` type from `boolean` to `boolean | null` in `/src/lib/store.ts`. Initial state set to `null` instead of `false` to enable three-state auth (loading → logged out → logged in).
+
+- **App Loading Spinner**: Created `/src/components/layout/AppLoader.tsx` — a full-screen loading overlay with centered school logo, animated pulsing ring (dual rings with staggered animation), "Loading..." text with animated dot indicators. Uses framer-motion for smooth entrance/exit.
+
+- **Page.tsx Integration**: Updated `Home()` component in `page.tsx` to show AppLoader when `isAuthenticated === null` (initial loading), LoginPage when `isAuthenticated === false`, and DashboardLayout when `isAuthenticated === true`.
+
+- **Login Page Enhancements**:
+  - Version badge updated from "Version 3.0" to "Version 4.0"
+  - Added typewriter-like animation for "Nurturing Excellence, Building Futures" tagline using custom `TypewriterText` component with blinking cursor effect
+  - Added "Powered by Olives Tech" in 9px muted text below the version badge
+  - Demo credential cards now show subtle teal glow/shadow on hover
+
+- **Dashboard Footer Enhancement**:
+  - Replaced gradient icon with actual school logo (24x24 `img` tag)
+  - Copyright: "© 2025 Olives Schools — Eldoret, Kenya"
+  - Contact info: "+254 700 123 456 · info@olives.co.ke"
+  - Added "Made with ♥ in Kenya" centered below
+  - Footer uses `mt-auto` for sticky positioning, full dark mode support
+  - Removed unused `MapPin` import from DashboardLayout
+
+- **Global CSS Polish**:
+  - Added `.badge-glow` utility class for teal glow effect on hover (with dark mode variant)
+  - Added `.animate-content-entry` animation: subtle fade-in + scale from 0.99 to 1.0
+
+- **Lint**: ESLint passes with zero errors
+
+Stage Summary:
+- App now shows a branded loading screen during initial hydration
+- Login page has polished typewriter motto animation and hover effects
+- Dashboard footer includes school logo, full contact info, and Kenya branding
+- New CSS utility classes available for future use (`.badge-glow`, `.animate-content-entry`)
 - Gender: 284 Boys, 262 Girls
 - Notices: 5 published
 
@@ -2326,3 +2364,267 @@ Stage Summary:
 12. Add SMS notification integration (Africa's Talking API)
 13. Performance optimization (code splitting, lazy loading)
 14. Add end-to-end testing
+---
+## Task ID: r6-transport
+Agent: Full-stack Developer
+Task: Build a School Transport/Bus Tracking feature
+
+### Work Task
+Implement a complete School Transport feature with CRUD operations, stats cards, bus cards with capacity tracking, and integration into the existing app navigation.
+
+### Work Summary
+
+#### 1. Database Schema: SchoolBus Model
+- Added `SchoolBus` model to `/prisma/schema.prisma` with fields: id, busNumber (unique), routeName, driverName, driverPhone, capacity, currentStudents, status (ACTIVE/INACTIVE/MAINTENANCE), color (teal/amber/red/blue/green), timestamps
+- Ran `bunx prisma db push` and `bunx prisma generate` to apply schema and regenerate Prisma client
+
+#### 2. Seed Data: `/scripts/seed-buses.ts`
+- Created standalone seed script with 5 school buses featuring Kenyan route names:
+  - BUS-001: Eldoret Town Route (James Kiprop, 45 capacity, 38 students, teal)
+  - BUS-002: Kaptagat Route (Samuel Chebet, 35 capacity, 28 students, amber)
+  - BUS-003: Huruma Route (Peter Kiptoo, 50 capacity, 45 students, green)
+  - BUS-004: Kapsoya Route (David Kemboi, 30 capacity, 20 students, blue)
+  - BUS-005: Langas Route (Joseph Rono, 40 capacity, 33 students, red, MAINTENANCE)
+- Each bus has Kenyan phone numbers (+254 format)
+
+#### 3. API Routes Created
+
+**`/src/app/api/transport/buses/route.ts`** — GET + POST
+- GET: List all buses with optional status filter, returns aggregate stats (total, active, maintenance, inactive, totalCapacity, totalStudents)
+- POST: Create bus with validation (busNumber uniqueness check, required fields)
+
+**`/src/app/api/transport/buses/[id]/route.ts`** — GET + PUT + DELETE
+- GET: Fetch single bus by ID
+- PUT: Update bus fields with busNumber uniqueness conflict check
+- DELETE: Soft delete (sets status to INACTIVE)
+
+#### 4. API Client Update: `/src/lib/api.ts`
+- Added `transportApi` with methods: list, get, create, update, delete
+
+#### 5. TransportPage Component: `/src/components/transport/TransportPage.tsx`
+A comprehensive 490-line component with:
+
+- **Header**: "School Transport" title with Bus icon, description text, "Add Bus" button (admin only)
+- **4 Stats Cards** (with staggered framer-motion animations):
+  - Total Buses (teal), Active (emerald), Students Transported (amber), Total Capacity (sky)
+- **Filter Bar**: Status filter dropdown (All/Active/Inactive/Maintenance) + Refresh button
+- **Bus Cards Grid** (responsive 1/2/3 columns):
+  - Color-coded left border (teal/amber/red/blue/green)
+  - Bus icon badge in bus color, bus number, route name with MapPin icon
+  - Status badge (Active=green, Maintenance=amber, Inactive=gray)
+  - Driver name with User icon, phone with Phone icon
+  - Capacity progress bar (color-coded: green <70%, amber 70-90%, red >90%)
+  - Edit/Deactivate action buttons (admin only, with hover effects)
+  - framer-motion card entrance animations with stagger
+- **Add/Edit Dialog**: Bus Number, Route Name, Driver Name, Phone, Capacity, Current Students, Status select, Color select (with color dots)
+- **Delete Confirmation**: AlertDialog with warning message
+- **Loading skeletons**: 6 card skeletons + 4 stats card skeletons
+- **Empty state**: Animated bus icon with contextual message
+- **Dark mode**: Full dark mode support throughout
+
+#### 6. Integration
+- **DashboardLayout.tsx**: Added `Bus` icon import, "Transport" nav item between Calendar and Messages, breadcrumbs entry
+- **page.tsx**: Added `TransportPage` import, `transport` case in ViewRouter
+
+#### API Testing Results
+- `GET /api/transport/buses` — ✅ Returns 5 buses with stats: {total:5, active:4, maintenance:1, inactive:0, totalCapacity:200, totalStudents:164}
+- All API endpoints verified working
+
+#### Quality
+- ESLint: 0 new errors/warnings (4 pre-existing errors in LibraryPage.tsx, not related to this feature)
+- Page loads with HTTP 200
+
+#### Files Created
+1. `/scripts/seed-buses.ts` — Bus seed data script
+2. `/src/app/api/transport/buses/route.ts` — Buses list + create API
+3. `/src/app/api/transport/buses/[id]/route.ts` — Bus get/update/delete API
+4. `/src/components/transport/TransportPage.tsx` — Transport page component
+
+#### Files Modified
+1. `/prisma/schema.prisma` — Added SchoolBus model
+2. `/src/lib/api.ts` — Added transportApi
+3. `/src/components/layout/DashboardLayout.tsx` — Added Transport nav item + breadcrumbs
+4. `/src/app/page.tsx` — Added TransportPage import + ViewRouter case
+
+---
+## Task ID: r6-library
+Agent: Full-stack Developer
+Task: Build a School Library Management feature
+
+### Work Task
+Implement a complete Library Management module with book catalog CRUD, book issue tracking, return management, and a comprehensive tabbed UI.
+
+### Work Summary
+
+#### 1. Database Schema (`/prisma/schema.prisma`)
+- Added `LibraryBook` model with: title, author, isbn (unique), category (FICTION/NON_FICTION/REFERENCE/TEXTBOOK/STORYBOOK), publisher, year, totalCopies, availableCopies, shelfLocation, status (AVAILABLE/LOW_STOCK/OUT_OF_STOCK)
+- Added `BookIssue` model with: book relation, student relation, issueDate, dueDate, returnDate, status (ISSUED/RETURNED/OVERDUE)
+- Added `books BookIssue[]` relation to existing Student model
+- Ran `bunx prisma db push` successfully
+
+#### 2. Seed Data (`/scripts/seed-library.ts`)
+- Created 25 books covering Kenyan CBC curriculum:
+  - 12 textbooks (Mathematics G1-G4, English G1-G3, Kiswahili G1-G2, Science G4, Social Studies G4, CRE G4)
+  - 3 reference books (Oxford Advanced Dictionary, Kamusi ya Kiswahili Sanifu, World Atlas)
+  - 5 storybooks (Safari ya Elimu, Hadithi za Abunuwasi, The River and the Source, Hare na Fisi, Juma the Fisherman)
+  - 3 non-fiction (The Boy Who Harnessed the Wind, Wangari Maathai, Discovering Kenya)
+  - 2 fiction (A Grain of Wheat, The Balek Family)
+- Created 10 book issues linked to real students:
+  - 4 ISSUED (active borrows)
+  - 3 RETURNED (historical)
+  - 3 OVERDUE (past due date)
+- Available copies auto-adjusted based on issues
+- Book statuses auto-calculated (LOW_STOCK when ≤3, OUT_OF_STOCK when 0)
+
+#### 3. API Routes Created
+
+**`/src/app/api/library/books/route.ts`**
+- `GET` — List books with pagination (page, limit), search (title/author), category filter, status filter
+- Returns aggregated stats: totalBooks, availableBooks, lowStockBooks, outOfStockBooks, issuedCount, overdueCount
+- `POST` — Create book with auto-status calculation
+
+**`/src/app/api/library/books/[id]/route.ts`**
+- `PUT` — Update book, prevents reducing copies below currently issued count
+- `DELETE` — Soft delete with validation (prevents deletion if copies are issued)
+
+**`/src/app/api/library/issues/route.ts`**
+- `GET` — List issues with student/book name joins, search, status filter
+- `POST` — Issue book with transaction (validates availableCopies > 0, decrements available, updates status)
+
+**`/src/app/api/library/issues/[id]/return/route.ts`**
+- `POST` — Return book with transaction (sets returnDate, status=RETURNED, increments availableCopies)
+
+#### 4. API Client (`/src/lib/api.ts`)
+- Added `libraryApi` with 7 methods: books(), createBook(), updateBook(), deleteBook(), issues(), issueBook(), returnBook()
+
+#### 5. Frontend Component (`/src/components/library/LibraryPage.tsx`)
+- **Tabbed layout**: Books | Book Issues with teal underline tab design
+- **Books Tab**:
+  - 4 stats cards (Total Books, Available, Issued, Overdue) with motion animations
+  - Search by title/author with live input
+  - Category filter dropdown (5 categories with color-coded badges)
+  - Status filter dropdown (AVAILABLE, LOW_STOCK, OUT_OF_STOCK)
+  - Books table with responsive columns, hover effects, action buttons
+  - Category badges: Fiction=purple, Non-Fiction=amber, Reference=sky, Textbook=teal, Storybook=rose
+  - Status badges: Available=green, Low Stock=amber, Out of Stock=red
+  - Copies display with color coding (red=0, amber≤2, normal>2)
+  - Add/Edit Book dialog with full form (title, author, isbn, category, publisher, year, copies, shelf)
+  - Delete confirmation with AlertDialog
+  - Pagination with page numbers
+  - Loading skeletons, empty states
+- **Book Issues Tab**:
+  - 3 summary cards (Currently Issued, Returned, Overdue)
+  - Search by student name/book title
+  - Status filter (ISSUED, RETURNED, OVERDUE)
+  - Issues table: Student name, admission number, book title/author, dates, status badge, return button
+  - Issue New Book dialog: student dropdown (from API), book dropdown (available only), date picker with min=today
+  - Return confirmation with AlertDialog
+  - Pagination
+  - Loading skeletons, empty states
+
+#### 6. Integration
+- Added `BookOpen` import to DashboardLayout.tsx
+- Added Library nav item to sidebar (between Notices and Activity)
+- Added library breadcrumbs to viewInfo mapping
+- Added LibraryPage import and 'library' case to ViewRouter in page.tsx
+
+#### Quality
+- `bun run lint` — ✅ 0 errors (1 pre-existing warning in TransportPage.tsx)
+- API tested:
+  - `GET /api/library/books` — ✅ Returns 25 books with stats
+  - `GET /api/library/issues` — ✅ Returns 10 issues with student/book joins
+
+#### Files Created
+1. `/scripts/seed-library.ts` — Library seed data script
+2. `/scripts/add-book.ts` — Additional book script
+3. `/src/app/api/library/books/route.ts` — Books API
+4. `/src/app/api/library/books/[id]/route.ts` — Single Book API
+5. `/src/app/api/library/issues/route.ts` — Issues API
+6. `/src/app/api/library/issues/[id]/return/route.ts` — Return Book API
+7. `/src/components/library/LibraryPage.tsx` — Library page component
+
+#### Files Modified
+1. `/prisma/schema.prisma` — Added LibraryBook, BookIssue models + Student.books relation
+2. `/src/lib/api.ts` — Added libraryApi
+3. `/src/components/layout/DashboardLayout.tsx` — Library nav item, breadcrumbs, BookOpen icon
+4. `/src/app/page.tsx` — LibraryPage import, 'library' view in ViewRouter
+
+---
+## Task ID: cron-round6
+Agent: Main Orchestrator + 3 Subagents
+Task: Comprehensive QA, styling improvements, and new features (Round 6)
+
+### Work Log:
+
+#### 1. QA Testing (agent-browser)
+- All 18 pages/views tested and verified rendering correctly:
+  - Login ✅, Dashboard ✅, Students ✅, Classes ✅, Fees ✅, Export ✅, Analytics ✅
+  - Exams & Results ✅, Class Reports ✅, Attendance ✅, Calendar ✅
+  - Transport ✅ (NEW), Messages ✅, Notices ✅, Library ✅ (NEW), Activity ✅, Settings ✅
+  - Users ✅, Teacher Dashboard ✅
+- App loader animation shows on initial load ✅
+- Version 4.0 badge visible on login ✅
+- Enhanced footer with contact info and "Made with ♥ in Kenya" ✅
+- ESLint: Zero errors, zero warnings ✅
+
+#### 2. School Transport Feature (Subagent: full-stack-developer)
+- Created `SchoolBus` Prisma model (busNumber, routeName, driverName, driverPhone, capacity, currentStudents, status, color)
+- Seeded 5 buses with Kenyan route names (Eldoret Town, Kaptagat, Huruma, Kapsoya, Langas)
+- API: GET/POST /api/transport/buses, PUT/DELETE /api/transport/buses/[id]
+- TransportPage.tsx: 4 stats cards, status filter, responsive bus card grid with capacity progress bars, add/edit/delete dialogs
+- Integrated into sidebar (between Calendar and Messages) and ViewRouter
+
+#### 3. School Library Feature (Subagent: full-stack-developer)
+- Created `LibraryBook` and `BookIssue` Prisma models
+- Seeded 25 books (Kenyan CBC textbooks + storybooks) and 10 book issues
+- API: Books CRUD, Issues CRUD, Return endpoint
+- LibraryPage.tsx: Books tab (search, category filter, status filter, table) + Book Issues tab (issue/return tracking)
+- Category badges: FICTION, NON_FICTION, REFERENCE, TEXTBOOK, STORYBOOK
+- Status badges: AVAILABLE (green), LOW_STOCK (amber), OUT_OF_STOCK (red)
+- Integrated into sidebar and ViewRouter
+
+#### 4. App Loading Spinner (Subagent: full-stack-developer)
+- Created AppLoader.tsx: Full-screen loader with school logo, pulsing rings, animated dots
+- Uses useState mounted pattern to show loader on initial hydration
+- Smooth transition from loader to login/dashboard
+
+#### 5. Login Page Enhancements (Subagent: full-stack-developer)
+- Updated version badge to "Version 4.0"
+- Added "Powered by Olives Tech" subtle text
+- Added typewriter animation for motto
+- Added teal glow hover effect on demo credential cards
+
+#### 6. Dashboard Footer Enhancement (Subagent: full-stack-developer)
+- Added school logo (24x24) to footer
+- Contact info: "+254 700 123 456 · info@olives.co.ke"
+- "Made with ♥ in Kenya" centered text
+- mt-auto for sticky positioning
+- Dark mode support
+
+#### 7. Global CSS Additions
+- `.badge-glow` utility for teal glow on hover
+
+#### 8. Bug Fixes
+- Fixed AppLoader stuck on screen: Changed from null-based isAuthenticated to useState mounted pattern
+- Fixed unused eslint-disable directive in TransportPage.tsx
+- Reverted store isAuthenticated type from `boolean | null` back to `boolean`
+
+### Screenshots Saved
+- `/download/qa-r6-dashboard.png` — Dashboard overview
+- `/download/qa-r6-students.png` — Students page
+- `/download/qa-r6-calendar.png` — Calendar page
+- `/download/qa-r6-messages.png` — Messages page
+- `/download/qa-r6-activity.png` — Activity page
+- `/download/qa-r6-app-loader.png` — App loading spinner
+- `/download/qa-r6-transport.png` — Transport page
+- `/download/qa-r6-transport-working.png` — Transport with bus cards
+- `/download/qa-r6-library.png` — Library page with books tab
+- `/download/qa-r6-login-v4.png` — Login page with v4 updates
+- `/download/qa-r6-dashboard-final.png` — Dashboard with enhanced footer
+
+Stage Summary:
+- 2 major new features: School Transport, School Library
+- 1 UX enhancement: App loading spinner
+- 3 styling improvements: Login polish, footer enhancement, global CSS
+- All 18 pages render correctly with zero errors
+- ESLint clean (0 errors, 0 warnings)

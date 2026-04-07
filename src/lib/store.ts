@@ -181,7 +181,7 @@ export const useAppStore = create<AppState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
   // Auth
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  setUser: (user) => set({ user, isAuthenticated: user ? true : false }),
   login: (user) => set({ user, isAuthenticated: true, currentView: 'dashboard' }),
   logout: () => set({
     user: null,

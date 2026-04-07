@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { GraduationCap, Eye, EyeOff, Loader2, Shield, UserCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
@@ -17,6 +17,39 @@ const demoCredentials = [
   { role: 'Teacher', email: 'teacher@olives.co.ke', password: 'teacher123', color: 'bg-sky-50 border-sky-100 text-sky-700 dark:bg-sky-900/30 dark:border-sky-800/50 dark:text-sky-300' },
   { role: 'Parent', email: 'parent@olives.co.ke', password: 'parent123', color: 'bg-amber-50 border-amber-100 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800/50 dark:text-amber-300' },
 ]
+
+function TypewriterText({ text, delay = 0 }: { text: string; delay?: number }) {
+  const [displayed, setDisplayed] = useState('')
+  const [started, setStarted] = useState(false)
+
+  useEffect(() => {
+    const startTimer = setTimeout(() => setStarted(true), delay)
+    return () => clearTimeout(startTimer)
+  }, [delay])
+
+  useEffect(() => {
+    if (!started) return
+    let i = 0
+    const interval = setInterval(() => {
+      if (i <= text.length) {
+        setDisplayed(text.slice(0, i))
+        i++
+      } else {
+        clearInterval(interval)
+      }
+    }, 40)
+    return () => clearInterval(interval)
+  }, [started, text])
+
+  return (
+    <span>
+      {displayed}
+      {started && displayed.length < text.length && (
+        <span className="inline-block w-[2px] h-3.5 bg-teal-500 dark:bg-teal-400 ml-0.5 animate-pulse align-middle" />
+      )}
+    </span>
+  )
+}
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -134,7 +167,9 @@ export function LoginPage() {
         <div className="text-center mb-8">
           <img src="/logo.png" alt="Olives Schools" className="w-20 h-20 rounded-2xl shadow-lg shadow-teal-200/50 dark:shadow-teal-900/50 mb-3 object-contain" />
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Olives Schools</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Nurturing Excellence, Building Futures</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 min-h-[20px]">
+            <TypewriterText text="Nurturing Excellence, Building Futures" delay={400} />
+          </p>
         </div>
 
         {/* Login Card */}
@@ -248,7 +283,8 @@ export function LoginPage() {
                   onClick={() => loginAsDemo(demo.email, demo.password)}
                   disabled={loading}
                   className={cn(
-                    'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all hover:shadow-sm',
+                    'w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all',
+                    'hover:shadow-[0_0_12px_-2px_rgba(13,148,136,0.25)] dark:hover:shadow-[0_0_12px_-2px_rgba(20,184,166,0.2)]',
                     demo.color,
                     'cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
                   )}
@@ -272,11 +308,12 @@ export function LoginPage() {
           <div className="flex items-center justify-center gap-2">
             <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-800/40">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-500 dark:bg-teal-400" />
-              Version 3.0
+              Version 4.0
             </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-600">•</span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">School Management System</span>
           </div>
+          <p className="text-[9px] text-slate-300 dark:text-slate-600">Powered by Olives Tech</p>
         </div>
       </motion.div>
     </div>

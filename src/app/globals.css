@@ -347,6 +347,33 @@ input[type="number"] {
   background-clip: text;
 }
 
+/* Badge glow on hover - teal glow effect */
+.badge-glow {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.badge-glow:hover {
+  box-shadow: 0 0 12px -2px rgba(13, 148, 136, 0.35);
+  transform: translateY(-1px);
+}
+.dark .badge-glow:hover {
+  box-shadow: 0 0 12px -2px rgba(20, 184, 166, 0.25);
+}
+
+/* Main content entry animation - subtle fade in + scale */
+@keyframes contentEntry {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-content-entry {
+  animation: contentEntry 0.35s ease-out both;
+}
+
 /* Glass morphism utility */
 .glass {
   background: rgba(255, 255, 255, 0.7);

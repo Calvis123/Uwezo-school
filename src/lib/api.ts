@@ -295,3 +295,50 @@ export const activityApi = {
     return request(`/api/activity?${searchParams.toString()}`)
   },
 }
+
+// Transport
+export const transportApi = {
+  list: (params?: { status?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.set('status', params.status)
+    return request(`/api/transport/buses?${searchParams.toString()}`)
+  },
+  get: (id: string) => request(`/api/transport/buses/${id}`),
+  create: (data: any) =>
+    request('/api/transport/buses', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    request(`/api/transport/buses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request(`/api/transport/buses/${id}`, { method: 'DELETE' }),
+}
+
+// Library
+export const libraryApi = {
+  books: (params?: { page?: number; limit?: number; search?: string; category?: string; status?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.category) searchParams.set('category', params.category)
+    if (params?.status) searchParams.set('status', params.status)
+    return request(`/api/library/books?${searchParams.toString()}`)
+  },
+  createBook: (data: any) =>
+    request('/api/library/books', { method: 'POST', body: JSON.stringify(data) }),
+  updateBook: (id: string, data: any) =>
+    request(`/api/library/books/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteBook: (id: string) =>
+    request(`/api/library/books/${id}`, { method: 'DELETE' }),
+  issues: (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', String(params.page))
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.search) searchParams.set('search', params.search)
+    return request(`/api/library/issues?${searchParams.toString()}`)
+  },
+  issueBook: (data: { bookId: string; studentId: string; dueDate: string }) =>
+    request('/api/library/issues', { method: 'POST', body: JSON.stringify(data) }),
+  returnBook: (issueId: string) =>
+    request(`/api/library/issues/${issueId}/return`, { method: 'POST' }),
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { LoginPage } from '@/components/auth/LoginPage'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
@@ -26,9 +26,12 @@ import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
 import { ActivityFeed } from '@/components/activity/ActivityFeed'
 import { FeesPage } from '@/components/fees/FeesPage'
 import { ClassReport } from '@/components/reports/ClassReport'
+import { LibraryPage } from '@/components/library/LibraryPage'
+import { TransportPage } from '@/components/transport/TransportPage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { AppLoader } from '@/components/layout/AppLoader'
 
 function ViewRouter() {
   const { currentView } = useAppStore()
@@ -51,6 +54,8 @@ function ViewRouter() {
     'teacher-dashboard': <TeacherDashboard />,
     messages: <MessagingPage />,
     notices: <NoticeList />,
+    library: <LibraryPage />,
+    transport: <TransportPage />,
     activity: <ActivityFeed />,
     settings: <SettingsPage />,
   }
@@ -99,7 +104,15 @@ function ExamsPage() {
 
 export default function Home() {
   const { isAuthenticated, currentView } = useAppStore()
+  const [mounted, setMounted] = useState(false)
 
+  // Show loader on first render to avoid hydration flash
+  if (!mounted) {
+    setMounted(true)
+    return <AppLoader />
+  }
+
+  // Show login page when not authenticated
   if (!isAuthenticated || currentView === 'login') {
     return <LoginPage />
   }

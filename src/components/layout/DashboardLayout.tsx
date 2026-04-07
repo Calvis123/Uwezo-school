@@ -22,7 +22,8 @@ import {
   Activity,
   Phone,
   Mail,
-  MapPin,
+  BookOpen,
+  Bus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -61,8 +62,10 @@ const navItems = [
   { id: 'class-reports', label: 'Class Reports', icon: BarChart3 },
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'transport', label: 'Transport', icon: Bus },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'notices', label: 'Notices', icon: Bell },
+  { id: 'library', label: 'Library', icon: BookOpen },
   { id: 'activity', label: 'Activity', icon: Activity },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -243,6 +246,8 @@ const viewInfo: Record<string, { title: string; breadcrumbs?: string[] }> = {
   'teacher-dashboard': { title: 'Teachers View', breadcrumbs: ['Dashboard', 'Teachers View'] },
   notices: { title: 'Notices', breadcrumbs: ['Dashboard', 'Notices'] },
   activity: { title: 'Activity Feed', breadcrumbs: ['Dashboard', 'Activity'] },
+  library: { title: 'Library', breadcrumbs: ['Dashboard', 'Library'] },
+  transport: { title: 'Transport', breadcrumbs: ['Dashboard', 'Transport'] },
   settings: { title: 'Settings', breadcrumbs: ['Dashboard', 'Settings'] },
 }
 
@@ -371,9 +376,11 @@ function DashboardFooter() {
       <div className="border-t border-slate-200/60 dark:border-slate-700/40 pt-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-md bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center">
-              <GraduationCap className="w-3.5 h-3.5 text-white" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Olives Schools"
+              className="w-6 h-6 rounded-md object-contain flex-shrink-0"
+            />
             <p className="text-xs text-slate-500 dark:text-slate-400">
               © 2025 Olives Schools — Eldoret, Kenya
             </p>
@@ -387,12 +394,11 @@ function DashboardFooter() {
               <Mail className="w-3 h-3" />
               info@olives.co.ke
             </span>
-            <span className="hidden md:flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              Eldoret, Uasin Gishu
-            </span>
           </div>
         </div>
+        <p className="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-2">
+          Made with ♥ in Kenya
+        </p>
       </div>
     </footer>
   )

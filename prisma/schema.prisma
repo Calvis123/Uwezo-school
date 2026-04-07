@@ -107,6 +107,7 @@ model Student {
   feeTransactions FeeTransaction[]
   examMarks       ExamMark[]
   attendances     Attendance[]
+  books           BookIssue[]
 
   @@map("students")
 }
@@ -291,4 +292,60 @@ model CalendarEvent {
   updatedAt   DateTime @updatedAt
 
   @@map("calendar_events")
+}
+
+// ==================== LIBRARY ====================
+
+model LibraryBook {
+  id              String   @id @default(cuid())
+  title           String
+  author          String
+  isbn            String?  @unique
+  category        String   @default("FICTION") // FICTION, NON_FICTION, REFERENCE, TEXTBOOK, STORYBOOK
+  publisher       String?
+  year            Int?
+  totalCopies     Int      @default(1)
+  availableCopies Int      @default(1)
+  shelfLocation   String?
+  status          String   @default("AVAILABLE") // AVAILABLE, LOW_STOCK, OUT_OF_STOCK
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  issues          BookIssue[]
+
+  @@map("library_books")
+}
+
+model BookIssue {
+  id          String   @id @default(cuid())
+  bookId      String
+  book        LibraryBook @relation(fields: [bookId], references: [id])
+  studentId   String
+  student     Student     @relation(fields: [studentId], references: [id])
+  issueDate   DateTime @default(now())
+  dueDate     DateTime
+  returnDate  DateTime?
+  status      String   @default("ISSUED") // ISSUED, RETURNED, OVERDUE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("book_issues")
+}
+
+// ==================== TRANSPORT ====================
+
+model SchoolBus {
+  id              String   @id @default(cuid())
+  busNumber       String   @unique  // e.g. "BUS-001"
+  routeName       String   // e.g. "Eldoret Town Route"
+  driverName      String
+  driverPhone     String?
+  capacity        Int      // max students
+  currentStudents Int      @default(0)
+  status          String   @default("ACTIVE")  // ACTIVE, INACTIVE, MAINTENANCE
+  color           String   @default("teal")     // teal, amber, red, blue, green
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("school_buses")
 }
