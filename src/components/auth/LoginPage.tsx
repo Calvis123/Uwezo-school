@@ -34,9 +34,16 @@ export function LoginPage() {
     try {
       const result = await authApi.login(email, password)
       if (result.success && result.data) {
-        login(result.data.user || result.data)
+        const userData = result.data.user || result.data
+        login({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          avatar: userData.avatar,
+        })
         toast.success('Welcome back!', {
-          description: `Signed in as ${result.data.user?.name || result.data.name}`,
+          description: `Signed in as ${userData.name}`,
         })
       } else {
         setError(result.error || 'Invalid credentials. Please try again.')
@@ -57,9 +64,16 @@ export function LoginPage() {
     try {
       const result = await authApi.login(demoEmail, demoPass)
       if (result.success && result.data) {
-        login(result.data.user || result.data)
+        const userData = result.data.user || result.data
+        login({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          avatar: userData.avatar,
+        })
         toast.success('Welcome back!', {
-          description: `Signed in as ${result.data.user?.name || result.data.name}`,
+          description: `Signed in as ${userData.name}`,
         })
       } else {
         setError(result.error || 'Invalid credentials.')

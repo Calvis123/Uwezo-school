@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: true,
-          data: { students: [], users: [], classes: [] },
+          data: { students: [], users: [], classes: [], notices: [] },
         },
         {
           headers: {
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         status: 'ACTIVE',
       },
       include: { class: true },
-      take: 5,
+      take: 8,
       orderBy: { firstName: 'asc' },
     })
 
@@ -124,6 +124,28 @@ export async function GET(request: NextRequest) {
       level: c.level,
     }))
 
+    // Search notices (by title)
+    const notices = await db.schoolNotice.findMany({
+      where: {
+        AND: [
+          { title: { contains: q } },
+          { isPublished: true },
+        ],
+      },
+      take: 5,
+      orderBy: { publishedAt: 'desc' },
+    })
+
+    const noticeResults = notices.map((n) => ({
+      id: n.id,
+      name: n.title,
+      subtitle: n.category.charAt(0) + n.category.slice(1).toLowerCase(),
+      type: 'notice' as const,
+      href: `notice-${n.id}`,
+      category: n.category,
+      publishedAt: n.publishedAt?.toISOString() || null,
+    }))
+
     return NextResponse.json(
       {
         success: true,
@@ -131,6 +153,7 @@ export async function GET(request: NextRequest) {
           students: studentResults,
           users: userResults,
           classes: classResults,
+          notices: noticeResults,
         },
       },
       {

@@ -72,6 +72,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Get active term for attendance analysis
+    const activeTerm = await db.term.findFirst({
+      where: { status: 'ACTIVE' },
+    });
+
     // ==================== Compute Analytics ====================
 
     // 1. Total students
@@ -146,7 +151,7 @@ export async function GET(request: NextRequest) {
     })).sort((a, b) => b.averageScore - a.averageScore);
 
     // 6. Top/Bottom students
-    const studentScores: Record<string, { total: number; count: number; name: string; classId: string }> = {};
+    const studentScores: Record<string, { total: number; count: number; name: string; classId: string; className: string }> = {};
     examMarks.forEach((m) => {
       const sId = m.student.id;
       if (!studentScores[sId]) {
@@ -155,6 +160,7 @@ export async function GET(request: NextRequest) {
           count: 0,
           name: `${m.student.firstName} ${m.student.lastName}`,
           classId: m.student.classId,
+          className: m.exam.class?.name || 'Unknown',
         };
       }
       studentScores[sId].total += m.marks;
@@ -172,7 +178,6 @@ export async function GET(request: NextRequest) {
     // 7. Fee defaulters
     const studentFees: Record<string, { totalRequired: number; totalPaid: number; name: string; classId: string }> = {};
     feeStructures.forEach((fs) => {
-      // Find students in this class
       const cls = classes.find(c => c.id === fs.classId);
       if (cls) {
         cls.students.forEach((s) => {
@@ -190,7 +195,6 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Populate names from exam marks
     examMarks.forEach((m) => {
       if (studentFees[m.student.id]) {
         studentFees[m.student.id].name = `${m.student.firstName} ${m.student.lastName}`;
@@ -231,6 +235,88 @@ export async function GET(request: NextRequest) {
     const monthlyAverage = monthsSoFar > 0 ? totalRevenue / monthsSoFar : 0
     const projectedAnnual = Math.round(monthlyAverage * 12)
 
+    // ==================== NEW ANALYTICS ====================
+
+    // 11. Enrollment by Level (grouped: PP1-PP2, Grade 1-3, Grade 4-6, Grade 7-8, Grade 9)
+    const levelGroups: Record<string, string> = {
+      'PRE_NURSERY': 'Pre-Primary (PP1-PP2)',
+      'NURSERY': 'Pre-Primary (PP1-PP2)',
+      'LOWER_PRIMARY': 'Lower Primary (Gr 1-3)',
+      'UPPER_PRIMARY': 'Upper Primary (Gr 4-6)',
+      'JUNIOR_SECONDARY': 'Junior Secondary (Gr 7-9)',
+    };
+
+    const enrollmentByLevel: Record<string, { count: number; male: number; female: number }> = {};
+    classes.forEach((cls) => {
+      const group = levelGroups[cls.level] || cls.level;
+      if (!enrollmentByLevel[group]) enrollmentByLevel[group] = { count: 0, male: 0, female: 0 };
+      enrollmentByLevel[group].count += cls._count.students;
+      enrollmentByLevel[group].male += cls.students.filter(s => s.gender === 'MALE').length;
+      enrollmentByLevel[group].female += cls.students.filter(s => s.gender === 'FEMALE').length;
+    });
+
+    const enrollmentByLevelArray = Object.entries(enrollmentByLevel).map(([level, data]) => ({
+      level,
+      count: data.count,
+      male: data.male,
+      female: data.female,
+    }));
+
+    // 12. Fee Collection by Class
+    const feeByClass = classes.map((cls) => {
+      const classFeeStructures = feeStructures.filter(fs => fs.classId === cls.id);
+      const totalRequired = classFeeStructures.reduce((sum, fs) => sum + fs.amount, 0);
+
+      // Count payments from students in this class
+      const studentIds = cls.students.map(s => s.id);
+      const classPayments = feeTransactions.filter(t => studentIds.includes(t.studentId));
+      const totalPaid = classPayments.reduce((sum, t) => sum + t.amount, 0);
+
+      const rate = totalRequired > 0 ? Math.round((totalPaid / totalRequired) * 100 * 10) / 10 : 0;
+
+      return {
+        className: cls.name,
+        classId: cls.id,
+        totalRequired: Math.round(totalRequired),
+        totalPaid: Math.round(totalPaid),
+        outstanding: Math.round(totalRequired - totalPaid),
+        collectionRate: rate,
+        transactionCount: classPayments.length,
+      };
+    });
+
+    // 13. Attendance by Class (for current active term)
+    let attendanceByClass: { className: string; classId: string; rate: number; total: number; present: number }[] = [];
+    if (activeTerm) {
+      const termAttendanceRecords = await db.attendance.findMany({
+        where: {
+          termId: activeTerm.id,
+        },
+        select: {
+          classId: true,
+          status: true,
+        },
+      });
+
+      const termAttByClass: Record<string, { total: number; present: number }> = {};
+      for (const att of termAttendanceRecords) {
+        if (!termAttByClass[att.classId]) termAttByClass[att.classId] = { total: 0, present: 0 };
+        termAttByClass[att.classId].total++;
+        if (att.status === 'PRESENT' || att.status === 'LATE') termAttByClass[att.classId].present++;
+      }
+
+      attendanceByClass = classes.map((cls) => {
+        const att = termAttByClass[cls.id];
+        return {
+          className: cls.name,
+          classId: cls.id,
+          rate: att && att.total > 0 ? Math.round((att.present / att.total) * 100 * 10) / 10 : 0,
+          total: att?.total || 0,
+          present: att?.present || 0,
+        };
+      }).sort((a, b) => b.rate - a.rate);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -255,6 +341,10 @@ export async function GET(request: NextRequest) {
         bottomStudents,
         feeDefaulters,
         classSummary,
+        // NEW data
+        enrollmentByLevel: enrollmentByLevelArray,
+        feeByClass,
+        attendanceByClass,
       },
     });
   } catch (error: any) {

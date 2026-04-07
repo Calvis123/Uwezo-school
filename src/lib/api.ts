@@ -11,12 +11,19 @@ async function request<T = any>(
   options?: RequestInit
 ): Promise<ApiResponse<T>> {
   try {
+    // Destructure headers from options to merge properly without overwriting defaults
+    const { headers: optHeaders, ...rest } = options || {}
+    const mergedHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(optHeaders instanceof Headers
+        ? Object.fromEntries(optHeaders.entries())
+        : Array.isArray(optHeaders)
+          ? Object.fromEntries(optHeaders)
+          : (optHeaders as Record<string, string>) || {}),
+    }
     const res = await fetch(`${API_BASE}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
+      ...rest,
+      headers: mergedHeaders,
     })
     const data = await res.json()
     return data
@@ -221,6 +228,8 @@ export const usersApi = {
 export const teacherApi = {
   dashboard: (teacherId: string) =>
     request(`/api/teacher/dashboard?teacherId=${teacherId}`),
+  classes: (teacherId: string) =>
+    request(`/api/teacher/classes?teacherId=${teacherId}`),
 }
 
 // Messaging
@@ -235,4 +244,22 @@ export const messagesApi = {
     request('/api/messages', { method: 'POST', body: JSON.stringify(data) }),
   markRead: (messageIds: string[]) =>
     request('/api/messages/mark-read', { method: 'POST', body: JSON.stringify({ messageIds }) }),
+}
+
+// Search
+export const searchApi = {
+  global: (q: string) => {
+    const searchParams = new URLSearchParams()
+    if (q) searchParams.set('q', q)
+    return request(`/api/search?${searchParams.toString()}`)
+  },
+}
+
+// Notifications
+export const notificationsApi = {
+  list: () => request('/api/notifications'),
+  markRead: (id: string) =>
+    request(`/api/notifications/${id}`, { method: 'PUT' }),
+  markAllRead: () =>
+    request('/api/notifications/all', { method: 'PUT' }),
 }

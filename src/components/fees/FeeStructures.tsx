@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Plus, Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, FileText, ChevronLeft, ChevronRight, GraduationCap, Bus, Bed, Trophy, Settings2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { feesApi, refApi } from '@/lib/api'
@@ -122,6 +122,14 @@ export function FeeStructures() {
     OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
   }
 
+  const categoryIcons: Record<string, React.ReactNode> = {
+    TUITION: <GraduationCap className="w-3 h-3" />,
+    TRANSPORT: <Bus className="w-3 h-3" />,
+    BOARDING: <Bed className="w-3 h-3" />,
+    EXTRACURRICULAR: <Trophy className="w-3 h-3" />,
+    OTHER: <Settings2 className="w-3 h-3" />,
+  }
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
 
@@ -220,8 +228,8 @@ export function FeeStructures() {
                         {s.term?.name || '—'}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className={cn('text-[10px]', categoryColors[s.category] || '')}>
-                          {s.category}
+                        <Badge variant="secondary" className={cn('text-[10px] gap-1', categoryColors[s.category] || '')}>
+                          {categoryIcons[s.category]} {s.category}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-slate-900 dark:text-slate-100">

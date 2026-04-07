@@ -1124,3 +1124,317 @@ Stage Summary:
 
 ### All 13 Pages
 Dashboard, Users, Students, Classes, Fees, Export, Analytics, Exams & Results, Attendance, Calendar, Messages, Notices, Settings
+---
+Task ID: 3b
+Agent: Full-stack Developer
+Task: Add notification system and activity feed
+
+Work Log:
+- Read worklog.md and analyzed existing codebase (DashboardLayout, api.ts, store.ts, prisma schema, page.tsx)
+- Updated Zustand store (`src/lib/store.ts`) with `notificationCount` state and `setNotificationCount` action
+- Created API route `src/app/api/notifications/route.ts` — GET endpoint that generates on-the-fly notifications from existing data:
+  - Recent fee payments (7 days) → PAYMENT type
+  - Recent attendance records (3 days) → ATTENDANCE type (grouped by class/date)
+  - Recent exam marks (7 days) → EXAM type
+  - Recent messages for user (7 days) → MESSAGE type
+  - Recent published notices (7 days) → NOTICE type
+  - Recent absences for staff users → ATTENDANCE type
+  - Returns unified feed with id, type, title, description, timestamp, isRead, link, actorName, relativeTime
+  - Returns unreadCount and totalCount
+- Created API route `src/app/api/notifications/[id]/route.ts` — PUT endpoint for marking notifications as read
+- Added `notificationsApi` to `src/lib/api.ts` with `list()`, `markRead(id)`, `markAllRead()` methods
+- Created NotificationCenter component (`src/components/layout/NotificationCenter.tsx`):
+  - Popover dropdown triggered from bell icon in header
+  - Shows unread count badge (animated scale-in)
+  - "Mark all read" button in header
+  - Lists notifications with type-specific colored icons, title, description, relative time
+  - Unread indicator (teal dot + teal background tint)
+  - Click navigates to related page and marks as read
+  - Empty state with Inbox icon
+  - Loading state with spinner
+  - Footer link to full Activity Feed page
+  - Polls API every 30 seconds via setInterval
+  - Dark mode support
+  - max-h-96 overflow-y-auto scrollable list
+- Created ActivityFeed component (`src/components/activity/ActivityFeed.tsx`):
+  - Full-page activity feed view with header, icon, activity count
+  - Filter bar with type buttons (All, Payments, Attendance, Exams, Messages, Notices) with counts
+  - Grouped by date (Today, Yesterday, specific dates)
+  - Activity cards with type icon, title, type badge, description, actor name, relative timestamp
+  - Unread indicator (ring + teal dot)
+  - Hover "View details" link to navigate to related page
+  - "Refresh" and "Mark all read" buttons
+  - Empty state with contextual message per filter
+  - Loading skeletons
+  - Dark mode support
+  - framer-motion animations (staggered card entry, filter transitions)
+- Modified DashboardLayout.tsx:
+  - Replaced static notification bell with NotificationCenter component
+  - Added Activity icon import from lucide-react
+  - Added "Activity" nav item to sidebar (before Settings)
+  - Added activity breadcrumbs mapping
+- Modified page.tsx:
+  - Added ActivityFeed import
+  - Added 'activity' case to ViewRouter
+
+Stage Summary:
+- Notification system generates activity feed on-the-fly from existing database records
+- NotificationCenter dropdown in header shows live unread count with polling
+- Activity Feed page with type filters, date grouping, and full activity cards
+- All new components support dark mode and responsive design
+- ESLint passes with zero errors on all changed files
+- Dev server compiling successfully with 200 status
+
+---
+Task ID: 3a
+Agent: Frontend Styling
+Task: Improved MessagingPage and TeacherDashboard styling
+
+Work Log:
+- Improved MessagingPage.tsx with tabs, compose dialog, dark mode
+- Improved TeacherDashboard.tsx with stats, class cards, schedule
+
+Stage Summary:
+- Both pages now have consistent styling with the rest of the app
+
+---
+Task ID: cron-round5
+Agent: Main Orchestrator + 2 Subagents
+Task: QA testing, bug fixes, new features, and styling improvements
+
+Work Log:
+- **Browser QA performed** (all 15 pages tested):
+  - Login page ✅ (demo buttons, form login)
+  - Dashboard ✅ (stats, charts, quick actions)
+  - Users ✅ (table, filters, CRUD)
+  - Students ✅ (table, pagination, search)
+  - Classes ✅ (grid cards, filters, add/edit)
+  - Fees ✅ (tabs, structures, payments, reports)
+  - Export ✅ (CSV export cards)
+  - Analytics ✅ (charts, data tables)
+  - Exams & Results ✅ (exam cards, mark entry)
+  - Attendance ✅ (class selection, marking)
+  - Calendar ✅ (month view, events)
+  - Messages ✅ (inbox/sent tabs, compose)
+  - Notices ✅ (notice cards)
+  - Activity ✅ (NEW - activity feed with filters)
+  - Settings ✅ (school info, academic settings)
+
+- **P0 Bug Fixed: FeeFormDialog crash**
+  - `src/components/fees/FeeFormDialog.tsx` line 3: Missing `useCallback` in React import
+  - Import was `import { useState, useEffect } from 'react'` but code used `useCallback`
+  - Fixed: Added `useCallback` to import
+  - This caused the entire Fees page to crash with ErrorBoundary showing "Try Again"
+
+- **P2 Bug Fixed: SettingsPage JSX parsing error**
+  - `src/components/settings/SettingsPage.tsx` lines 129, 214: Missing `*/` closing comment
+  - JSX comments `{/* ... */` were missing the closing `*/`
+  - Fixed: Added proper comment closures
+
+- **NEW FEATURE: Notification System**
+  - Created `/src/app/api/notifications/route.ts` — GET endpoint generating unified activity feed from existing data (payments, attendance, exams, messages, notices)
+  - Created `/src/app/api/notifications/[id]/route.ts` — PUT endpoint for marking notifications as read
+  - Created `/src/components/layout/NotificationCenter.tsx` — Popover dropdown with live unread count, type-colored icons, "Mark all read", loading/empty states, 30s polling, dark mode
+  - Added `notificationCount` and `setNotificationCount` to Zustand store
+  - Added `notificationsApi` with list(), markRead(), markAllRead() to API client
+
+- **NEW FEATURE: Activity Feed Page**
+  - Created `/src/components/activity/ActivityFeed.tsx` — Full-page activity feed with type filters (All/Payments/Attendance/Exams/Messages/Notices), date grouping, activity cards with navigation, dark mode, framer-motion animations
+  - Added 'activity' view to ViewRouter in page.tsx
+  - Added 'Activity' nav item to sidebar
+
+- **IMPROVED: MessagingPage.tsx**
+  - Inbox/Sent tabs with unread count badges
+  - Message cards with colored sender avatars (hash-based colors), subject, preview, relative timestamps
+  - Compose message dialog with recipient dropdown, priority selector
+  - Color-coded priority system (Urgent/High/Normal/Low)
+  - Star/unstar and delete actions
+  - Proper empty states with animated icons
+  - Full dark mode and responsive design
+
+- **IMPROVED: TeacherDashboard.tsx**
+  - Welcome banner with teacher name, date, class/student count badges
+  - 4 stats cards (My Classes, Attendance, Grades, Messages) with gradient borders
+  - Quick action buttons with pending count badges
+  - My classes grid cards with level badges, student count, average score
+  - Today's schedule timeline with lesson blocks
+  - Full dark mode and responsive design
+
+- **IMPROVED: SettingsPage.tsx** (by subagent)
+  - School logo placeholder with gradient background
+  - Grouped settings sections with icons
+  - Better form layouts and card design
+  - Dark mode support
+
+Stage Summary:
+- 2 bugs fixed (FeeFormDialog crash, SettingsPage JSX)
+- 2 new features (Notification system, Activity feed page)
+- 3 pages improved (Messaging, Teacher Dashboard, Settings)
+- 15 pages verified working via browser QA
+- ESLint: zero errors
+- Dev server running on port 3000
+
+## Current Project Status
+
+### Assessment
+- **Phase**: STABLE + GROWING — All core features working, new notification/activity features added
+- **Status**: Application is fully functional with 15 pages, 30+ API routes, notification system
+- **Data**: 571 students, 19 classes, 6 users, 225 fee structures, 7 exams, 42 calendar events, messages
+- **Quality**: ESLint clean, all pages rendering correctly, no console errors
+
+### All 15 Pages
+1. Login
+2. Dashboard (admin view with stats/charts)
+3. Dashboard (parent portal)
+4. Users (CRUD, role-based)
+5. Students (list, detail, import)
+6. Classes (management, filters)
+7. Fees (structures, payments, reports)
+8. Export (CSV download)
+9. Analytics (data tables, charts)
+10. Exams & Results (list, mark entry, report cards)
+11. Attendance (marking, summary)
+12. Calendar (month view, CRUD)
+13. Messages (inbox/sent, compose)
+14. Activity Feed (NEW - type filters, date grouping)
+15. Settings (school info, academic year)
+---
+Task ID: 5c
+Agent: Full-stack Developer
+Task: Teacher Dashboard Backend + Analytics Page Improvements
+
+Work Log:
+- Read worklog and all existing files to understand project state (TeacherDashboard.tsx, AnalyticsPage.tsx, DashboardHome.tsx, api.ts, schema.prisma, analytics/route.ts, layout)
+- Found teacher dashboard API already existed at `/api/teacher/dashboard/route.ts` but was missing pendingGrades, unreadMessages, avgScore per class, recentMessages data
+- Found no `/api/teacher/classes/route.ts` existed
+- Improved `/src/app/api/teacher/dashboard/route.ts` — Added: pendingGrades (count of exams needing marks), unreadMessages (from messages table), recentMessages (last 5 received), averageScore per class (from exam marks), attendanceRate per class (for active term)
+- Created `/src/app/api/teacher/classes/route.ts` — GET endpoint returning all classes assigned to a teacher with studentCount, attendanceRate, averageScore
+- Updated `/src/lib/api.ts` — Added `teacherApi.classes()` method
+- Updated `/src/components/dashboard/DashboardHome.tsx` — Added TEACHER role check to render TeacherDashboard (following same pattern as PARENT)
+- Updated `/src/components/teacher/TeacherDashboard.tsx` — Fixed import issues (removed duplicate import block), added recentMessages and attendanceRate to interface, added BookOpen import
+- Rewrote `/src/app/api/analytics/route.ts` — Added 3 new analytics: enrollmentByLevel (grouped by Pre-Primary, Lower Primary, Upper Primary, Junior Secondary), feeByClass (fee collection progress per class), attendanceByClass (attendance rate per class for active term)
+- Rewrote `/src/components/analytics/AnalyticsPage.tsx` — Replaced recharts with CSS-based visualizations, added 3 new sections: Student Enrollment by Level (horizontal bars with male/female counts), Fee Collection by Class (table with progress bars), Attendance Rate by Class (heatmap grid with color-coded cells), enhanced Top 10 Students with medals and class info, Gender Distribution by Class (stacked bar visualization)
+- Removed unused recharts imports, used pure CSS for all chart visualizations
+- ESLint passes with zero errors
+
+Stage Summary:
+- Teacher Dashboard now shows real data: class averages, attendance rates, pending grades, unread messages, recent messages
+- Teacher Dashboard auto-renders for TEACHER role users (like PARENT pattern)
+- New `/api/teacher/classes` endpoint for fetching teacher's assigned classes
+- Analytics page has 3 new data sections with enrollment by level, fee by class, and attendance heatmap
+- All new sections use CSS-only visualizations (no Chart.js/recharts needed) with consistent teal/amber/red color coding
+- Dark mode support on all new sections
+- Zero lint errors
+
+---
+Task ID: 5b
+Agent: UI Specialist
+Task: Notification Panel + Styling Improvements
+
+Work Log:
+- Read worklog.md to understand project state and prior work
+- Analyzed existing notification system (already had NotificationCenter, API routes, notificationsApi)
+- Created `/src/app/api/notifications/all/route.ts` as separate PUT endpoint for marking all notifications as read
+- Rewrote `/src/components/layout/NotificationCenter.tsx` with enhanced features:
+  - Added filter tabs (All, Payments, Attendance, Exams, Messages) with type-specific icons and counts
+  - Improved notification card layout with border-left color indicators for unread items
+  - Added actor name display on each notification
+  - Enhanced empty states per active filter tab
+  - Added gradient header and filter tabs section
+  - Smooth AnimatePresence with layout animation for tab switching
+  - Dark mode support throughout
+- Improved `/src/components/fees/FeePayments.tsx`:
+  - Added SVG circular progress indicator showing collection rate with color-coded ring
+  - Added prominent "Fee Collection Progress" banner card with 4 stat boxes (Collected, Outstanding, Rate, Total)
+  - Improved summary strip with status dots (completed/pending counts)
+  - Enhanced empty state with larger icon and better illustration
+  - Added statusConfig for consistent status badge styling
+  - Improved table row colors for pending/failed transactions
+- Improved `/src/components/fees/FeeStructures.tsx`:
+  - Added category icons (GraduationCap for TUITION, Bus for TRANSPORT, Bed for BOARDING, Trophy for EXTRACURRICULAR, Settings2 for OTHER)
+  - Icons display alongside category labels in badges
+- Rewrote `/src/components/attendance/AttendanceMarking.tsx`:
+  - Added date picker navigation (prev/next day buttons with ChevronLeft/ChevronRight)
+  - Added "Mark All Present" quick action with success toast
+  - Created AttendanceRateCircle SVG component for visual rate display
+  - Added 6th summary card with circular progress for attendance rate
+  - Added Excused count to summary cards (6 total cards now)
+  - Enhanced Monthly Summary with class average attendance rate circle
+  - Added responsive 5-column grid for summary stats
+- Rewrote `/src/components/settings/SettingsPage.tsx`:
+  - Added profile section at top with teal gradient banner, avatar, name, email, role badge
+  - Organized settings into 2-column grid layout
+  - Grouped settings into 4 cards with icons: School Info (teal), Academic (sky), Appearance & Notifications (purple), Security & Regional (amber)
+  - Each settings card has icon, title, description, and action items
+  - Added "Save Settings" toast notification with description
+  - Compact form fields with smaller labels
+  - Improved responsive layout with 2-column grid
+- Rewrote `/src/components/notices/NoticeList.tsx`:
+  - Added "Pinned & Urgent" section at top with Pin icon and count
+  - Replaced emoji category icons with Lucide React icons (BookOpen for ACADEMIC, Trophy for EVENT, AlertTriangle for URGENT, Megaphone for GENERAL)
+  - Improved pinned notices with gradient background for urgent items
+  - Separated notices into Pinned/Urgent and Recent sections
+  - Added "Recent" section header with Bell icon and count
+  - Enhanced empty state with better illustration and CTA button
+  - Added `formatDistanceToNow` import for relative date formatting
+- Verified `bun run lint` passes with zero errors
+- Dev server compiles and runs successfully
+
+Stage Summary:
+- Enhanced notification panel with 5 filter tabs, better animations, and improved layout
+- Added circular SVG progress indicators for fees collection rate and attendance rate
+- Fees page now has prominent progress banner with 4 stat boxes
+- Fee structures have category icons in badges
+- Attendance page has date navigation, rate circles, and "Mark All Present" toast
+- Settings page has user profile banner and organized 2-column settings grid
+- Notices page has pinned/urgent section, proper Lucide icons, and separated sections
+- All changes dark mode compatible
+- `bun run lint` ✅ Zero errors
+
+#### Files Created
+1. `/src/app/api/notifications/all/route.ts` — Separate PUT endpoint for mark-all-read
+
+#### Files Modified
+1. `/src/components/layout/NotificationCenter.tsx` — Enhanced with filter tabs, improved layout
+2. `/src/components/fees/FeePayments.tsx` — Circular progress, enhanced stats
+3. `/src/components/fees/FeeStructures.tsx` — Category icons in badges
+4. `/src/components/attendance/AttendanceMarking.tsx` — Date nav, rate circle, improved stats
+5. `/src/components/settings/SettingsPage.tsx` — Profile section, grouped settings grid
+6. `/src/components/notices/NoticeList.tsx` — Pinned section, proper icons, separated sections
+
+---
+Task ID: 5a
+Agent: Frontend Developer
+Task: Fix demo login + Global Search Modal
+
+Work Log:
+- Analyzed login API response format: `/api/auth/login` returns `{ success: true, data: { user: {...}, role: "..." } }` — confirmed `result.data.user` is correct extraction path
+- Fixed `request()` function in `/src/lib/api.ts` — the previous implementation had a subtle bug where `...options` spread after setting `headers` could overwrite the merged headers. Restructured to destructure headers from options first, merge manually, then spread rest of options
+- Made demo login extraction explicit in `LoginPage.tsx` — both `handleLogin` and `loginAsDemo` now explicitly extract `{ id, name, email, role, avatar }` from `result.data.user` before passing to `login()`, matching the store's `User` interface
+- Upgraded `/src/app/api/search/route.ts` — added notices search (by title, published only, up to 5 results) with category, publishedAt metadata
+- Created `/src/components/search/GlobalSearchModal.tsx` — polished command palette with:
+  - 4 search categories: Students (teal), Users (violet), Classes (amber), Notices (rose)
+  - ⌘K / Ctrl+K keyboard shortcut with toggle
+  - Real-time debounced search (300ms) using `searchApi` from api.ts
+  - Keyboard navigation: ↑↓ arrows, Enter to select, Escape to close
+  - Auto-scroll selected item into view
+  - AnimatePresence transitions between states: empty, loading, error, no results, results
+  - Skeleton loading state (3 shimmer rows)
+  - Categorized results with colored icons, category badges, count badges
+  - Student results navigate to student-detail view
+  - User results navigate to users list
+  - Class results navigate to students list (filtered by class)
+  - Notice results navigate to notices list
+  - Footer with keyboard shortcut hints and total result count
+  - Full dark mode support
+  - Accessible: sr-only dialog title, aria labels
+- Added `searchApi` to `/src/lib/api.ts` with `global(q)` method
+- Updated `/src/components/layout/DashboardLayout.tsx` — replaced old `SearchDialog` import with new `GlobalSearchModal`
+
+Stage Summary:
+- Demo login: Fixed request function header merging bug + explicit user property extraction matching store interface
+- Search API: Now searches 4 categories (students, users, classes, notices) with rate limiting
+- Global Search Modal: Fully functional command palette with keyboard shortcuts, debounced search, categorized results, navigation, dark mode
+- ESLint: ✅ Zero errors
+- Dev server: ✅ Compiles and serves successfully
+- API verified: ✅ Login returns correct format, search returns all 4 categories

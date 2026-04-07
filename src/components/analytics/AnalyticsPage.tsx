@@ -14,23 +14,13 @@ import {
   RefreshCw,
   CalendarDays,
   Target,
+  Flame,
+  UserCheck,
+  PieChart,
+  LayoutGrid,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -50,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 
 // ==================== Types ====================
@@ -70,16 +61,14 @@ interface AnalyticsData {
   attendanceTrends: { month: string; rate: number; total: number; present: number }[]
   classPerformance: { className: string; averageScore: number }[]
   genderDistribution: { className: string; classId: string; male: number; female: number; total: number }[]
-  topStudents: { name: string; averageScore: number; classId: string }[]
-  bottomStudents: { name: string; averageScore: number; classId: string }[]
+  topStudents: { name: string; averageScore: number; classId: string; className: string }[]
+  bottomStudents: { name: string; averageScore: number; classId: string; className: string }[]
   feeDefaulters: { name: string; classId: string; totalRequired: number; totalPaid: number }[]
   classSummary: { className: string; classId: string; students: number; capacity: number; averageScore: number; attendanceRate: number }[]
+  enrollmentByLevel: { level: string; count: number; male: number; female: number }[]
+  feeByClass: { className: string; classId: string; totalRequired: number; totalPaid: number; outstanding: number; collectionRate: number; transactionCount: number }[]
+  attendanceByClass: { className: string; classId: string; rate: number; total: number; present: number }[]
 }
-
-const CHART_COLORS = [
-  '#0d9488', '#f59e0b', '#6366f1', '#ec4899', '#8b5cf6',
-  '#14b8a6', '#f97316', '#06b6d4', '#84cc16', '#e11d48',
-]
 
 // ==================== Main Component ====================
 
@@ -171,12 +160,16 @@ export function AnalyticsPage() {
     )
   }
 
+  const maxEnrollment = data && data.enrollmentByLevel.length > 0
+    ? Math.max(...data.enrollmentByLevel.map(e => e.count))
+    : 100
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Analytics & Reports</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Analytics &amp; Reports</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Comprehensive school performance insights
           </p>
@@ -313,230 +306,233 @@ export function AnalyticsPage() {
         </div>
       ) : null}
 
-      {/* Charts Section */}
+      {/* ==================== Student Enrollment by Level ==================== */}
+      {loading ? (
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
+          <CardContent className="p-4"><Skeleton className="h-52 w-full" /></CardContent>
+        </Card>
+      ) : data && data.enrollmentByLevel.length > 0 ? (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-lg bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center">
+                    <GraduationCap className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  Student Enrollment by Level
+                </CardTitle>
+                <Badge variant="secondary" className="text-[10px] bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                  {data.enrollmentByLevel.reduce((s, e) => s + e.count, 0)} total
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {data.enrollmentByLevel.map((entry, i) => {
+                  const pct = maxEnrollment > 0 ? (entry.count / maxEnrollment) * 100 : 0
+                  const barColors = [
+                    'bg-teal-500 dark:bg-teal-400',
+                    'bg-emerald-500 dark:bg-emerald-400',
+                    'bg-amber-500 dark:bg-amber-400',
+                    'bg-orange-500 dark:bg-orange-400',
+                    'bg-sky-500 dark:bg-sky-400',
+                  ]
+                  return (
+                    <div key={entry.level} className="flex items-center gap-3">
+                      <p className="text-xs font-medium text-slate-600 dark:text-slate-400 w-44 flex-shrink-0 truncate">{entry.level}</p>
+                      <div className="flex-1 h-7 bg-slate-100 dark:bg-slate-700/50 rounded-lg overflow-hidden relative">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.6, delay: i * 0.1 }}
+                          className={cn('h-full rounded-lg', barColors[i % barColors.length])}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 w-28 justify-end">
+                        <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">{entry.count}</span>
+                        <div className="flex items-center gap-0.5 text-[9px] text-slate-400 dark:text-slate-500">
+                          <span className="text-sky-500">♂{entry.male}</span>
+                          <span className="text-pink-500">♀{entry.female}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : null}
+
+      {/* ==================== Fee Collection by Class ==================== */}
+      {loading ? (
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
+          <CardContent className="p-4"><Skeleton className="h-52 w-full" /></CardContent>
+        </Card>
+      ) : data && data.feeByClass.length > 0 ? (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-lg bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center">
+                    <DollarSign className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  Fee Collection by Class
+                </CardTitle>
+                <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                  {data.feeByClass.length} classes
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden max-h-96 overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
+                    <TableRow>
+                      <TableHead className="text-xs">Class</TableHead>
+                      <TableHead className="text-xs text-right">Required</TableHead>
+                      <TableHead className="text-xs text-right">Collected</TableHead>
+                      <TableHead className="text-xs text-right">Outstanding</TableHead>
+                      <TableHead className="text-xs min-w-[120px]">Collection Rate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.feeByClass.slice(0, 15).map((fc) => (
+                      <TableRow key={fc.classId}>
+                        <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                          {fc.className}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums text-slate-600 dark:text-slate-400">
+                          KES {fc.totalRequired.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums text-slate-900 dark:text-slate-100 font-medium">
+                          KES {fc.totalPaid.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          <span className={cn(
+                            'font-medium',
+                            fc.outstanding === 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : fc.collectionRate >= 70
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-red-600 dark:text-red-400'
+                          )}>
+                            KES {fc.outstanding.toLocaleString()}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={fc.collectionRate} className="h-2 flex-1 [&>div]:bg-teal-500" />
+                            <span className={cn(
+                              'text-xs font-semibold tabular-nums w-10 text-right',
+                              fc.collectionRate >= 90
+                                ? 'text-green-600 dark:text-green-400'
+                                : fc.collectionRate >= 70
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-red-600 dark:text-red-400'
+                            )}>
+                              {fc.collectionRate}%
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : null}
+
+      {/* ==================== Attendance Heatmap by Class ==================== */}
+      {loading ? (
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
+          <CardContent className="p-4"><Skeleton className="h-52 w-full" /></CardContent>
+        </Card>
+      ) : data && data.attendanceByClass.length > 0 ? (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-lg bg-sky-50 dark:bg-sky-900/40 flex items-center justify-center">
+                    <LayoutGrid className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                  </div>
+                  Attendance Rate by Class
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                    <span className="text-[9px] text-slate-400 dark:text-slate-500">&gt;90%</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                    <span className="text-[9px] text-slate-400 dark:text-slate-500">70-90%</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-red-400" />
+                    <span className="text-[9px] text-slate-400 dark:text-slate-500">&lt;70%</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {data.attendanceByClass.map((ac) => {
+                  const bgColor = ac.rate >= 90
+                    ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800'
+                    : ac.rate >= 70
+                      ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800'
+                      : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800'
+                  const textColor = ac.rate >= 90
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : ac.rate >= 70
+                      ? 'text-amber-700 dark:text-amber-300'
+                      : 'text-red-700 dark:text-red-300'
+                  const dotColor = ac.rate >= 90 ? 'bg-emerald-500' : ac.rate >= 70 ? 'bg-amber-400' : 'bg-red-400'
+
+                  return (
+                    <div
+                      key={ac.classId}
+                      className={cn(
+                        'p-3 rounded-xl border transition-all hover:shadow-sm cursor-default',
+                        bgColor
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className={cn('w-2 h-2 rounded-full flex-shrink-0', dotColor)} />
+                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{ac.className}</p>
+                      </div>
+                      <div className="flex items-end justify-between">
+                        <p className={cn('text-lg font-bold tabular-nums', textColor)}>{ac.rate}%</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                          {ac.present}/{ac.total}
+                        </p>
+                      </div>
+                      <div className="mt-1.5 h-1.5 bg-slate-200/60 dark:bg-slate-700/40 rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all',
+                            ac.rate >= 90 ? 'bg-emerald-500' : ac.rate >= 70 ? 'bg-amber-400' : 'bg-red-400'
+                          )}
+                          style={{ width: `${ac.rate}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : null}
+
+      {/* ==================== Top Performers & Gender Distribution ==================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Fee Collection Chart */}
-        {loading ? (
-          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
-            <CardContent className="p-4">
-              <Skeleton className="h-5 w-40 mb-4" />
-              <Skeleton className="h-52 w-full" />
-            </CardContent>
-          </Card>
-        ) : data && data.feeCollectionMonthly.length > 0 ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                  Fee Collection
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={data.feeCollectionMonthly}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color, #e2e8f0)" />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--tooltip-bg, #fff)',
-                        border: '1px solid var(--tooltip-border, #e2e8f0)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                      formatter={(value: number) => [`KES ${value.toLocaleString()}`, 'Collected']}
-                    />
-                    <Bar dataKey="collected" radius={[4, 4, 0, 0]}>
-                      {data.feeCollectionMonthly.map((_, index) => (
-                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ) : null}
-
-        {/* Attendance Trends Chart */}
-        {loading ? (
-          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
-            <CardContent className="p-4">
-              <Skeleton className="h-5 w-40 mb-4" />
-              <Skeleton className="h-52 w-full" />
-            </CardContent>
-          </Card>
-        ) : data && data.attendanceTrends.length > 0 ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <ClipboardCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                  Attendance Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={data.attendanceTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color, #e2e8f0)" />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                    />
-                    <YAxis
-                      domain={[0, 100]}
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                      tickFormatter={(v) => `${v}%`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--tooltip-bg, #fff)',
-                        border: '1px solid var(--tooltip-border, #e2e8f0)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                      formatter={(value: number) => [`${value}%`, 'Rate']}
-                    />
-                    <defs>
-                      <linearGradient id="attendanceGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      type="monotone"
-                      dataKey="rate"
-                      stroke="#0ea5e9"
-                      strokeWidth={2}
-                      fill="url(#attendanceGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ) : null}
-
-        {/* Class Performance Chart */}
-        {loading ? (
-          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
-            <CardContent className="p-4">
-              <Skeleton className="h-5 w-40 mb-4" />
-              <Skeleton className="h-52 w-full" />
-            </CardContent>
-          </Card>
-        ) : data && data.classPerformance.length > 0 ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  Class Performance (Avg Score)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={Math.max(200, data.classPerformance.length * 32)}>
-                  <BarChart data={data.classPerformance} layout="vertical" margin={{ left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color, #e2e8f0)" />
-                    <XAxis
-                      type="number"
-                      domain={[0, 100]}
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="className"
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                      width={80}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--tooltip-bg, #fff)',
-                        border: '1px solid var(--tooltip-border, #e2e8f0)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                      formatter={(value: number) => [`${value}%`, 'Avg Score']}
-                    />
-                    <Bar dataKey="averageScore" radius={[0, 4, 4, 0]}>
-                      {data.classPerformance.map((_, index) => (
-                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ) : null}
-
-        {/* Gender Distribution */}
-        {loading ? (
-          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
-            <CardContent className="p-4">
-              <Skeleton className="h-5 w-40 mb-4" />
-              <Skeleton className="h-52 w-full" />
-            </CardContent>
-          </Card>
-        ) : data && data.genderDistribution.length > 0 ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                  Gender Distribution by Class
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={Math.max(200, data.genderDistribution.length * 32)}>
-                  <BarChart data={data.genderDistribution} layout="vertical" margin={{ left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--grid-color, #e2e8f0)" />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="className"
-                      tick={{ fontSize: 11, fill: 'var(--tick-color, #64748b)' }}
-                      axisLine={{ stroke: 'var(--axis-color, #e2e8f0)' }}
-                      width={80}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--tooltip-bg, #fff)',
-                        border: '1px solid var(--tooltip-border, #e2e8f0)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                    />
-                    <Bar dataKey="male" stackId="a" fill="#0ea5e9" name="Male" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="female" stackId="a" fill="#ec4899" name="Female" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ) : null}
-      </div>
-
-      {/* Tables Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Students */}
+        {/* Top 10 Students */}
         {loading ? (
           <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
             <CardContent className="p-4">
@@ -545,12 +541,18 @@ export function AnalyticsPage() {
             </CardContent>
           </Card>
         ) : data && data.topStudents.length > 0 ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
             <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <div className="h-7 w-7 rounded-lg bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center">
+                    <Trophy className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
                   Top 10 Students
+                  <Badge variant="secondary" className="ml-auto text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    <Flame className="w-3 h-3 mr-0.5" />
+                    Top performers
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -558,7 +560,7 @@ export function AnalyticsPage() {
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
                       <TableRow>
-                        <TableHead className="text-xs">#</TableHead>
+                        <TableHead className="text-xs w-8">#</TableHead>
                         <TableHead className="text-xs">Name</TableHead>
                         <TableHead className="text-xs text-right">Avg Score</TableHead>
                       </TableRow>
@@ -566,11 +568,23 @@ export function AnalyticsPage() {
                     <TableBody>
                       {data.topStudents.map((student, i) => (
                         <TableRow key={i}>
-                          <TableCell className="text-xs font-mono text-slate-400 w-8">
-                            {i + 1}
+                          <TableCell className="text-xs font-mono text-slate-400">
+                            {i < 3 ? (
+                              <span className={cn(
+                                'inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white',
+                                i === 0 ? 'bg-amber-400' : i === 1 ? 'bg-slate-400' : 'bg-orange-600'
+                              )}>
+                                {i + 1}
+                              </span>
+                            ) : (
+                              <span>{i + 1}</span>
+                            )}
                           </TableCell>
-                          <TableCell className="text-sm text-slate-900 dark:text-slate-100">
-                            {student.name}
+                          <TableCell>
+                            <div>
+                              <p className="text-sm text-slate-900 dark:text-slate-100">{student.name}</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500">{student.className}</p>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <Badge
@@ -596,7 +610,7 @@ export function AnalyticsPage() {
           </motion.div>
         ) : null}
 
-        {/* Fee Defaulters */}
+        {/* Gender Distribution by Class */}
         {loading ? (
           <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
             <CardContent className="p-4">
@@ -604,62 +618,126 @@ export function AnalyticsPage() {
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full mb-2" />)}
             </CardContent>
           </Card>
-        ) : data ? (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+        ) : data && data.genderDistribution.length > 0 ? (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
             <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-red-600 dark:text-red-400" />
-                  Fee Defaulters (&gt;50% Outstanding)
-                  <Badge variant="secondary" className="ml-auto text-xs">{data.feeDefaulters.length}</Badge>
+                  <div className="h-7 w-7 rounded-lg bg-pink-50 dark:bg-pink-900/40 flex items-center justify-center">
+                    <PieChart className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400" />
+                  </div>
+                  Gender Distribution by Class
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden max-h-96 overflow-y-auto">
-                  {data.feeDefaulters.length === 0 ? (
-                    <div className="text-center py-8">
-                      <DollarSign className="w-8 h-8 text-green-300 dark:text-green-700 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">No fee defaulters!</p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
-                        <TableRow>
-                          <TableHead className="text-xs">Name</TableHead>
-                          <TableHead className="text-xs text-right">Outstanding</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data.feeDefaulters.map((defaulter, i) => {
-                          const outstanding = Math.round(defaulter.totalRequired - defaulter.totalPaid)
-                          const pct = defaulter.totalRequired > 0 ? Math.round((outstanding / defaulter.totalRequired) * 100) : 0
-                          return (
-                            <TableRow key={i}>
-                              <TableCell className="text-sm text-slate-900 dark:text-slate-100">
-                                {defaulter.name || 'Unknown'}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex flex-col items-end">
-                                  <span className="text-sm font-semibold text-red-600 dark:text-red-400 tabular-nums">
-                                    KES {outstanding.toLocaleString()}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                    {pct}% outstanding
-                                  </span>
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
+                      <TableRow>
+                        <TableHead className="text-xs">Class</TableHead>
+                        <TableHead className="text-xs text-center">Total</TableHead>
+                        <TableHead className="text-xs">Gender Split</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.genderDistribution.map((gd, i) => {
+                        const malePct = gd.total > 0 ? Math.round((gd.male / gd.total) * 100) : 50
+                        const femalePct = 100 - malePct
+                        return (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                              {gd.className}
+                            </TableCell>
+                            <TableCell className="text-center text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                              {gd.total}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-sky-600 dark:text-sky-400 w-6">♂{gd.male}</span>
+                                <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                                  <div className="h-full bg-sky-500 dark:bg-sky-400" style={{ width: `${malePct}%` }} />
+                                  <div className="h-full bg-pink-500 dark:bg-pink-400" style={{ width: `${femalePct}%` }} />
                                 </div>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  )}
+                                <span className="text-[10px] text-pink-600 dark:text-pink-400 w-6 text-right">♀{gd.female}</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
         ) : null}
       </div>
+
+      {/* ==================== Fee Defaulters ==================== */}
+      {loading ? (
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60">
+          <CardContent className="p-4">
+            <Skeleton className="h-5 w-40 mb-4" />
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full mb-2" />)}
+          </CardContent>
+        </Card>
+      ) : data ? (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+          <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-red-50 dark:bg-red-900/40 flex items-center justify-center">
+                  <DollarSign className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                </div>
+                Fee Defaulters (&gt;50% Outstanding)
+                <Badge variant="secondary" className="ml-auto text-xs">{data.feeDefaulters.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden max-h-96 overflow-y-auto">
+                {data.feeDefaulters.length === 0 ? (
+                  <div className="text-center py-8">
+                    <DollarSign className="w-8 h-8 text-green-300 dark:text-green-700 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No fee defaulters!</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
+                      <TableRow>
+                        <TableHead className="text-xs">Name</TableHead>
+                        <TableHead className="text-xs text-right">Outstanding</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.feeDefaulters.map((defaulter, i) => {
+                        const outstanding = Math.round(defaulter.totalRequired - defaulter.totalPaid)
+                        const pct = defaulter.totalRequired > 0 ? Math.round((outstanding / defaulter.totalRequired) * 100) : 0
+                        return (
+                          <TableRow key={i}>
+                            <TableCell className="text-sm text-slate-900 dark:text-slate-100">
+                              {defaulter.name || 'Unknown'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col items-end">
+                                <span className="text-sm font-semibold text-red-600 dark:text-red-400 tabular-nums">
+                                  KES {outstanding.toLocaleString()}
+                                </span>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                  {pct}% outstanding
+                                </span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : null}
 
       {/* Class Summary Table */}
       {loading ? (
@@ -674,7 +752,9 @@ export function AnalyticsPage() {
           <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <div className="h-7 w-7 rounded-lg bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center">
+                  <GraduationCap className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                </div>
                 Class Summary
               </CardTitle>
             </CardHeader>

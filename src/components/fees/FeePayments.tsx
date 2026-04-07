@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, Search, Download, DollarSign, FileDown } from 'lucide-react'
+import { Plus, Search, Download, DollarSign, FileDown, TrendingUp, Wallet, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
@@ -28,13 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface TransactionRow {
@@ -47,6 +40,49 @@ interface TransactionRow {
   status: string
   createdAt: string
   term?: string
+}
+
+// Circular Progress Component
+function CircularProgress({ value, size = 100, strokeWidth = 8, color = 'text-teal-600' }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (value / 100) * circumference
+
+  const strokeColor = value >= 80 ? '#059669' : value >= 60 ? '#0d9488' : value >= 40 ? '#f59e0b' : '#ef4444'
+  const bgColor = value >= 80 ? '#d1fae5' : value >= 60 ? '#ccfbf1' : value >= 40 ? '#fef3c7' : '#fee2e2'
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={bgColor}
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{value.toFixed(1)}%</p>
+          <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">collected</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function FeePayments() {
@@ -124,9 +160,14 @@ export function FeePayments() {
     .filter((t) => t.status === 'PENDING')
     .reduce((sum, t) => sum + t.amount, 0)
 
-  const collectionRate = filtered.length > 0
-    ? ((filtered.filter((t) => t.status === 'COMPLETED').length / filtered.length) * 100).toFixed(1)
-    : '0'
+  const totalAmount = filtered.reduce((sum, t) => sum + t.amount, 0)
+
+  const collectionRate = totalAmount > 0
+    ? ((totalCollected / totalAmount) * 100)
+    : 0
+
+  const completedCount = filtered.filter((t) => t.status === 'COMPLETED').length
+  const pendingCount = filtered.filter((t) => t.status === 'PENDING').length
 
   const methodColors: Record<string, string> = {
     CASH: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800',
@@ -140,33 +181,81 @@ export function FeePayments() {
     BANK: '🏦',
   }
 
+  const statusConfig: Record<string, { className: string; icon: string }> = {
+    COMPLETED: { className: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800', icon: '✓' },
+    PENDING: { className: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800', icon: '◷' },
+    FAILED: { className: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', icon: '✗' },
+  }
+
   const handleDownloadReceipt = (receiptNumber: string) => {
     window.open(`/api/fees/receipt/${receiptNumber}`, '_blank')
   }
 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
+
   return (
     <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60">
-          <CardContent className="p-4">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Total Collected</p>
-            <p className="text-xl font-bold text-green-600 dark:text-green-400">KES {totalCollected.toLocaleString()}</p>
+      {/* Fee Collection Progress Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              {/* Circular Progress */}
+              <div className="flex-shrink-0">
+                <CircularProgress value={collectionRate} size={110} strokeWidth={10} />
+              </div>
+
+              {/* Stats */}
+              <div className="flex-1 w-full">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Fee Collection Progress</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-900/15 border border-emerald-100 dark:border-emerald-800/30">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                      <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-wider">Collected</p>
+                      <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">{formatCurrency(totalCollected)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50/60 dark:bg-amber-900/15 border border-amber-100 dark:border-amber-800/30">
+                    <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                      <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium uppercase tracking-wider">Outstanding</p>
+                      <p className="text-sm font-bold text-amber-700 dark:text-amber-300 tabular-nums">{formatCurrency(totalOutstanding)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-teal-50/60 dark:bg-teal-900/15 border border-teal-100 dark:border-teal-800/30">
+                    <div className="h-8 w-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center flex-shrink-0">
+                      <Percent className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider">Rate</p>
+                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300 tabular-nums">{collectionRate.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50/60 dark:bg-slate-700/20 border border-slate-200/60 dark:border-slate-700/30">
+                    <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-700/40 flex items-center justify-center flex-shrink-0">
+                      <DollarSign className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Total</p>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 tabular-nums">{formatCurrency(totalAmount)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
-        <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60">
-          <CardContent className="p-4">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Outstanding</p>
-            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">KES {totalOutstanding.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60">
-          <CardContent className="p-4">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Collection Rate</p>
-            <p className="text-xl font-bold text-teal-600 dark:text-teal-400">{collectionRate}%</p>
-          </CardContent>
-        </Card>
-      </div>
+      </motion.div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -198,17 +287,23 @@ export function FeePayments() {
         </Button>
       </div>
 
+      {/* Summary strip */}
+      <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+        <span className="font-medium">{filtered.length} transactions</span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          {completedCount} completed
+        </span>
+        {pendingCount > 0 && (
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            {pendingCount} pending
+          </span>
+        )}
+      </div>
+
       {/* Transactions Table */}
       <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Payment History</CardTitle>
-            <div className="text-right">
-              <p className="text-xs text-slate-400 dark:text-slate-500">Total Collected</p>
-              <p className="text-sm font-bold text-green-600 dark:text-green-400">KES {totalCollected.toLocaleString()}</p>
-            </div>
-          </div>
-        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -241,52 +336,57 @@ export function FeePayments() {
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-12">
                     <div className="flex flex-col items-center">
-                      <DollarSign className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
+                      <div className="h-14 w-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                        <DollarSign className="w-7 h-7 text-slate-300 dark:text-slate-600" />
+                      </div>
                       <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No transactions found</p>
                       <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((t) => (
-                  <TableRow key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40">
-                    <TableCell className="text-sm font-mono text-slate-500 dark:text-slate-400">{t.receiptNumber}</TableCell>
-                    <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{t.studentName}</TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{t.feeName}</TableCell>
-                    <TableCell className="text-sm font-semibold text-slate-900 dark:text-slate-100">KES {t.amount.toLocaleString()}</TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Badge variant="outline" className={cn('text-[10px] font-medium', methodColors[t.paymentMethod] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600')}>
-                        {methodIcons[t.paymentMethod] || ''} {t.paymentMethod}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-slate-500 dark:text-slate-400">
-                      {format(new Date(t.createdAt), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn(
-                        'text-[10px] font-medium',
-                        t.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800' :
-                        t.status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800' :
-                        'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800'
-                      )}>
-                        {t.status === 'COMPLETED' ? '✓ ' : t.status === 'PENDING' ? '◷ ' : '✗ '}{t.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {t.status === 'COMPLETED' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          onClick={() => handleDownloadReceipt(t.receiptNumber)}
-                          title="Download Receipt"
-                        >
-                          <FileDown className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                filtered.map((t) => {
+                  const statusCfg = statusConfig[t.status] || statusConfig.COMPLETED
+                  return (
+                    <TableRow key={t.id} className={cn(
+                      'transition-colors',
+                      t.status === 'PENDING' && 'bg-amber-50/20 dark:bg-amber-900/5 hover:bg-amber-50/40 dark:hover:bg-amber-900/10',
+                      t.status === 'FAILED' && 'bg-red-50/20 dark:bg-red-900/5 hover:bg-red-50/40 dark:hover:bg-red-900/10',
+                      t.status === 'COMPLETED' && 'hover:bg-slate-50 dark:hover:bg-slate-700/40',
+                    )}>
+                      <TableCell className="text-sm font-mono text-slate-500 dark:text-slate-400">{t.receiptNumber}</TableCell>
+                      <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{t.studentName}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">{t.feeName}</TableCell>
+                      <TableCell className="text-sm font-semibold text-slate-900 dark:text-slate-100">KES {t.amount.toLocaleString()}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Badge variant="outline" className={cn('text-[10px] font-medium', methodColors[t.paymentMethod] || 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600')}>
+                          {methodIcons[t.paymentMethod] || ''} {t.paymentMethod}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm text-slate-500 dark:text-slate-400">
+                        {format(new Date(t.createdAt), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn('text-[10px] font-medium', statusCfg.className)}>
+                          {statusCfg.icon} {t.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {t.status === 'COMPLETED' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                            onClick={() => handleDownloadReceipt(t.receiptNumber)}
+                            title="Download Receipt"
+                          >
+                            <FileDown className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { format } from 'date-fns'
-import { Save, Loader2, UserCheck, AlertCircle, CheckCircle2, XCircle, Clock, ShieldCheck, Users, BarChart3 } from 'lucide-react'
+import { format, addDays, subDays } from 'date-fns'
+import { Save, Loader2, UserCheck, AlertCircle, CheckCircle2, XCircle, Clock, ShieldCheck, Users, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
@@ -10,7 +10,7 @@ import { studentsApi, attendanceApi, refApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -68,6 +68,35 @@ const statusConfig: Record<string, { className: string; label: string; icon: Rea
     bgColor: 'bg-sky-50 dark:bg-sky-900/40',
     dotColor: 'bg-sky-500',
   },
+}
+
+// Attendance rate circle component
+function AttendanceRateCircle({ rate, size = 72 }: { rate: number; size?: number }) {
+  const strokeWidth = 6
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (rate / 100) * circumference
+
+  const strokeColor = rate >= 90 ? '#059669' : rate >= 70 ? '#0d9488' : rate >= 50 ? '#f59e0b' : '#ef4444'
+  const bgColor = rate >= 90 ? '#d1fae5' : rate >= 70 ? '#ccfbf1' : rate >= 50 ? '#fef3c7' : '#fee2e2'
+  const textColor = rate >= 90 ? 'text-green-600 dark:text-green-400' : rate >= 70 ? 'text-teal-600 dark:text-teal-400' : rate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={bgColor} strokeWidth={strokeWidth} />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={strokeColor} strokeWidth={strokeWidth}
+          strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset}
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={cn('text-base font-bold tabular-nums', textColor)}>{rate.toFixed(0)}%</span>
+        <span className="text-[8px] text-slate-400 dark:text-slate-500 uppercase">rate</span>
+      </div>
+    </div>
+  )
 }
 
 export function AttendanceMarking() {
@@ -158,6 +187,7 @@ export function AttendanceMarking() {
 
   const markAllPresent = () => {
     setRecords((prev) => prev.map((r) => ({ ...r, status: 'PRESENT' as const, reason: '' })))
+    toast.success('All students marked as present')
   }
 
   const handleSave = async () => {
@@ -188,11 +218,19 @@ export function AttendanceMarking() {
     }
   }
 
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const d = direction === 'prev' ? subDays(new Date(date), 1) : addDays(new Date(date), 1)
+    setDate(format(d, 'yyyy-MM-dd'))
+  }
+
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const isToday = date === today
+
   const presentCount = records.filter((r) => r.status === 'PRESENT').length
   const absentCount = records.filter((r) => r.status === 'ABSENT').length
   const lateCount = records.filter((r) => r.status === 'LATE').length
   const excusedCount = records.filter((r) => r.status === 'EXCUSED').length
-  const attendanceRate = records.length > 0 ? ((presentCount + lateCount) / records.length * 100).toFixed(1) : '0'
+  const attendanceRate = records.length > 0 ? ((presentCount + lateCount) / records.length * 100) : 0
   const selectedClass = localClasses.find((c) => c.id === classId)
 
   const cardAnim = (i: number) => ({
@@ -245,12 +283,35 @@ export function AttendanceMarking() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full sm:w-44 h-10 bg-white dark:bg-slate-800"
-              />
+
+              {/* Date Picker with Navigation */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => navigateDate('prev')}
+                  disabled={isToday}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  max={today}
+                  className="w-[140px] h-10 bg-white dark:bg-slate-800 text-center text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => navigateDate('next')}
+                  disabled={isToday}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <div className="flex gap-2">
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -296,8 +357,8 @@ export function AttendanceMarking() {
             </div>
           ) : (
             <>
-              {/* Summary cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {/* Summary cards with attendance rate circle */}
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
                 <motion.div {...cardAnim(0)} whileHover={{ y: -2 }} className="col-span-1">
                   <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/80 hover:shadow-md transition-shadow duration-300">
                     <CardContent className="p-4 text-center">
@@ -342,30 +403,28 @@ export function AttendanceMarking() {
                     </CardContent>
                   </Card>
                 </motion.div>
-                <motion.div {...cardAnim(4)} whileHover={{ y: -2 }} className="col-span-2 sm:col-span-1">
-                  <Card className={cn(
-                    'shadow-sm hover:shadow-md transition-shadow duration-300',
-                    Number(attendanceRate) >= 90
-                      ? 'border-green-200/60 bg-gradient-to-br from-green-50/60 to-white dark:from-green-900/20 dark:to-slate-800 dark:border-green-800/40'
-                      : Number(attendanceRate) >= 70
-                        ? 'border-amber-200/60 bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-900/20 dark:to-slate-800 dark:border-amber-800/40'
-                        : 'border-red-200/60 bg-gradient-to-br from-red-50/60 to-white dark:from-red-900/20 dark:to-slate-800 dark:border-red-800/40'
-                  )}>
+                <motion.div {...cardAnim(4)} whileHover={{ y: -2 }} className="col-span-1">
+                  <Card className="shadow-sm border-sky-200/60 bg-gradient-to-br from-sky-50/80 to-white dark:from-sky-900/20 dark:to-slate-800 dark:border-sky-800/40 hover:shadow-md transition-shadow duration-300">
                     <CardContent className="p-4 text-center">
-                      <div className={cn(
-                        'h-8 w-8 rounded-lg flex items-center justify-center mx-auto mb-1.5',
-                        Number(attendanceRate) >= 90 ? 'bg-green-100 dark:bg-green-900/50' : Number(attendanceRate) >= 70 ? 'bg-amber-100 dark:bg-amber-900/50' : 'bg-red-100 dark:bg-red-900/50'
-                      )}>
-                        <BarChart3 className={cn(
-                          'w-4 h-4',
-                          Number(attendanceRate) >= 90 ? 'text-green-600 dark:text-green-400' : Number(attendanceRate) >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
-                        )} />
+                      <div className="h-8 w-8 rounded-lg bg-sky-100 dark:bg-sky-900/50 flex items-center justify-center mx-auto mb-1.5">
+                        <ShieldCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                       </div>
-                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rate</p>
-                      <p className={cn(
-                        'text-2xl font-bold tabular-nums',
-                        Number(attendanceRate) >= 90 ? 'text-green-700 dark:text-green-400' : Number(attendanceRate) >= 70 ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400'
-                      )}>{attendanceRate}%</p>
+                      <p className="text-xs font-medium text-sky-700 dark:text-sky-400 uppercase tracking-wider">Excused</p>
+                      <p className="text-2xl font-bold text-sky-700 dark:text-sky-400 tabular-nums">{excusedCount}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+                <motion.div {...cardAnim(5)} whileHover={{ y: -2 }} className="col-span-2 sm:col-span-1">
+                  <Card className={cn(
+                    'shadow-sm hover:shadow-md transition-shadow duration-300 border',
+                    attendanceRate >= 90
+                      ? 'border-green-200/60 dark:border-green-800/40'
+                      : attendanceRate >= 70
+                        ? 'border-amber-200/60 dark:border-amber-800/40'
+                        : 'border-red-200/60 dark:border-red-800/40'
+                  )}>
+                    <CardContent className="p-3 flex flex-col items-center">
+                      <AttendanceRateCircle rate={attendanceRate} size={64} />
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -525,8 +584,8 @@ function AttendanceSummary() {
 
   const selectedClass = localClasses.find((c) => c.id === classId)
   const avgRate = summaryData.length > 0
-    ? (summaryData.reduce((sum: number, s: any) => sum + s.rate, 0) / summaryData.length).toFixed(1)
-    : '0'
+    ? (summaryData.reduce((sum: number, s: any) => sum + s.rate, 0) / summaryData.length)
+    : 0
   const highRiskStudents = summaryData.filter((s: any) => s.rate < 80).length
 
   return (
@@ -575,9 +634,9 @@ function AttendanceSummary() {
         </div>
       ) : (
         <>
-          {/* Summary Stats */}
+          {/* Summary Stats with Rate Circle */}
           {summaryData.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
                 <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800">
                   <CardContent className="p-3 text-center">
@@ -586,14 +645,18 @@ function AttendanceSummary() {
                   </CardContent>
                 </Card>
               </motion.div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="col-span-2">
                 <Card className="shadow-sm border-teal-200/60 dark:border-teal-800/40 bg-gradient-to-br from-teal-50/60 to-white dark:from-teal-900/20 dark:to-slate-800">
-                  <CardContent className="p-3 text-center">
-                    <p className="text-xs text-teal-600 dark:text-teal-400 font-medium">Avg Rate</p>
-                    <p className={cn(
-                      'text-xl font-bold tabular-nums',
-                      Number(avgRate) >= 90 ? 'text-green-600 dark:text-green-400' : Number(avgRate) >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
-                    )}>{avgRate}%</p>
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <AttendanceRateCircle rate={avgRate} size={64} />
+                    <div className="text-left">
+                      <p className="text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider">Class Average</p>
+                      <p className={cn(
+                        'text-2xl font-bold tabular-nums',
+                        avgRate >= 90 ? 'text-green-600 dark:text-green-400' : avgRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                      )}>{avgRate.toFixed(1)}%</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{selectedClass?.name || ''}</p>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -606,10 +669,19 @@ function AttendanceSummary() {
                 </Card>
               </motion.div>
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                <Card className="shadow-sm border-red-200/60 dark:border-red-800/40 bg-gradient-to-br from-red-50/60 to-white dark:from-red-900/20 dark:to-slate-800">
+                <Card className={cn(
+                  'shadow-sm border dark:border-red-800/40',
+                  highRiskStudents > 0 ? 'border-red-200/60 bg-gradient-to-br from-red-50/60 to-white dark:from-red-900/20 dark:to-slate-800' : 'border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800'
+                )}>
                   <CardContent className="p-3 text-center">
-                    <p className="text-xs text-red-600 dark:text-red-400 font-medium">High Risk</p>
-                    <p className="text-xl font-bold text-red-600 dark:text-red-400 tabular-nums">{highRiskStudents}</p>
+                    <p className={cn(
+                      'text-xs font-medium',
+                      highRiskStudents > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'
+                    )}>High Risk</p>
+                    <p className={cn(
+                      'text-xl font-bold tabular-nums',
+                      highRiskStudents > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'
+                    )}>{highRiskStudents}</p>
                   </CardContent>
                 </Card>
               </motion.div>

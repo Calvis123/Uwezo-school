@@ -23,6 +23,7 @@ import { MessagingPage } from '@/components/messaging/MessagingPage'
 import { ExportData } from '@/components/export/ExportData'
 import { ClassManagement } from '@/components/classes/ClassManagement'
 import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
+import { ActivityFeed } from '@/components/activity/ActivityFeed'
 import { FeesPage } from '@/components/fees/FeesPage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -48,6 +49,7 @@ function ViewRouter() {
     'teacher-dashboard': <TeacherDashboard />,
     messages: <MessagingPage />,
     notices: <NoticeList />,
+    activity: <ActivityFeed />,
     settings: <SettingsPage />,
   }
 

@@ -19,6 +19,7 @@ import {
   Download,
   School,
   BarChart3,
+  Activity,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -40,7 +41,8 @@ import {
 import { useAppStore } from '@/lib/store'
 import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
-import { SearchDialog } from './SearchDialog'
+import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
+import { NotificationCenter } from './NotificationCenter'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const navItems = [
@@ -57,6 +59,7 @@ const navItems = [
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'notices', label: 'Notices', icon: Bell },
+  { id: 'activity', label: 'Activity', icon: Activity },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
@@ -236,6 +239,7 @@ const viewInfo: Record<string, { title: string; breadcrumbs?: string[] }> = {
   messages: { title: 'Messages', breadcrumbs: ['Dashboard', 'Messages'] },
   'teacher-dashboard': { title: 'Teachers View', breadcrumbs: ['Dashboard', 'Teachers View'] },
   notices: { title: 'Notices', breadcrumbs: ['Dashboard', 'Notices'] },
+  activity: { title: 'Activity Feed', breadcrumbs: ['Dashboard', 'Activity'] },
   settings: { title: 'Settings', breadcrumbs: ['Dashboard', 'Settings'] },
 }
 
@@ -306,13 +310,8 @@ export function Header({ onSearchOpen }: { onSearchOpen: () => void }) {
           {/* Theme Toggle */}
           <ThemeToggle />
 
-          {/* Notification bell - Prominent with count badge */}
-          <Button variant="ghost" size="icon" className="h-9 w-9 relative text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-teal-500">
-            <Bell className="w-[18px] h-[18px]" />
-            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 rounded-full text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-900">
-              3
-            </span>
-          </Button>
+          {/* Notification bell - with live count from API */}
+          <NotificationCenter />
 
           {/* User dropdown */}
           <DropdownMenu>
@@ -370,7 +369,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header onSearchOpen={() => setSearchOpen(true)} />
-        <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+        <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
         {/* Main content area with teal-to-transparent top gradient border */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 relative">
           <div className="h-px bg-gradient-to-r from-teal-500 via-teal-300/50 to-transparent absolute top-0 left-0 right-0 z-10" />

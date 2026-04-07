@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { ParentDashboard } from '@/components/parent/ParentDashboard'
+import { TeacherDashboard } from '@/components/teacher/TeacherDashboard'
 
 interface DashboardStats {
   totalStudents: number
@@ -93,6 +94,11 @@ export function DashboardHome() {
   // If the logged-in user is a PARENT, show the Parent Dashboard instead
   if (user?.role === 'PARENT') {
     return <ParentDashboard />
+  }
+
+  // If the logged-in user is a TEACHER, show the Teacher Dashboard
+  if (user?.role === 'TEACHER') {
+    return <TeacherDashboard />
   }
 
   return <AdminDashboard />

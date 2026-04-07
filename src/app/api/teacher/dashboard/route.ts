@@ -99,11 +99,11 @@ export async function GET(request: Request) {
         class: { select: { name: true } },
       },
       orderBy: { startDate: 'asc' },
-      take: 5,
+      take: 10,
     })
 
-    // Average performance for my classes (latest exam marks)
-    const latestExamMarks = await db.examMark.findMany({
+    // Calculate average score per class from exam marks
+    const examMarksForClasses = await db.examMark.findMany({
       where: {
         exam: {
           classId: { in: classIds },
@@ -111,24 +111,51 @@ export async function GET(request: Request) {
       },
       include: {
         exam: {
-          select: {
-            classId: true,
-            class: { select: { name: true } },
-          },
+          select: { classId: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
     })
 
-    // Calculate average performance
-    let avgPerformance = 0
-    if (latestExamMarks.length > 0) {
-      const totalMarks = latestExamMarks.reduce((sum, m) => sum + m.marks, 0)
-      avgPerformance = Math.round((totalMarks / latestExamMarks.length) * 10) / 10
+    const scoresByClass: Record<string, { total: number; count: number }> = {}
+    for (const mark of examMarksForClasses) {
+      const classId = mark.exam.classId
+      if (!scoresByClass[classId]) scoresByClass[classId] = { total: 0, count: 0 }
+      scoresByClass[classId].total += mark.marks
+      scoresByClass[classId].count++
     }
 
-    // Recent activity (last 10 attendance entries and exam marks for my classes)
+    // Calculate overall average performance
+    let avgPerformance = 0
+    if (examMarksForClasses.length > 0) {
+      const totalMarks = examMarksForClasses.reduce((sum, m) => sum + m.marks, 0)
+      avgPerformance = Math.round((totalMarks / examMarksForClasses.length) * 10) / 10
+    }
+
+    // Count exams with no marks entered (pending grades)
+    const pendingGrades = await db.exam.count({
+      where: {
+        classId: { in: classIds },
+        startDate: { lte: new Date() },
+        status: { in: ['DRAFT', 'ACTIVE'] },
+      },
+    })
+
+    // Unread messages for teacher
+    const unreadMessages = await db.message.count({
+      where: { receiverId: teacherId, isRead: false },
+    })
+
+    // Recent messages received
+    const recentMessages = await db.message.findMany({
+      where: { receiverId: teacherId },
+      include: {
+        sender: { select: { id: true, name: true, email: true, role: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    })
+
+    // Recent activity
     const recentAttendance = await db.attendance.findMany({
       where: {
         classId: { in: classIds },
@@ -172,6 +199,35 @@ export async function GET(request: Request) {
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5)
 
+    // Attendance rate per class (for current term)
+    let attendanceRatesByClass: Record<string, number> = {}
+    if (activeTerm) {
+      const termAttendance = await db.attendance.findMany({
+        where: {
+          classId: { in: classIds },
+          termId: activeTerm.id,
+        },
+        select: {
+          classId: true,
+          status: true,
+        },
+      })
+
+      const termCounts: Record<string, { total: number; present: number }> = {}
+      for (const att of termAttendance) {
+        if (!termCounts[att.classId]) termCounts[att.classId] = { total: 0, present: 0 }
+        termCounts[att.classId].total++
+        if (att.status === 'PRESENT' || att.status === 'LATE') termCounts[att.classId].present++
+      }
+
+      for (const cls of teacherClasses) {
+        const counts = termCounts[cls.id]
+        attendanceRatesByClass[cls.id] = counts && counts.total > 0
+          ? Math.round((counts.present / counts.total) * 100 * 10) / 10
+          : 0
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -187,6 +243,10 @@ export async function GET(request: Request) {
           stream: c.stream,
           capacity: c.capacity,
           studentCount: c._count.students,
+          averageScore: scoresByClass[c.id] && scoresByClass[c.id].count > 0
+            ? Math.round((scoresByClass[c.id].total / scoresByClass[c.id].count) * 10) / 10
+            : undefined,
+          attendanceRate: attendanceRatesByClass[c.id] || 0,
         })),
         totalStudents,
         pendingAttendanceCount: pendingAttendance.length,
@@ -200,6 +260,17 @@ export async function GET(request: Request) {
           className: e.class.name,
         })),
         averagePerformance: avgPerformance,
+        pendingGrades,
+        unreadMessages,
+        recentMessages: recentMessages.map((m) => ({
+          id: m.id,
+          subject: m.subject,
+          content: m.content.substring(0, 120),
+          senderName: m.sender.name,
+          senderRole: m.sender.role,
+          isRead: m.isRead,
+          createdAt: m.createdAt,
+        })),
         attendanceToday: {
           marked: classesWithAttendanceToday,
           pending: pendingAttendance,

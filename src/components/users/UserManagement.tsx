@@ -73,6 +73,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
@@ -316,6 +317,9 @@ export function UserManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-sm">
+            <UserCog className="w-5 h-5 text-white" />
+          </div>
           <div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               User Management
@@ -402,10 +406,10 @@ export function UserManagement() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
-            placeholder="Search by name or email..."
-            className="pl-9 h-10"
+            placeholder="Search by name, email, or role..."
+            className="pl-9 h-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
@@ -439,12 +443,12 @@ export function UserManagement() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="rounded-lg border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden shadow-sm"
+        className="rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden shadow-sm"
       >
         <div className="max-h-[600px] overflow-y-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/80 sticky top-0 z-10">
+              <TableRow className="bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-800/80 sticky top-0 z-10">
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Name</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Email</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Phone</TableHead>
@@ -535,16 +539,14 @@ export function UserManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn('text-[10px] px-2 py-0.5 font-medium gap-1', sCfg.className)}
-                        >
-                          <div className={cn(
-                            'w-1.5 h-1.5 rounded-full',
-                            user.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-400'
-                          )} />
-                          {sCfg.label}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={user.status === 'ACTIVE'}
+                            onCheckedChange={() => setToggleId(user.id)}
+                            disabled={!isAdmin}
+                            className="data-[state=checked]:bg-teal-600"
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>

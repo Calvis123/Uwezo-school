@@ -131,6 +131,9 @@ interface AppState {
   subjects: SubjectItem[]
   terms: TermItem[]
 
+  // Notifications
+  notificationCount: number
+
   // Actions - Navigation
   setCurrentView: (view: string) => void
   setSidebarOpen: (open: boolean) => void
@@ -151,6 +154,9 @@ interface AppState {
   setSubjects: (subjects: SubjectItem[]) => void
   setTerms: (terms: TermItem[]) => void
 
+  // Actions - Notifications
+  setNotificationCount: (count: number) => void
+
   // Navigate helper
   navigateTo: (view: string, options?: { studentId?: string; classId?: string; examId?: string }) => void
 }
@@ -167,6 +173,7 @@ export const useAppStore = create<AppState>((set) => ({
   classes: [],
   subjects: [],
   terms: [],
+  notificationCount: 0,
 
   // Navigation
   setCurrentView: (view) => set({ currentView: view }),
@@ -195,6 +202,9 @@ export const useAppStore = create<AppState>((set) => ({
   setClasses: (classes) => set({ classes }),
   setSubjects: (subjects) => set({ subjects }),
   setTerms: (terms) => set({ terms }),
+
+  // Notifications
+  setNotificationCount: (count) => set({ notificationCount: count }),
 
   // Navigate helper
   navigateTo: (view, options = {}) => set({
