@@ -1,0 +1,451 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==================== USERS & AUTH ====================
+
+model User {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  password        String
+  phone           String?
+  role            String   @default("TEACHER") // SUPER_ADMIN, ADMIN, TEACHER, PARENT
+  status          String   @default("ACTIVE")  // ACTIVE, INACTIVE
+  gender          String?  // MALE, FEMALE, OTHER
+  address         String?
+  avatar          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  students        StudentGuardian[]
+  sentMessages    Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+
+  @@map("users")
+}
+
+// ==================== PROMOTIONS ====================
+
+model PromotionRecord {
+  id            String   @id @default(cuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id])
+  fromClassId   String
+  fromClass     SchoolClass @relation("FromClass", fields: [fromClassId], references: [id])
+  toClassId     String
+  toClass       SchoolClass @relation("ToClass", fields: [toClassId], references: [id])
+  academicYear  String
+  term          String
+  status        String   @default("PENDING")
+  promotedBy    String
+  notes         String   @default("")
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([academicYear])
+  @@index([status])
+  @@map("promotion_records")
+}
+
+// ==================== ACADEMIC STRUCTURE ====================
+
+model SchoolClass {
+  id              String   @id @default(cuid())
+  name            String   // "Grade 1", "Nursery", etc.
+  level           String   // PRE_NURSERY, NURSERY, PRIMARY, JUNIOR_SECONDARY
+  stream          String?  // "A", "B", "C"
+  teacherId       String?
+  capacity        Int      @default(40)
+  status          String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  students        Student[]
+  feeStructures   FeeStructure[]
+  exams           Exam[]
+  attendances     Attendance[]
+  busAssignments  TransportAssignment[]
+  promotionsFrom  PromotionRecord[] @relation("FromClass")
+  promotionsTo    PromotionRecord[] @relation("ToClass")
+
+  @@map("classes")
+}
+
+model Subject {
+  id              String   @id @default(cuid())
+  name            String   // "Mathematics", "English", etc.
+  code            String   @unique // "MATH", "ENG", etc.
+  level           String   @default("PRIMARY") // PRE_PRIMARY, PRIMARY, JUNIOR_SECONDARY
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  examMarks       ExamMark[]
+
+  @@map("subjects")
+}
+
+model Term {
+  id              String   @id @default(cuid())
+  name            String   // "Term 1", "Term 2", "Term 3"
+  year            Int
+  startDate       DateTime
+  endDate         DateTime
+  status          String   @default("ACTIVE") // UPCOMING, ACTIVE, COMPLETED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  feeStructures   FeeStructure[]
+  exams           Exam[]
+  attendances     Attendance[]
+  transportAssignments TransportAssignment[]
+
+  @@map("terms")
+}
+
+// ==================== STUDENTS ====================
+
+model Student {
+  id              String   @id @default(cuid())
+  admissionNumber String   @unique
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime?
+  gender          String   // MALE, FEMALE
+  studentType     String   @default("DAY") // DAY, BOARDING
+  usesTransport   Boolean  @default(false)
+  classId         String
+  stream          String?
+  status          String   @default("ACTIVE") // ACTIVE, GRADUATED, TRANSFERRED, INACTIVE
+  photo           String?
+  resultsPin      String?  @unique
+  address         String?
+  medicalNotes    String?
+  allergies       String?
+  admissionDate   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  class           SchoolClass @relation(fields: [classId], references: [id])
+  guardians       StudentGuardian[]
+  feeTransactions FeeTransaction[]
+  examMarks       ExamMark[]
+  attendances     Attendance[]
+  busAssignments  TransportAssignment[]
+  books           BookIssue[]
+  promotions      PromotionRecord[]
+  healthRecords   HealthRecord[]
+  healthConditions HealthCondition[]
+
+  @@map("students")
+}
+
+model StudentGuardian {
+  id              String   @id @default(cuid())
+  studentId       String
+  guardianId      String   // References User table
+  relationship    String   // FATHER, MOTHER, UNCLE, AUNT, GUARDIAN
+  isPrimary       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  student         Student  @relation(fields: [studentId], references: [id])
+  guardian        User     @relation(fields: [guardianId], references: [id])
+
+  @@map("student_guardians")
+}
+
+// ==================== FEE MANAGEMENT ====================
+
+model FeeStructure {
+  id              String   @id @default(cuid())
+  name            String   // "Term 1 Tuition", "Transport Fee"
+  classId         String
+  termId          String
+  amount          Float
+  category        String   @default("TUITION") // TUITION, TRANSPORT, BOARDING, EXTRACURRICULAR, OTHER
+  description     String?
+  status          String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  class           SchoolClass @relation(fields: [classId], references: [id])
+  term            Term        @relation(fields: [termId], references: [id])
+  transactions    FeeTransaction[]
+
+  @@map("fee_structures")
+}
+
+model FeeTransaction {
+  id              String   @id @default(cuid())
+  studentId       String
+  feeStructureId  String
+  amount          Float
+  paymentMethod   String   @default("CASH") // CASH, BANK, MPESA
+  transactionRef  String?  // M-Pesa reference
+  receiptNumber   String   @unique
+  status          String   @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED
+  term            String   // "2025-1" format
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  student         Student       @relation(fields: [studentId], references: [id])
+  feeStructure    FeeStructure  @relation(fields: [feeStructureId], references: [id])
+
+  @@map("fee_transactions")
+}
+
+// ==================== EXAMS & RESULTS ====================
+
+model Exam {
+  id              String   @id @default(cuid())
+  name            String   // "Mid-Term Exam", "End of Term"
+  termId          String
+  classId         String
+  type            String   @default("END_TERM") // CAT_1, CAT_2, END_TERM
+  startDate       DateTime
+  endDate         DateTime
+  status          String   @default("DRAFT") // DRAFT, ACTIVE, COMPLETED
+  totalMarks      Int      @default(100)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  term            Term        @relation(fields: [termId], references: [id])
+  class           SchoolClass @relation(fields: [classId], references: [id])
+  marks           ExamMark[]
+
+  @@map("exams")
+}
+
+model ExamMark {
+  id              String   @id @default(cuid())
+  examId          String
+  studentId       String
+  subjectId       String
+  marks           Float
+  grade           String?
+  remarks         String?
+  enteredBy       String?  // Teacher who entered marks
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  exam            Exam    @relation(fields: [examId], references: [id])
+  student         Student @relation(fields: [studentId], references: [id])
+  subject         Subject @relation(fields: [subjectId], references: [id])
+
+  @@map("exam_marks")
+}
+
+// ==================== ATTENDANCE ====================
+
+model Attendance {
+  id              String   @id @default(cuid())
+  studentId       String
+  classId         String
+  termId          String
+  date            DateTime
+  status          String   @default("PRESENT") // PRESENT, ABSENT, LATE, EXCUSED
+  reason          String?
+  markedBy        String?  // Teacher who marked
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  student         Student      @relation(fields: [studentId], references: [id])
+  class           SchoolClass  @relation(fields: [classId], references: [id])
+  term            Term         @relation(fields: [termId], references: [id])
+
+  @@map("attendance")
+}
+
+// ==================== SYSTEM CONFIG ====================
+
+model SystemSetting {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  value           String
+  updatedAt       DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model SchoolNotice {
+  id              String   @id @default(cuid())
+  title           String
+  content         String
+  category        String   @default("GENERAL") // GENERAL, ACADEMIC, EVENTS, URGENT
+  targetRoles     String   @default("ALL") // ALL, ADMIN, TEACHER, PARENT
+  isPublished     Boolean  @default(false)
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("school_notices")
+}
+
+// ==================== MESSAGING ====================
+
+model Message {
+  id              String   @id @default(cuid())
+  senderId        String
+  receiverId      String
+  subject         String
+  content         String
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sender          User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver        User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@map("messages")
+}
+
+// ==================== CALENDAR ====================
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  startTime   String?  // e.g., "09:00"
+  endTime     String?  // e.g., "10:30"
+  location    String?
+  eventType   String   @default("EVENT")  // EVENT, HOLIDAY, EXAM, MEETING, SPORTS, CULTURAL
+  targetRoles String   @default("ALL")    // ALL, TEACHERS, PARENTS, STUDENTS, STAFF
+  isAllDay    Boolean  @default(false)
+  color       String   @default("teal")   // teal, amber, red, blue, purple, green
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("calendar_events")
+}
+
+// ==================== LIBRARY ====================
+
+model LibraryBook {
+  id              String   @id @default(cuid())
+  title           String
+  author          String
+  isbn            String?  @unique
+  category        String   @default("FICTION") // FICTION, NON_FICTION, REFERENCE, TEXTBOOK, STORYBOOK
+  publisher       String?
+  year            Int?
+  totalCopies     Int      @default(1)
+  availableCopies Int      @default(1)
+  shelfLocation   String?
+  status          String   @default("AVAILABLE") // AVAILABLE, LOW_STOCK, OUT_OF_STOCK
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  issues          BookIssue[]
+
+  @@map("library_books")
+}
+
+model BookIssue {
+  id          String   @id @default(cuid())
+  bookId      String
+  book        LibraryBook @relation(fields: [bookId], references: [id])
+  studentId   String
+  student     Student     @relation(fields: [studentId], references: [id])
+  issueDate   DateTime @default(now())
+  dueDate     DateTime
+  returnDate  DateTime?
+  status      String   @default("ISSUED") // ISSUED, RETURNED, OVERDUE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("book_issues")
+}
+
+// ==================== TRANSPORT ====================
+
+model SchoolBus {
+  id              String   @id @default(cuid())
+  busNumber       String   @unique  // e.g. "BUS-001"
+  routeName       String   // e.g. "Eldoret Town Route"
+  driverName      String
+  driverPhone     String?
+  capacity        Int      // max students
+  currentStudents Int      @default(0)
+  status          String   @default("ACTIVE")  // ACTIVE, INACTIVE, MAINTENANCE
+  color           String   @default("teal")     // teal, amber, red, blue, green
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  assignments     TransportAssignment[]
+
+  @@map("school_buses")
+}
+
+model TransportAssignment {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId     String
+  class       SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  busId       String
+  bus         SchoolBus @relation(fields: [busId], references: [id], onDelete: Cascade)
+  termId      String
+  term        Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  paidAmount  Float    @default(0)
+  status      String   @default("ACTIVE") // ACTIVE, INACTIVE
+  assignedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, termId])
+  @@index([busId, termId])
+  @@map("transport_assignments")
+}
+
+// ==================== HEALTH RECORDS ====================
+
+model HealthRecord {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  recordType   String   // ALLERGY, ILLNESS, INJURY, CHECKUP, VACCINATION, DENTAL, EYE_EXAM, SPECIAL_NEED
+  title        String
+  description  String   @default("")
+  date         DateTime @default(now())
+  severity     String   @default("MILD") // MILD, MODERATE, SEVERE, CRITICAL
+  status       String   @default("RESOLVED") // ACTIVE, RESOLVED, ONGOING, MONITORING
+  treatedBy    String   @default("")
+  attachments  String   @default("")
+  followUpDate DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([recordType])
+  @@index([date])
+  @@map("health_records")
+}
+
+model HealthCondition {
+  id            String   @id @default(cuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  condition     String   // ASTHMA, DIABETES, EPILEPSY, HEART_CONDITION, ALLERGY, ADHD, VISION, HEARING, OTHER
+  description   String   @default("")
+  severity      String   @default("MILD") // MILD, MODERATE, SEVERE
+  isChronic     Boolean  @default(false)
+  diagnosedDate DateTime?
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([condition])
+  @@map("health_conditions")
+}

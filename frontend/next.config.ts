@@ -1,0 +1,26 @@
+import type { NextConfig } from "next";
+
+const backendBaseUrl = process.env.BACKEND_URL || "http://localhost:4000";
+
+const nextConfig: NextConfig = {
+  output: "standalone",
+  /* config options here */
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  experimental: {
+    cpus: 1,
+    workerThreads: true,
+  },
+  reactStrictMode: false,
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendBaseUrl}/api/:path*`,
+      },
+    ];
+  },
+};
+
+export default nextConfig;
