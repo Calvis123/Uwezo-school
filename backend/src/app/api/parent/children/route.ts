@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth-server';
 import { MARKED_ATTENDANCE_STATUSES } from '@/lib/attendance';
+import { getParentPrimaryStudentId } from '@/lib/parent-access';
+import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
+import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,9 +15,16 @@ export async function GET(request: NextRequest) {
       select: { id: true, name: true, year: true, status: true },
     });
 
-    // Find guardian links
-    const guardianLinks = await db.studentGuardian.findMany({
-      where: { guardianId },
+    const primaryStudentId = await getParentPrimaryStudentId(guardianId);
+    if (!primaryStudentId) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const scopedLinks = await db.studentGuardian.findMany({
+      where: { guardianId, studentId: primaryStudentId },
       orderBy: { createdAt: 'desc' },
       include: {
         student: {
@@ -23,18 +33,8 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      take: 1,
     });
-
-    if (guardianLinks.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: [],
-      });
-    }
-
-    // Parent portal policy: one parent login maps to one primary student profile.
-    // If historical data has multiple links, use the most recently linked student.
-    const scopedLinks = guardianLinks.slice(0, 1);
 
     // For each student, fetch fee balance, attendance rate, and recent exam results
     const children = await Promise.all(
@@ -44,14 +44,14 @@ export async function GET(request: NextRequest) {
         // Fee balance: total fees for student's class minus payments
         const feeStructures = await db.feeStructure.findMany({
           where: {
-            classId: student.classId,
+            OR: [
+              { classId: student.classId },
+              { description: { startsWith: ALL_CLASSES_MARKER } },
+            ],
             ...(activeTerm ? { termId: activeTerm.id } : {}),
           },
           include: { term: true },
         });
-        const applicableFeeStructures = feeStructures.filter(
-          (structure) => structure.category !== 'TRANSPORT' || student.usesTransport
-        );
 
         const payments = await db.feeTransaction.findMany({
           where: {
@@ -66,14 +66,11 @@ export async function GET(request: NextRequest) {
               : {}),
           },
         });
-        const applicableStructureIds = new Set(applicableFeeStructures.map((structure) => structure.id));
-        const applicablePayments = payments.filter((payment) =>
-          applicableStructureIds.has(payment.feeStructureId)
+        const { totalFees, totalPaid, balance: feeBalance } = summarizeStudentFeeBalance(
+          feeStructures,
+          payments,
+          student
         );
-
-        const totalFees = applicableFeeStructures.reduce((sum, fs) => sum + fs.amount, 0);
-        const totalPaid = applicablePayments.reduce((sum, p) => sum + p.amount, 0);
-        const feeBalance = totalFees - totalPaid;
 
         // Attendance rate for current/active term
         let attendanceRate = 0;

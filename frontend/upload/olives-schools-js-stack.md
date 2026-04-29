@@ -1,4 +1,4 @@
-# Olives School Management System — Modern JS Stack Developer Brief
+# Uwezo School Management System — Modern JS Stack Developer Brief
 
 > **Version:** 2.0 | **Stack:** Next.js + tRPC + MongoDB | **Last Updated:** 2026-04-03
 
@@ -8,7 +8,7 @@
 
 **Project:** Build a modern, full-stack School Management System for Olive Schools, Eldoret, Kenya using cutting-edge JavaScript technologies.
 
-**Target:** Replace/Enhance existing Laravel system at `olives.wellwinschemist.co.ke`
+**Target:** Replace/Enhance existing Laravel system at `Uwezo School.wellwinschemist.co.ke`
 
 **Current Scale:** 571 students across Pre-Nursery, Nursery, Primary, and Junior Secondary levels.
 
@@ -57,7 +57,7 @@
 ### 3.1 Directory Structure
 
 ```
-olives-schools/
+Uwezo School-schools/
 ├── src/
 │   ├── app/                          # Next.js App Router
 │   │   ├── (auth)/                   # Auth route group
@@ -832,7 +832,7 @@ describe('CBC Grading', () => {
 // Example E2E test
 test('admin can create student', async ({ page }) => {
   await page.goto('/login');
-  await page.fill('[name="email"]', 'admin@olives.co.ke');
+  await page.fill('[name="email"]', 'admin@uwezoschool.co.ke');
   await page.fill('[name="password"]', 'password');
   await page.click('button[type="submit"]');
   await page.waitForURL('/dashboard');
@@ -869,15 +869,15 @@ test('admin can create student', async ({ page }) => {
 # .env.example
 
 # App
-NEXT_PUBLIC_APP_URL=https://olives.wellwinschemist.co.ke
-NEXT_PUBLIC_APP_NAME="Olives School Management System"
+NEXT_PUBLIC_APP_URL=https://Uwezo School.wellwinschemist.co.ke
+NEXT_PUBLIC_APP_NAME="Uwezo School Management System"
 
 # MongoDB
 MONGODB_URI=mongodb+srv://...
 
 # Auth (NextAuth)
 AUTH_SECRET=your-secret-key
-NEXTAUTH_URL=https://olives.wellwinschemist.co.ke
+NEXTAUTH_URL=https://Uwezo School.wellwinschemist.co.ke
 
 # M-Pesa
 MPESA_CONSUMER_KEY=your-key
@@ -1027,8 +1027,8 @@ Before development begins:
 
 ```bash
 # 1. Create project
-npx create-next-app@latest olives-schools --typescript --tailwind --app
-cd olives-schools
+npx create-next-app@latest Uwezo School-schools --typescript --tailwind --app
+cd Uwezo School-schools
 
 # 2. Install dependencies
 npm install @trpc/server@next @trpc/client@next @trpc/react-query@next @tanstack/react-query
@@ -1069,4 +1069,4 @@ npm run test:e2e
 
 **Document End**
 
-> This brief provides everything needed to build a modern, production-ready School Management System using cutting-edge JavaScript technologies. For questions during development, contact: Allan Kimeli (Super Admin, Olives Schools)
+> This brief provides everything needed to build a modern, production-ready School Management System using cutting-edge JavaScript technologies. For questions during development, contact: Allan Kimeli (Super Admin, Uwezo School)

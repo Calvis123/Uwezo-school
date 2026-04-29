@@ -88,6 +88,20 @@ const STATUS_ICONS: Record<string, typeof Clock> = {
   COMPLETED: CheckCircle2,
 }
 
+const CLASS_LEVEL_ORDER: Record<string, number> = {
+  PP1: 0,
+  PP2: 1,
+  GRADE_1: 2,
+  GRADE_2: 3,
+  GRADE_3: 4,
+  GRADE_4: 5,
+  GRADE_5: 6,
+  GRADE_6: 7,
+  GRADE_7: 8,
+  GRADE_8: 9,
+  GRADE_9: 10,
+}
+
 export function StudentPromotion() {
   const { user } = useAppStore()
   const canManagePromotions = ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER'].includes(user?.role || '')
@@ -615,8 +629,7 @@ export function StudentPromotion() {
                   <SelectContent>
                     {classes
                       .sort((a, b) => {
-                        const order: Record<string, number> = { PRE_NURSERY: 0, NURSERY: 1, PP1: 2, PP2: 3, GRADE_1: 4, GRADE_2: 5, GRADE_3: 6, GRADE_4: 7, GRADE_5: 8, GRADE_6: 9 }
-                        return (order[a.level] ?? 99) - (order[b.level] ?? 99)
+                        return (CLASS_LEVEL_ORDER[a.level] ?? 99) - (CLASS_LEVEL_ORDER[b.level] ?? 99)
                       })
                       .map(c => (
                         <SelectItem key={c.id} value={c.id}>
@@ -653,8 +666,7 @@ export function StudentPromotion() {
                     {classes
                       .filter(c => c.id !== fromClassId)
                       .sort((a, b) => {
-                        const order: Record<string, number> = { PRE_NURSERY: 0, NURSERY: 1, PP1: 2, PP2: 3, GRADE_1: 4, GRADE_2: 5, GRADE_3: 6, GRADE_4: 7, GRADE_5: 8, GRADE_6: 9 }
-                        return (order[a.level] ?? 99) - (order[b.level] ?? 99)
+                        return (CLASS_LEVEL_ORDER[a.level] ?? 99) - (CLASS_LEVEL_ORDER[b.level] ?? 99)
                       })
                       .map(c => (
                         <SelectItem key={c.id} value={c.id}>

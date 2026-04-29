@@ -6,7 +6,7 @@ import { Save, Loader2, UserCheck, AlertCircle, CheckCircle2, XCircle, Clock, Sh
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { studentsApi, attendanceApi, refApi } from '@/lib/api'
+import { studentsApi, attendanceApi, refApi, teacherApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -119,7 +119,15 @@ export function AttendanceMarking() {
   const [studentSearch, setStudentSearch] = useState('')
 
   useEffect(() => {
-    if (classes.length === 0) {
+    if (canMarkAttendance) {
+      teacherApi.classes().then((res) => {
+        if (res.success && res.data) {
+          setLocalClasses(Array.isArray(res.data) ? res.data : [])
+        } else {
+          setLocalClasses([])
+        }
+      })
+    } else if (classes.length === 0) {
       refApi.classes().then((res) => {
         if (res.success && res.data) {
           setClasses(res.data)
@@ -129,7 +137,7 @@ export function AttendanceMarking() {
     } else {
       setLocalClasses(classes)
     }
-  }, [classes, setClasses])
+  }, [classes, setClasses, canMarkAttendance])
 
   useEffect(() => {
     if (!canMarkAttendance) return
@@ -675,7 +683,7 @@ export function AttendanceMarking() {
 }
 
 function SchoolAttendanceReports() {
-  const { classes, setClasses } = useAppStore()
+  const { classes, setClasses, selectedClassId } = useAppStore()
   const [localClasses, setLocalClasses] = useState(classes)
   const [classId, setClassId] = useState('ALL_CLASSES')
   const [period, setPeriod] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY')
@@ -683,7 +691,15 @@ function SchoolAttendanceReports() {
   const [report, setReport] = useState<any | null>(null)
 
   useEffect(() => {
-    if (classes.length === 0) {
+    if (isTeacherView) {
+      teacherApi.classes().then((res) => {
+        if (res.success && res.data) {
+          setLocalClasses(Array.isArray(res.data) ? res.data : [])
+        } else {
+          setLocalClasses([])
+        }
+      })
+    } else if (classes.length === 0) {
       refApi.classes().then((res) => {
         if (res.success && res.data) {
           setClasses(res.data)
@@ -693,7 +709,13 @@ function SchoolAttendanceReports() {
     } else {
       setLocalClasses(classes)
     }
-  }, [classes, setClasses])
+  }, [classes, setClasses, isTeacherView])
+
+  useEffect(() => {
+    if (selectedClassId && localClasses.some((c) => c.id === selectedClassId) && classId !== selectedClassId) {
+      setClassId(selectedClassId)
+    }
+  }, [classId, localClasses, selectedClassId])
 
   useEffect(() => {
     const loadReport = async () => {
@@ -751,7 +773,7 @@ function SchoolAttendanceReports() {
             <SelectItem value="ALL_CLASSES">All Classes</SelectItem>
             {localClasses.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {c.name}
+                {c.name}{c.stream ? ` ${c.stream}` : ''}
               </SelectItem>
             ))}
           </SelectContent>
@@ -825,7 +847,15 @@ function AttendanceSummary() {
   const [localClasses, setLocalClasses] = useState(classes)
 
   useEffect(() => {
-    if (classes.length === 0) {
+    if (isTeacherView) {
+      teacherApi.classes().then((res) => {
+        if (res.success && res.data) {
+          setLocalClasses(Array.isArray(res.data) ? res.data : [])
+        } else {
+          setLocalClasses([])
+        }
+      })
+    } else if (classes.length === 0) {
       refApi.classes().then((res) => {
         if (res.success && res.data) {
           setClasses(res.data)
@@ -835,7 +865,7 @@ function AttendanceSummary() {
     } else {
       setLocalClasses(classes)
     }
-  }, [classes, setClasses])
+  }, [classes, setClasses, isTeacherView])
 
   useEffect(() => {
     if (!isTeacherView) return

@@ -5,6 +5,8 @@ import { STAFF_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
 import { canTeacherAccessClass } from '@/lib/teacher-access';
 import { hashSync } from 'bcryptjs';
+import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
+import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
 
 function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, '');
@@ -81,26 +83,21 @@ export async function GET(
         select: { id: true, name: true, year: true },
       }),
       db.feeStructure.findMany({
-        where: { classId: student.classId },
+        where: {
+          OR: [
+            { classId: student.classId },
+            { description: { startsWith: ALL_CLASSES_MARKER } },
+          ],
+        },
       }),
     ]);
 
-    const applicableFeeStructures = feeStructures.filter(
-      (fs) =>
-        (!activeTerm || fs.termId === activeTerm.id) &&
-        (fs.category !== 'TRANSPORT' || student.usesTransport)
+    const termFeeStructures = feeStructures.filter((fs) => !activeTerm || fs.termId === activeTerm.id);
+    const { totalFees, totalPaid, balance: outstanding } = summarizeStudentFeeBalance(
+      termFeeStructures,
+      student.feeTransactions,
+      student
     );
-    const applicableStructureIds = new Set(applicableFeeStructures.map((fs) => fs.id));
-
-    const totalFees = applicableFeeStructures.reduce((sum, fs) => sum + fs.amount, 0);
-    const totalPaid = student.feeTransactions
-      .filter(
-        (t) =>
-          t.status === 'COMPLETED' &&
-          applicableStructureIds.has(t.feeStructureId)
-      )
-      .reduce((sum, t) => sum + t.amount, 0);
-    const outstanding = totalFees - totalPaid;
 
     let transportInfo: {
       status: 'BOARDING' | 'UNPAID' | 'PAID_UNASSIGNED' | 'ASSIGNED';
@@ -282,7 +279,7 @@ export async function PUT(
 
       if (!guardianUser) {
         const baseName = String(guardianName).trim();
-        const baseEmail = `${toEmailSlug(baseName)}.${cleanPhone.replace(/\D/g, '').slice(-9)}@parent.olives.local`;
+        const baseEmail = `${toEmailSlug(baseName)}.${cleanPhone.replace(/\D/g, '').slice(-9)}@parent.uwezoschool.local`;
         let uniqueEmail = baseEmail;
         let emailSuffix = 1;
         while (await db.user.findUnique({ where: { email: uniqueEmail }, select: { id: true } })) {

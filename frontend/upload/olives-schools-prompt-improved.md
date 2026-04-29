@@ -1,4 +1,4 @@
-# Olives School Management System — Developer Brief (Next.js Edition)
+# Uwezo School Management System — Developer Brief (Next.js Edition)
 
 > **Version:** 2.0 | **Last Updated:** 2026-04-07 | **Status:** Active Development
 > **Tech Stack:** Next.js 15 (App Router) + React + TypeScript + shadcn/ui
@@ -10,7 +10,7 @@
 
 **Project:** Enhance and extend an existing Next.js-based School Management System for Olive Schools, Eldoret, Kenya.
 
-**Live Environment:** `https://m1vy02g3srx0-d.space.z.ai/` (Staging) | `olives.wellwinschemist.co.ke` (Production)
+**Live Environment:** `https://m1vy02g3srx0-d.space.z.ai/` (Staging) | `Uwezo School.wellwinschemist.co.ke` (Production)
 
 **Current Scale:** 571 students across Pre-Nursery, Nursery, Primary, and Junior Secondary levels.
 
@@ -611,11 +611,11 @@ npm start
 
 | Role | Email | Password | Access |
 |------|-------|----------|--------|
-| Super Admin | admin@olives.co.ke | admin123 | Full system |
-| Admin | admin2@olives.co.ke | admin123 | Admin functions |
-| Teacher | teacher@olives.co.ke | teacher123 | Class functions |
-| Teacher 2 | teacher2@olives.co.ke | teacher123 | Class functions |
-| Parent | parent@olives.co.ke | parent123 | Child data only |
+| Super Admin | admin@uwezoschool.co.ke | admin123 | Full system |
+| Admin | admin2@uwezoschool.co.ke | admin123 | Admin functions |
+| Teacher | teacher@uwezoschool.co.ke | teacher123 | Class functions |
+| Teacher 2 | teacher2@uwezoschool.co.ke | teacher123 | Class functions |
+| Parent | parent@uwezoschool.co.ke | parent123 | Child data only |
 
 ---
 
@@ -635,7 +635,7 @@ npm start
 
 Before starting, confirm:
 1. **API Base URL** - Is `https://m1vy02g3srx0-d.space.z.ai/` the correct API origin?
-2. **Production URL** - Is `olives.wellwinschemist.co.ke` the final destination?
+2. **Production URL** - Is `Uwezo School.wellwinschemist.co.ke` the final destination?
 3. **M-Pesa Credentials** - Are sandbox credentials available for testing?
 4. **SMS Provider** - Which provider (Africas Talking, Twilio)?
 5. **PDF Library Preference** - @react-pdf/renderer or jsPDF?
@@ -645,6 +645,6 @@ Before starting, confirm:
 
 **Document End**
 
-> **Contact:** Allan Kimeli (Super Admin, Olives Schools)
+> **Contact:** Allan Kimeli (Super Admin, Uwezo School)
 > **Last Updated:** 2026-04-07
 > **Version:** 2.0 (Next.js Edition)

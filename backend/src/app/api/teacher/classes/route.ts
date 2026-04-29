@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
           select: { students: { where: { status: 'ACTIVE' } } },
         },
       },
-      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+      orderBy: [{ level: 'asc' }, { name: 'asc' }, { stream: 'asc' }],
     })
 
     // Get active term for attendance rate

@@ -71,10 +71,31 @@ interface ChildSummary {
 }
 
 interface FeeLedgerData {
-  student: { id: string; firstName: string; lastName: string; admissionNumber: string; class: { id: string; name: string } | null }
+  student: {
+    id: string
+    firstName: string
+    lastName: string
+    admissionNumber: string
+    studentType?: 'DAY' | 'BOARDING'
+    usesTransport?: boolean
+    class: { id: string; name: string } | null
+  }
   totalFees: number
   totalPaid: number
   balance: number
+  categorySummary: {
+    tuition: {
+      totalFees: number
+      totalPaid: number
+      balance: number
+    }
+    transport: {
+      applicable: boolean
+      totalFees: number
+      totalPaid: number
+      balance: number
+    }
+  }
   termBreakdown: {
     termId: string
     termName: string
@@ -83,10 +104,21 @@ interface FeeLedgerData {
     totalFees: number
     totalPaid: number
     balance: number
+    categorySummary: {
+      tuition: {
+        totalFees: number
+        totalPaid: number
+      }
+      transport: {
+        applicable: boolean
+        totalFees: number
+        totalPaid: number
+      }
+    }
     structures: { id: string; name: string; category: string; amount: number }[]
-    payments: { id: string; amount: number; paymentMethod: string; receiptNumber: string; status: string; date: string; feeName: string }[]
+    payments: { id: string; feeStructureId: string; amount: number; paymentMethod: string; receiptNumber: string; status: string; date: string; feeName: string }[]
   }[]
-  recentPayments: { id: string; amount: number; paymentMethod: string; receiptNumber: string; status: string; date: string; feeName: string }[]
+  recentPayments: { id: string; feeStructureId: string; amount: number; paymentMethod: string; receiptNumber: string; status: string; date: string; feeName: string }[]
 }
 
 interface DashboardData {
@@ -161,6 +193,18 @@ const paymentMethodColors: Record<string, string> = {
   BANK: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
 }
 
+function getBalanceTone(balance: number) {
+  return balance > 0
+    ? 'text-red-600 dark:text-red-400'
+    : 'text-emerald-600 dark:text-emerald-400'
+}
+
+function getBalanceBadgeStyle(balance: number) {
+  return balance > 0
+    ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+}
+
 const gradeColorMap: Record<string, string> = {
   'A': 'text-emerald-600 dark:text-emerald-400',
   'B': 'text-blue-600 dark:text-blue-400',
@@ -179,7 +223,9 @@ const gradeColorMap: Record<string, string> = {
 
 // ---- Component ----
 
-export function ParentDashboard() {
+type ParentDashboardTab = 'overview' | 'fees' | 'attendance' | 'results' | 'notices'
+
+export function ParentDashboard({ forcedTab }: { forcedTab?: ParentDashboardTab } = {}) {
   const { user, navigateTo } = useAppStore()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [children, setChildren] = useState<ChildSummary[]>([])
@@ -190,7 +236,12 @@ export function ParentDashboard() {
   const [loading, setLoading] = useState(true)
   const [feeLoading, setFeeLoading] = useState(false)
   const [error, setError] = useState(false)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState<ParentDashboardTab>(forcedTab || 'overview')
+
+  useEffect(() => {
+    if (!forcedTab) return
+    setActiveTab(forcedTab)
+  }, [forcedTab])
 
   useEffect(() => {
     if (user?.id) {
@@ -220,21 +271,23 @@ export function ParentDashboard() {
         parentApi.children(),
       ])
 
-      if (dashRes.success && dashRes.data) {
-        setDashboardData(dashRes.data)
-        const childrenData = dashRes.data.childrenSummary || []
-        setChildren(childrenData)
-        if (childrenData.length > 0 && !selectedChildId) {
-          setSelectedChildId(childrenData[0].id)
-        }
+      if (!dashRes.success || !dashRes.data) {
+        setError(true)
+        return
       }
 
-      if (childrenRes.success && childrenRes.data && childrenRes.data.length > 0) {
-        setChildren(childrenRes.data)
-        if (!selectedChildId) {
-          setSelectedChildId(childrenRes.data[0].id)
-        }
-      }
+      setDashboardData(dashRes.data)
+      const dashboardChildren = Array.isArray(dashRes.data.childrenSummary) ? dashRes.data.childrenSummary : []
+      const scopedChildren = childrenRes.success && Array.isArray(childrenRes.data)
+        ? childrenRes.data
+        : dashboardChildren
+
+      setChildren(scopedChildren)
+      setSelectedChildId((prev) => {
+        if (scopedChildren.length === 0) return null
+        if (prev && scopedChildren.some((child) => child.id === prev)) return prev
+        return scopedChildren[0].id
+      })
     } catch {
       setError(true)
     } finally {
@@ -244,10 +297,13 @@ export function ParentDashboard() {
 
   const loadFeeLedger = async (studentId: string) => {
     setFeeLoading(true)
+    setFeeLedger(null)
     try {
       const res = await parentApi.feeLedger(studentId)
       if (res.success && res.data) {
         setFeeLedger(res.data)
+      } else {
+        setFeeLedger(null)
       }
     } catch {
       setFeeLedger(null)
@@ -256,9 +312,9 @@ export function ParentDashboard() {
     }
   }
 
-  const loadResults = async (studentId: string) => {
+  const loadResults = async (studentId: string, force = false) => {
     const hasCached = Object.prototype.hasOwnProperty.call(resultsByChild, studentId)
-    if (hasCached) return
+    if (hasCached && !force) return
     setResultsLoading(true)
     try {
       const res = await parentApi.results(studentId)
@@ -275,12 +331,7 @@ export function ParentDashboard() {
   }
 
   const refreshResults = async (studentId: string) => {
-    setResultsByChild((prev) => {
-      const next = { ...prev }
-      delete next[studentId]
-      return next
-    })
-    await loadResults(studentId)
+    await loadResults(studentId, true)
   }
 
   const selectedChild = children.find((c) => c.id === selectedChildId)
@@ -376,13 +427,14 @@ export function ParentDashboard() {
       </motion.div>
 
       {/* ---- Children Selector ---- */}
+      {children.length > 1 && (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
         <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
-          {children.map((child, idx) => (
+          {children.map((child) => (
             <button
               key={child.id}
               onClick={() => setSelectedChildId(child.id)}
@@ -426,6 +478,7 @@ export function ParentDashboard() {
           ))}
         </div>
       </motion.div>
+      )}
 
       {/* ---- Per-Child Summary Cards ---- */}
       {selectedChild && (
@@ -944,9 +997,99 @@ export function ParentDashboard() {
                     <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 shadow-sm">
                       <CardContent className="pt-4 pb-4 px-4">
                         <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Outstanding Balance</p>
-                        <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-1">
+                        <p className={cn(
+                          'text-xl font-bold mt-1',
+                          feeLedger.balance > 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-emerald-600 dark:text-emerald-400'
+                        )}>
                           KES {feeLedger.balance.toLocaleString()}
                         </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Tuition Fee
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Expected</p>
+                            <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                              KES {feeLedger.categorySummary.tuition.totalFees.toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Paid</p>
+                            <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                              KES {feeLedger.categorySummary.tuition.totalPaid.toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Balance</p>
+                            <p className={cn('text-base font-bold', getBalanceTone(feeLedger.categorySummary.tuition.balance))}>
+                              KES {feeLedger.categorySummary.tuition.balance.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-700/30 px-3 py-2.5">
+                          <span className="text-sm text-slate-600 dark:text-slate-300">Status</span>
+                          <Badge variant="secondary" className={cn('text-[10px]', getBalanceBadgeStyle(feeLedger.categorySummary.tuition.balance))}>
+                            {feeLedger.categorySummary.tuition.balance > 0 ? 'BALANCE DUE' : 'CLEARED'}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          Transport Fee
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {feeLedger.categorySummary.transport.applicable ? (
+                          <>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Expected</p>
+                                <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                  KES {feeLedger.categorySummary.transport.totalFees.toLocaleString()}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Paid</p>
+                                <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                                  KES {feeLedger.categorySummary.transport.totalPaid.toLocaleString()}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Balance</p>
+                                <p className={cn('text-base font-bold', getBalanceTone(feeLedger.categorySummary.transport.balance))}>
+                                  KES {feeLedger.categorySummary.transport.balance.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg bg-slate-50 dark:bg-slate-700/30 px-3 py-2.5">
+                              <span className="text-sm text-slate-600 dark:text-slate-300">Status</span>
+                              <Badge variant="secondary" className={cn('text-[10px]', getBalanceBadgeStyle(feeLedger.categorySummary.transport.balance))}>
+                                {feeLedger.categorySummary.transport.balance > 0 ? 'BALANCE DUE' : 'CLEARED'}
+                              </Badge>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-4 py-5 text-center">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Transport not applicable</p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              This student is not using the school bus for the active term.
+                            </p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -987,6 +1130,79 @@ export function ParentDashboard() {
                                   {term.balance <= 0 ? 'CLEARED' : `DUE: KES ${term.balance.toLocaleString()}`}
                                 </Badge>
                               </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3">
+                                <div className="rounded-lg bg-slate-50 dark:bg-slate-700/20 px-3 py-2.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                      Tuition
+                                    </span>
+                                    <Badge variant="secondary" className={cn('text-[9px]', getBalanceBadgeStyle(Math.max(0, term.categorySummary.tuition.totalFees - term.categorySummary.tuition.totalPaid)))}>
+                                      {Math.max(0, term.categorySummary.tuition.totalFees - term.categorySummary.tuition.totalPaid) > 0 ? 'DUE' : 'CLEARED'}
+                                    </Badge>
+                                  </div>
+                                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                    <div>
+                                      <p className="text-slate-400 dark:text-slate-500">Expected</p>
+                                      <p className="font-semibold text-slate-900 dark:text-slate-100">KES {term.categorySummary.tuition.totalFees.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-slate-400 dark:text-slate-500">Paid</p>
+                                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">KES {term.categorySummary.tuition.totalPaid.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-slate-400 dark:text-slate-500">Balance</p>
+                                      <p className={cn('font-semibold', getBalanceTone(Math.max(0, term.categorySummary.tuition.totalFees - term.categorySummary.tuition.totalPaid)))}>
+                                        KES {Math.max(0, term.categorySummary.tuition.totalFees - term.categorySummary.tuition.totalPaid).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="rounded-lg bg-slate-50 dark:bg-slate-700/20 px-3 py-2.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                      Transport
+                                    </span>
+                                    <Badge
+                                      variant="secondary"
+                                      className={cn(
+                                        'text-[9px]',
+                                        !term.categorySummary.transport.applicable
+                                          ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                                          : getBalanceBadgeStyle(Math.max(0, term.categorySummary.transport.totalFees - term.categorySummary.transport.totalPaid))
+                                      )}
+                                    >
+                                      {!term.categorySummary.transport.applicable
+                                        ? 'N/A'
+                                        : Math.max(0, term.categorySummary.transport.totalFees - term.categorySummary.transport.totalPaid) > 0
+                                          ? 'DUE'
+                                          : 'CLEARED'}
+                                    </Badge>
+                                  </div>
+                                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                    <div>
+                                      <p className="text-slate-400 dark:text-slate-500">Expected</p>
+                                      <p className="font-semibold text-slate-900 dark:text-slate-100">KES {term.categorySummary.transport.totalFees.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-slate-400 dark:text-slate-500">Paid</p>
+                                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">KES {term.categorySummary.transport.totalPaid.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-slate-400 dark:text-slate-500">Balance</p>
+                                      <p className={cn(
+                                        'font-semibold',
+                                        !term.categorySummary.transport.applicable
+                                          ? 'text-slate-500 dark:text-slate-400'
+                                          : getBalanceTone(Math.max(0, term.categorySummary.transport.totalFees - term.categorySummary.transport.totalPaid))
+                                      )}>
+                                        {!term.categorySummary.transport.applicable
+                                          ? 'N/A'
+                                          : `KES ${Math.max(0, term.categorySummary.transport.totalFees - term.categorySummary.transport.totalPaid).toLocaleString()}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                               <Table>
                                 <TableHeader>
                                   <TableRow>
@@ -999,7 +1215,7 @@ export function ParentDashboard() {
                                 <TableBody>
                                   {term.structures.map((fs) => {
                                     const paidForThis = term.payments
-                                      .filter((p) => p.feeName === fs.name)
+                                      .filter((p) => p.feeStructureId === fs.id)
                                       .reduce((s, p) => s + p.amount, 0)
                                     return (
                                       <TableRow key={fs.id}>

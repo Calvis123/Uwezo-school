@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth-server';
 import { FINANCE_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
 import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
+import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
 
 const FEE_READ_ROLES = [...FINANCE_ROLES, 'SECRETARY'] as const;
 
@@ -44,9 +45,6 @@ export async function GET(
       },
       include: { term: true },
     });
-    const applicableFeeStructures = feeStructures.filter(
-      (structure) => structure.category !== 'TRANSPORT' || student.usesTransport
-    );
 
     // Get payments for this student (filtered to current-term structures below)
     const payments = await db.feeTransaction.findMany({
@@ -54,15 +52,15 @@ export async function GET(
       include: { feeStructure: true },
       orderBy: { createdAt: 'asc' },
     });
-    const applicableStructureIds = new Set(applicableFeeStructures.map((structure) => structure.id));
-    const applicablePayments = payments.filter((payment) => applicableStructureIds.has(payment.feeStructureId));
+    const {
+      applicableFeeStructures,
+      applicablePayments,
+      totalFees,
+      totalPaid,
+      balance,
+    } = summarizeStudentFeeBalance(feeStructures, payments, student);
 
     // Calculate totals
-    const totalFees = applicableFeeStructures.reduce((sum, fs) => sum + fs.amount, 0);
-    const totalPaid = applicablePayments
-      .filter((p) => p.status === 'COMPLETED')
-      .reduce((sum, p) => sum + p.amount, 0);
-    const balance = totalFees - totalPaid;
 
     // Group payments by term
     const paymentsByTerm: Record<string, typeof payments> = {};

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Plus,
   Search,
@@ -99,12 +99,18 @@ interface StudentRow {
   status: string
 }
 
+interface ClassGroup {
+  key: string
+  name: string
+  level: string
+  classes: ClassItem[]
+}
+
 // ==================== Constants ====================
 
 const LEVEL_OPTIONS = [
   { value: 'PP1', label: 'PP1' },
   { value: 'PP2', label: 'PP2' },
-  { value: 'NURSERY', label: 'Nursery' },
   { value: 'GRADE_1', label: 'Grade 1' },
   { value: 'GRADE_2', label: 'Grade 2' },
   { value: 'GRADE_3', label: 'Grade 3' },
@@ -114,9 +120,6 @@ const LEVEL_OPTIONS = [
   { value: 'GRADE_7', label: 'Grade 7' },
   { value: 'GRADE_8', label: 'Grade 8' },
   { value: 'GRADE_9', label: 'Grade 9' },
-  { value: 'JSS_1', label: 'JSS 1' },
-  { value: 'JSS_2', label: 'JSS 2' },
-  { value: 'JSS_3', label: 'JSS 3' },
 ]
 
 const STREAM_OPTIONS = ['A', 'B', 'C']
@@ -124,7 +127,6 @@ const STREAM_OPTIONS = ['A', 'B', 'C']
 const levelBadgeColors: Record<string, string> = {
   PP1: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
   PP2: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
-  NURSERY: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
   GRADE_1: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800',
   GRADE_2: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800',
   GRADE_3: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800',
@@ -134,15 +136,11 @@ const levelBadgeColors: Record<string, string> = {
   GRADE_7: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
   GRADE_8: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
   GRADE_9: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-  JSS_1: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800',
-  JSS_2: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800',
-  JSS_3: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800',
 }
 
 const levelCardAccent: Record<string, string> = {
   PP1: 'from-pink-500',
   PP2: 'from-pink-500',
-  NURSERY: 'from-purple-500',
   GRADE_1: 'from-teal-500',
   GRADE_2: 'from-teal-500',
   GRADE_3: 'from-teal-500',
@@ -152,9 +150,6 @@ const levelCardAccent: Record<string, string> = {
   GRADE_7: 'from-amber-500',
   GRADE_8: 'from-amber-500',
   GRADE_9: 'from-amber-500',
-  JSS_1: 'from-sky-500',
-  JSS_2: 'from-sky-500',
-  JSS_3: 'from-sky-500',
 }
 
 const statusConfig: Record<string, { className: string; label: string }> = {
@@ -168,6 +163,33 @@ const statusConfig: Record<string, { className: string; label: string }> = {
   },
 }
 
+const getClassGroupName = (cls: ClassItem) => {
+  const stream = cls.stream?.trim()
+  if (!stream) return cls.name
+
+  return cls.name.replace(new RegExp(`\\s+${stream}$`, 'i'), '')
+}
+
+const getStreamLabel = (cls: ClassItem) => {
+  return cls.stream ? `Stream ${cls.stream}` : 'Default'
+}
+
+const getClassLevelValue = (cls: ClassItem) => {
+  const baseName = getClassGroupName(cls).toLowerCase()
+  if (baseName.includes('pp1') || baseName.includes('pre-primary 1')) return 'PP1'
+  if (baseName.includes('pp2') || baseName.includes('pre-primary 2')) return 'PP2'
+
+  const gradeMatch = baseName.match(/grade\s*([1-9])/)
+  if (gradeMatch) return `GRADE_${gradeMatch[1]}`
+
+  return cls.level
+}
+
+const getClassLevelLabel = (cls: ClassItem) => {
+  const levelValue = getClassLevelValue(cls)
+  return LEVEL_OPTIONS.find(l => l.value === levelValue)?.label || levelValue
+}
+
 // ==================== Main Component ====================
 
 export function ClassManagement() {
@@ -177,6 +199,7 @@ export function ClassManagement() {
   const [search, setSearch] = useState('')
   const [filterLevel, setFilterLevel] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [selectedClassByGroup, setSelectedClassByGroup] = useState<Record<string, string>>({})
 
   // Form state
   const [formOpen, setFormOpen] = useState(false)
@@ -256,10 +279,41 @@ export function ClassManagement() {
   }, [formOpen, loadTeachers])
 
   // ==================== Computed Stats ====================
-  const totalClasses = classes.length
-  const activeClasses = classes.filter(c => c.status === 'ACTIVE').length
+  const classGroups = useMemo<ClassGroup[]>(() => {
+    const grouped = new Map<string, ClassGroup>()
+
+    classes.forEach((cls) => {
+      const groupName = getClassGroupName(cls)
+      const levelValue = getClassLevelValue(cls)
+      const key = `${levelValue}::${groupName.toLowerCase()}`
+      const group = grouped.get(key)
+
+      if (group) {
+        group.classes.push(cls)
+      } else {
+        grouped.set(key, {
+          key,
+          name: groupName,
+          level: levelValue,
+          classes: [cls],
+        })
+      }
+    })
+
+    return Array.from(grouped.values()).map((group) => ({
+      ...group,
+      classes: [...group.classes].sort((a, b) => {
+        const aStream = a.stream || ''
+        const bStream = b.stream || ''
+        return aStream.localeCompare(bStream, undefined, { numeric: true, sensitivity: 'base' })
+      }),
+    }))
+  }, [classes])
+
+  const totalClasses = classGroups.length
+  const activeClasses = classGroups.filter(group => group.classes.some(c => c.status === 'ACTIVE')).length
   const totalStudents = classes.reduce((sum, c) => sum + c.studentCount, 0)
-  const avgClassSize = totalClasses > 0 ? Math.round(totalStudents / activeClasses) : 0
+  const avgClassSize = activeClasses > 0 ? Math.round(totalStudents / activeClasses) : 0
 
   // ==================== Form Handlers ====================
   const openCreateForm = () => {
@@ -272,7 +326,7 @@ export function ClassManagement() {
     setEditClass(cls)
     setFormData({
       name: cls.name,
-      level: cls.level,
+      level: getClassLevelValue(cls),
       stream: cls.stream || 'A',
       capacity: cls.capacity || 40,
       teacherId: cls.teacherId || '',
@@ -557,7 +611,7 @@ export function ClassManagement() {
             </Card>
           ))}
         </div>
-      ) : classes.length === 0 ? (
+      ) : classGroups.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -582,16 +636,20 @@ export function ClassManagement() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <AnimatePresence mode="popLayout">
-            {classes.map((cls, index) => {
-              const levelLabel = LEVEL_OPTIONS.find(l => l.value === cls.level)?.label || cls.level
-              const capacityPct = cls.capacity > 0 ? Math.round((cls.studentCount / cls.capacity) * 100) : 0
-              const levelBadge = levelBadgeColors[cls.level] || levelBadgeColors.GRADE_1
-              const accent = levelCardAccent[cls.level] || 'from-teal-500'
+            {classGroups.map((group, index) => {
+              const selectedId = selectedClassByGroup[group.key]
+              const cls = group.classes.find(c => c.id === selectedId) || group.classes[0]
+              const levelValue = getClassLevelValue(cls)
+              const levelLabel = getClassLevelLabel(cls)
+              const capacity = cls.capacity || 40
+              const capacityPct = capacity > 0 ? Math.round((cls.studentCount / capacity) * 100) : 0
+              const levelBadge = levelBadgeColors[levelValue] || levelBadgeColors.GRADE_1
+              const accent = levelCardAccent[levelValue] || 'from-teal-500'
               const sConfig = statusConfig[cls.status] || statusConfig.ACTIVE
 
               return (
                 <motion.div
-                  key={cls.id}
+                  key={group.key}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -12 }}
@@ -611,7 +669,7 @@ export function ClassManagement() {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="min-w-0">
                           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                            {cls.name}
+                            {group.name}
                           </h3>
                         </div>
                         <DropdownMenu>
@@ -646,21 +704,44 @@ export function ClassManagement() {
                       </div>
 
                       {/* Level badge */}
-                      <Badge variant="outline" className={cn('text-[10px] px-2 py-0 font-medium mb-3', levelBadge)}>
-                        {levelLabel}
-                      </Badge>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <Badge variant="outline" className={cn('text-[10px] px-2 py-0 font-medium', levelBadge)}>
+                          {levelLabel}
+                        </Badge>
+                        {group.classes.length > 1 ? (
+                          <Select
+                            value={cls.id}
+                            onValueChange={(value) => setSelectedClassByGroup(current => ({ ...current, [group.key]: value }))}
+                          >
+                            <SelectTrigger className="h-7 w-28 text-xs bg-white dark:bg-slate-900">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {group.classes.map(streamClass => (
+                                <SelectItem key={streamClass.id} value={streamClass.id}>
+                                  {getStreamLabel(streamClass)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] px-2 py-0 font-medium">
+                            {getStreamLabel(cls)}
+                          </Badge>
+                        )}
+                      </div>
 
                       {/* Capacity bar */}
                       <div className="space-y-1.5 mb-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-slate-500 dark:text-slate-400">Students</span>
-                          <span className={cn('text-xs font-semibold tabular-nums', getCapacityColor(cls.studentCount, cls.capacity || 40))}>
-                            {cls.studentCount}/{cls.capacity || 40}
+                          <span className={cn('text-xs font-semibold tabular-nums', getCapacityColor(cls.studentCount, capacity))}>
+                            {cls.studentCount}/{capacity}
                           </span>
                         </div>
                         <Progress
                           value={Math.min(capacityPct, 100)}
-                          className={cn('h-1.5', getProgressColor(cls.studentCount, cls.capacity || 40))}
+                          className={cn('h-1.5', getProgressColor(cls.studentCount, capacity))}
                         />
                       </div>
 

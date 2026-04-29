@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import {
@@ -136,8 +136,8 @@ export function LoginPage() {
             <div className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-black/10" />
 
             <div className="relative z-10 text-center">
-              <img src="/logo.png" alt="Olives Schools" className="w-24 h-24 rounded-2xl bg-white/90 p-2.5 object-contain shadow-2xl mx-auto" />
-              <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight">Olives Schools</h1>
+              <img src="/logo.png" alt="Uwezo School" className="w-24 h-24 rounded-2xl bg-white/90 p-2.5 object-contain shadow-2xl mx-auto" />
+              <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight">Uwezo School</h1>
               <p className="mt-2 text-white/80 text-base">Nurturing Excellence, Building Futures</p>
 
               <div className="mt-8 space-y-3 text-sm flex flex-col items-center">
@@ -175,8 +175,8 @@ export function LoginPage() {
 
           <section className="p-5 sm:p-8 lg:p-10 xl:p-12">
             <div className="lg:hidden mb-6 text-center">
-              <img src="/logo.png" alt="Olives Schools" className="w-16 h-16 rounded-xl bg-white p-1.5 object-contain shadow-md mx-auto" />
-              <h1 className="mt-3 text-2xl font-bold text-slate-900 dark:text-slate-100">Olives Schools</h1>
+              <img src="/logo.png" alt="Uwezo School" className="w-16 h-16 rounded-xl bg-white p-1.5 object-contain shadow-md mx-auto" />
+              <h1 className="mt-3 text-2xl font-bold text-slate-900 dark:text-slate-100">Uwezo School</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">Nurturing Excellence, Building Futures</p>
             </div>
 
@@ -365,7 +365,7 @@ export function LoginPage() {
 
             <div className="mt-5 text-center space-y-1.5">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                (c) {new Date().getFullYear()} Olives Schools - Eldoret, Kenya
+                (c) {new Date().getFullYear()} Uwezo School - Eldoret, Kenya
               </p>
               <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-teal-200/70 dark:border-teal-900/60 bg-teal-50/70 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-semibold">
@@ -375,7 +375,7 @@ export function LoginPage() {
                 <span>-</span>
                 <span>School Management System</span>
               </div>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">Powered by Olives Tech</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">Powered by Uwezo School Tech</p>
             </div>
           </section>
         </div>

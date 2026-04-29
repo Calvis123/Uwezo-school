@@ -6,6 +6,7 @@ import { STAFF_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
 import { getTeacherAssignedClassIds } from '@/lib/teacher-access';
 import { hashSync } from 'bcryptjs';
+import { getApplicableFeeStructures } from '@/lib/fee-balance';
 
 const STUDENT_CREATE_ROLES = ['SUPER_ADMIN', 'HEADTEACHER', 'SECRETARY'] as const;
 
@@ -79,10 +80,24 @@ export async function GET(request: NextRequest) {
     if (gender) where.gender = gender;
     if (studentType === 'DAY' || studentType === 'BOARDING') where.studentType = studentType;
     if (search) {
+      const streamSearch = search.trim().match(/\b([A-Za-z])$/)?.[1]?.toUpperCase();
       where.OR = [
         { firstName: { contains: search } },
         { lastName: { contains: search } },
         { admissionNumber: { contains: search } },
+        { class: { name: { contains: search } } },
+        ...(streamSearch
+          ? [
+              {
+                class: {
+                  AND: [
+                    { name: { contains: search.trim().replace(/\s+[A-Za-z]$/, '') } },
+                    { stream: { equals: streamSearch, mode: 'insensitive' as const } },
+                  ],
+                },
+              },
+            ]
+          : []),
       ];
     }
 
@@ -128,9 +143,16 @@ export async function GET(request: NextRequest) {
       let assignedByStudent: Record<string, { bus: { id: string; busNumber: string; routeName: string } }> = {};
       let classBaseFeesByClassId: Record<string, number> = {};
       let classTransportFeesByClassId: Record<string, number> = {};
+      let termFeeStructures: Array<{
+        id: string;
+        classId: string;
+        amount: number;
+        category: string;
+        description: string | null;
+      }> = [];
 
       if (activeTerm?.id) {
-        const [transportPayments, assignments, termPayments, termFeeStructures] = await Promise.all([
+        const [transportPayments, assignments, termPayments, fetchedTermFeeStructures] = await Promise.all([
           db.feeTransaction.findMany({
             where: {
               studentId: { in: studentIds },
@@ -176,12 +198,16 @@ export async function GET(request: NextRequest) {
               classId: { in: classIds },
             },
             select: {
+              id: true,
               classId: true,
               amount: true,
               category: true,
+              description: true,
             },
           }),
         ]);
+
+        termFeeStructures = fetchedTermFeeStructures;
 
         paidByStudent = transportPayments.reduce<Record<string, number>>((acc, row) => {
           acc[row.studentId] = (acc[row.studentId] || 0) + row.amount;
@@ -198,23 +224,18 @@ export async function GET(request: NextRequest) {
           return acc;
         }, {});
 
-        classBaseFeesByClassId = termFeeStructures.reduce<Record<string, number>>((acc, row) => {
-          if (row.category === 'TRANSPORT') return acc;
-          acc[row.classId] = (acc[row.classId] || 0) + Number(row.amount || 0);
-          return acc;
-        }, {});
-
-        classTransportFeesByClassId = termFeeStructures.reduce<Record<string, number>>((acc, row) => {
-          if (row.category !== 'TRANSPORT') return acc;
-          acc[row.classId] = (acc[row.classId] || 0) + Number(row.amount || 0);
-          return acc;
-        }, {});
+        classBaseFeesByClassId = {};
+        classTransportFeesByClassId = {};
       }
 
       items = students.map((student) => {
-        const expectedFees =
-          (classBaseFeesByClassId[student.classId] || 0) +
-          (student.usesTransport ? classTransportFeesByClassId[student.classId] || 0 : 0);
+        const expectedFees = termFeeStructures.length > 0
+          ? getApplicableFeeStructures(termFeeStructures, student).reduce(
+              (sum, structure) => sum + Number(structure.amount || 0),
+              0
+            )
+          : (classBaseFeesByClassId[student.classId] || 0) +
+            (student.usesTransport ? classTransportFeesByClassId[student.classId] || 0 : 0);
         const paidFees = feePaidByStudent[student.id] || 0;
         const feeInfo = {
           status: getFeeStatus(expectedFees, paidFees),
@@ -364,7 +385,7 @@ export async function POST(request: NextRequest) {
 
       if (!guardianUser) {
         const baseName = String(guardianName).trim();
-        const baseEmail = `${toEmailSlug(baseName)}.${cleanPhone.replace(/\D/g, '').slice(-9)}@parent.olives.local`;
+        const baseEmail = `${toEmailSlug(baseName)}.${cleanPhone.replace(/\D/g, '').slice(-9)}@parent.uwezoschool.local`;
 
         let uniqueEmail = baseEmail;
         let emailSuffix = 1;

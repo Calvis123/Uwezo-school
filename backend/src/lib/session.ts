@@ -1,8 +1,29 @@
 import crypto from "node:crypto";
 import { env } from "@/lib/env";
 
-const COOKIE_NAME = "olives_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const COOKIE_NAME = "uwezo_school_session";
+const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
+function parseTtlSeconds(raw: string | undefined): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_SESSION_TTL_SECONDS;
+  return Math.floor(parsed);
+}
+
+const SESSION_TTL_SECONDS = parseTtlSeconds(process.env.SESSION_TTL_SECONDS);
+
+function cookieSameSite(): "lax" | "strict" | "none" {
+  const raw = (process.env.SESSION_COOKIE_SAMESITE || "lax").toLowerCase();
+  if (raw === "strict" || raw === "none" || raw === "lax") return raw;
+  return "lax";
+}
+
+function cookieSecure(): boolean {
+  if (typeof process.env.SESSION_COOKIE_SECURE === "string") {
+    return process.env.SESSION_COOKIE_SECURE.toLowerCase() === "true";
+  }
+  return env.NODE_ENV === "production";
+}
 
 export type SessionPayload = {
   userId: string;
@@ -69,23 +90,33 @@ export function readSessionToken(token: string | undefined | null): SessionPaylo
 }
 
 export function sessionCookieOptions() {
+  const secure = cookieSecure();
+  const sameSite = cookieSameSite();
+  const maxAge = SESSION_TTL_SECONDS;
   return {
     name: COOKIE_NAME,
     httpOnly: true as const,
-    sameSite: "lax" as const,
-    secure: env.NODE_ENV === "production",
+    sameSite,
+    secure,
     path: "/",
+    maxAge,
+    expires: new Date(Date.now() + maxAge * 1000),
+    ...(process.env.SESSION_COOKIE_DOMAIN ? { domain: process.env.SESSION_COOKIE_DOMAIN } : {}),
   };
 }
 
 export function clearSessionCookieOptions() {
+  const secure = cookieSecure();
+  const sameSite = cookieSameSite();
   return {
     name: COOKIE_NAME,
     httpOnly: true as const,
-    sameSite: "lax" as const,
-    secure: env.NODE_ENV === "production",
+    sameSite,
+    secure,
     path: "/",
     maxAge: 0,
+    expires: new Date(0),
+    ...(process.env.SESSION_COOKIE_DOMAIN ? { domain: process.env.SESSION_COOKIE_DOMAIN } : {}),
   };
 }
 

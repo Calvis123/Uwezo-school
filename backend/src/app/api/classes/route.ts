@@ -15,7 +15,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
 
     const where: Prisma.SchoolClassWhereInput = {};
-    if (level) where.level = level;
+    if (level) {
+      const gradeName = level.startsWith('GRADE_') ? `Grade ${level.replace('GRADE_', '')}` : null;
+      const prePrimaryName = level === 'PP1' ? 'PP1' : level === 'PP2' ? 'PP2' : null;
+      where.OR = [
+        { level },
+        ...(gradeName ? [{ name: { contains: gradeName, mode: 'insensitive' as const } }] : []),
+        ...(prePrimaryName ? [{ name: { contains: prePrimaryName, mode: 'insensitive' as const } }] : []),
+      ];
+    }
     if (status) where.status = status;
     if (authed.role === 'TEACHER') where.teacherId = authed.id;
     if (search) {

@@ -1,5 +1,5 @@
-const TAB_AUTH_KEY = 'olives_tab_authenticated'
-const TAB_AUTH_LAST_SEEN_KEY = 'olives_tab_last_seen'
+const TAB_AUTH_KEY = 'uwezo_school_tab_authenticated'
+const TAB_AUTH_LAST_SEEN_KEY = 'uwezo_school_tab_last_seen'
 const DEFAULT_MAX_IDLE_MS = 10 * 1000
 
 export function markTabAuthenticated(): void {

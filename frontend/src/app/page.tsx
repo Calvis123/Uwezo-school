@@ -38,15 +38,10 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { AppLoader } from '@/components/layout/AppLoader'
 import { ParentDashboard } from '@/components/parent/ParentDashboard'
 import { authApi } from '@/lib/api'
-import { clearTabAuthenticated, isTabSessionFresh, touchTabAuthenticated } from '@/lib/tab-auth'
-
-const REAUTH_AFTER_HIDDEN_MS = 60 * 1000
-const REAUTH_AFTER_SLEEP_DRIFT_MS = 60 * 1000
-const TAB_SESSION_MAX_IDLE_MS = 5 * 60 * 1000
-const HEARTBEAT_INTERVAL_MS = 5000
+import { clearTabAuthenticated, isTabAuthenticated, touchTabAuthenticated } from '@/lib/tab-auth'
 
 function ViewRouter() {
-  const { currentView } = useAppStore()
+  const { currentView, user } = useAppStore()
 
   const views: Record<string, React.ReactNode> = {
     dashboard: <DashboardHome />,
@@ -57,7 +52,7 @@ function ViewRouter() {
     'student-detail': <StudentDetail />,
     classes: <ClassManagement />,
     analytics: <AnalyticsPage />,
-    fees: <FeesPage />,
+    fees: user?.role === 'PARENT' ? <ParentDashboard forcedTab="fees" /> : <FeesPage />,
     export: <ExportData />,
     exams: <ExamsPage />,
     'mark-entry': <MarkEntry />,
@@ -75,6 +70,10 @@ function ViewRouter() {
     documents: <DocumentsPage />,
     activity: <ActivityFeed />,
     settings: <SettingsPage />,
+  }
+
+  if (currentView === 'role-center' && user?.role === 'SUPER_ADMIN') {
+    return <DashboardHome />
   }
 
   return (
@@ -127,15 +126,17 @@ export default function Home() {
     let cancelled = false
     ;(async () => {
       try {
-        if (!isTabSessionFresh(TAB_SESSION_MAX_IDLE_MS)) {
+        if (!isTabAuthenticated()) {
+          await authApi.logout().catch(() => null)
           clearTabAuthenticated()
           if (!cancelled) setUser(null)
           return
         }
-        touchTabAuthenticated()
+
         const res = await authApi.me()
         if (cancelled) return
         if (res.success && res.data) {
+          touchTabAuthenticated()
           login({
             id: res.data.id,
             name: res.data.name,
@@ -162,59 +163,16 @@ export default function Home() {
   useEffect(() => {
     if (!isAuthenticated) return
 
-    let hiddenAt: number | null = null
-    let lastTick = Date.now()
-    let forcingLogout = false
-
-    const forceReauth = async () => {
-      if (forcingLogout) return
-      forcingLogout = true
-      clearTabAuthenticated()
-      try {
-        await authApi.logout()
-      } catch {
-        // Even if logout API fails, clear local auth state.
-      } finally {
-        logout()
-      }
-    }
-
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        hiddenAt = Date.now()
-        return
-      }
-
-      if (hiddenAt && Date.now() - hiddenAt >= REAUTH_AFTER_HIDDEN_MS) {
-        void forceReauth()
-        return
-      }
-      hiddenAt = null
-      touchTabAuthenticated()
+      if (document.visibilityState === 'visible') touchTabAuthenticated()
     }
-
-    const heartbeatId = window.setInterval(() => {
-      const now = Date.now()
-      const drift = now - lastTick
-      lastTick = now
-      if (drift >= REAUTH_AFTER_SLEEP_DRIFT_MS) {
-        void forceReauth()
-        return
-      }
-      if (!isTabSessionFresh(TAB_SESSION_MAX_IDLE_MS)) {
-        void forceReauth()
-        return
-      }
-      touchTabAuthenticated()
-    }, HEARTBEAT_INTERVAL_MS)
 
     document.addEventListener('visibilitychange', onVisibilityChange)
 
     return () => {
-      window.clearInterval(heartbeatId)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [isAuthenticated, logout])
+  }, [isAuthenticated])
 
   if (hydrating) return <AppLoader />
 

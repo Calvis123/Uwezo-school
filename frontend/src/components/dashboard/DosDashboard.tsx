@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
@@ -30,6 +30,14 @@ interface DosStats {
   completedExams: number
   attendanceRate: number
   publishedNotices: number
+}
+
+function getClassLabel(cls?: { name?: string | null; stream?: string | null; className?: string | null }) {
+  const name = cls?.name || cls?.className || 'Class'
+  const stream = cls?.stream || ''
+  if (!stream) return name
+  if (new RegExp(`\\s+${stream}$`, 'i').test(name)) return name
+  return `${name} ${stream}`
 }
 
 export function DosDashboard() {
@@ -92,6 +100,8 @@ export function DosDashboard() {
   }, [])
 
   const today = useMemo(() => format(new Date(), 'EEEE, MMMM d, yyyy'), [])
+  const firstClassId = classAttendance[0]?.classId || upcomingExams[0]?.classId || ''
+  const classNavOptions = firstClassId ? { classId: firstClassId } : undefined
 
   return (
     <div className="space-y-6">
@@ -106,7 +116,7 @@ export function DosDashboard() {
             <p className="text-xs uppercase tracking-wide text-indigo-100">Director of Studies</p>
             <h2 className="text-xl font-semibold mt-0.5">Academic Command Center</h2>
             <p className="text-sm text-indigo-100 mt-1">
-              Welcome {user?.name?.split(' ')[0] || 'DOS'} — exams, results, class performance, and academic quality.
+              Welcome {user?.name?.split(' ')[0] || 'DOS'} - exams, results, class performance, and academic quality.
             </p>
             <p className="text-xs text-indigo-200 mt-2 flex items-center gap-1.5">
               <CalendarDays className="w-3.5 h-3.5" />
@@ -120,7 +130,7 @@ export function DosDashboard() {
       {error && (
         <Card>
           <CardContent className="p-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-slate-600 dark:text-slate-300">Couldn’t load DOS dashboard data.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Could not load DOS dashboard data.</p>
             <Button variant="outline" size="sm" onClick={loadData}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Retry
@@ -148,11 +158,11 @@ export function DosDashboard() {
             <CardTitle className="text-sm">DOS Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <QuickButton icon={FileText} label="Exams & Results" onClick={() => navigateTo('exams')} />
-            <QuickButton icon={ClipboardCheck} label="Mark Entry" onClick={() => navigateTo('mark-entry')} />
+            <QuickButton icon={FileText} label="Exams & Results" onClick={() => navigateTo('exams', classNavOptions)} />
+            <QuickButton icon={ClipboardCheck} label="Mark Entry" onClick={() => navigateTo('mark-entry', classNavOptions)} />
             <QuickButton icon={GraduationCap} label="Class Reports" onClick={() => navigateTo('class-reports')} />
-            <QuickButton icon={Users} label="Students" onClick={() => navigateTo('students')} />
-            <QuickButton icon={ClipboardCheck} label="Attendance" onClick={() => navigateTo('attendance')} />
+            <QuickButton icon={Users} label="Students" onClick={() => navigateTo('students', classNavOptions)} />
+            <QuickButton icon={ClipboardCheck} label="Attendance" onClick={() => navigateTo('attendance', classNavOptions)} />
             <QuickButton icon={Download} label="Data Export" onClick={() => navigateTo('export')} />
           </CardContent>
         </Card>
@@ -172,10 +182,12 @@ export function DosDashboard() {
                   <div>
                     <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{exam.name}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {exam.class?.name || 'Class'} {exam.class?.stream || ''} · {format(new Date(exam.startDate), 'MMM d, yyyy')}
+                      {getClassLabel(exam.class)} - {format(new Date(exam.startDate), 'MMM d, yyyy')}
                     </p>
                   </div>
-                  <Badge variant="outline">{exam.status}</Badge>
+                  <Button variant="ghost" size="sm" onClick={() => navigateTo('exams', { classId: exam.classId })}>
+                    {exam.status} <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  </Button>
                 </div>
               ))
             )}
@@ -187,7 +199,7 @@ export function DosDashboard() {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">Class Attendance Snapshot</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigateTo('attendance')}>
+            <Button variant="ghost" size="sm" onClick={() => navigateTo('attendance', classNavOptions)}>
               Open Attendance <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
@@ -199,14 +211,19 @@ export function DosDashboard() {
             <p className="text-sm text-slate-500 dark:text-slate-400">No class attendance stats available.</p>
           ) : (
             classAttendance.map((row) => (
-              <div key={row.classId} className="flex items-center justify-between rounded-lg border border-slate-200/70 dark:border-slate-700/70 px-3 py-2">
+              <button
+                key={row.classId}
+                type="button"
+                onClick={() => navigateTo('attendance', { classId: row.classId })}
+                className="flex w-full items-center justify-between rounded-lg border border-slate-200/70 px-3 py-2 text-left transition hover:bg-slate-50 dark:border-slate-700/70 dark:hover:bg-slate-800/60"
+              >
                 <p className="text-sm text-slate-800 dark:text-slate-200">
-                  {row.className} {row.stream || ''}
+                  {getClassLabel(row)}
                 </p>
                 <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
                   {row.attendanceRate}%
                 </Badge>
-              </div>
+              </button>
             ))
           )}
         </CardContent>

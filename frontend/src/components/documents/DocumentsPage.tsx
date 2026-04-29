@@ -38,6 +38,15 @@ type DocumentItem = {
 }
 
 const DOC_MANAGER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER', 'DOS', 'SECRETARY']
+const TEACHER_DOCUMENT_CATEGORIES = ['GENERAL', 'ACADEMIC', 'POLICY', 'MEETING']
+const DOCUMENT_CATEGORIES = [
+  { value: 'GENERAL', label: 'General' },
+  { value: 'ADMISSION', label: 'Admission' },
+  { value: 'ACADEMIC', label: 'Academic' },
+  { value: 'FINANCE', label: 'Finance' },
+  { value: 'POLICY', label: 'Policy' },
+  { value: 'MEETING', label: 'Meeting' },
+]
 
 function formatBytes(bytes: number) {
   if (!bytes) return '0 B'
@@ -54,6 +63,11 @@ function formatBytes(bytes: number) {
 export function DocumentsPage() {
   const { user } = useAppStore()
   const canManage = DOC_MANAGER_ROLES.includes(user?.role || '')
+  const isTeacherView = user?.role === 'TEACHER'
+  const visibleCategories = isTeacherView
+    ? DOCUMENT_CATEGORIES.filter((item) => TEACHER_DOCUMENT_CATEGORIES.includes(item.value))
+    : DOCUMENT_CATEGORIES
+  const documentTableColSpan = isTeacherView ? 5 : 7
 
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,14 +102,15 @@ export function DocumentsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return documents.filter((doc) => {
+      const matchesRoleAccess = !isTeacherView || TEACHER_DOCUMENT_CATEGORIES.includes(doc.category)
       const matchesCategory = categoryFilter === 'ALL' || doc.category === categoryFilter
       const matchesSearch = !q ||
         doc.title.toLowerCase().includes(q) ||
         doc.fileName.toLowerCase().includes(q) ||
         doc.uploadedByName.toLowerCase().includes(q)
-      return matchesCategory && matchesSearch
+      return matchesRoleAccess && matchesCategory && matchesSearch
     })
-  }, [documents, search, categoryFilter])
+  }, [documents, search, categoryFilter, isTeacherView])
 
   const handleUpload = async () => {
     if (!title.trim()) {
@@ -150,9 +165,13 @@ export function DocumentsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">School Documents</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {isTeacherView ? 'Teacher Documents' : 'School Documents'}
+        </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Upload and manage official school documents for staff and parents.
+          {isTeacherView
+            ? 'View documents shared with teachers by school administration.'
+            : 'Upload and manage official school documents for staff and parents.'}
         </p>
       </div>
 
@@ -181,18 +200,16 @@ export function DocumentsPage() {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="GENERAL">General</SelectItem>
-                  <SelectItem value="ADMISSION">Admission</SelectItem>
-                  <SelectItem value="ACADEMIC">Academic</SelectItem>
-                  <SelectItem value="FINANCE">Finance</SelectItem>
-                  <SelectItem value="POLICY">Policy</SelectItem>
-                  <SelectItem value="MEETING">Meeting</SelectItem>
+                  {DOCUMENT_CATEGORIES.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={targetRoles} onValueChange={setTargetRoles}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="STAFF">Staff</SelectItem>
+                  <SelectItem value="TEACHER">Teachers</SelectItem>
                   <SelectItem value="PARENT">Parents</SelectItem>
                   <SelectItem value="ALL">All Users</SelectItem>
                   <SelectItem value="HEADTEACHER,DOS,SECRETARY">School Office</SelectItem>
@@ -219,7 +236,7 @@ export function DocumentsPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by title, filename, uploader..."
+                placeholder={isTeacherView ? 'Search teacher documents...' : 'Search by title, filename, uploader...'}
                 className="pl-9"
               />
             </div>
@@ -229,12 +246,9 @@ export function DocumentsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Categories</SelectItem>
-                <SelectItem value="GENERAL">General</SelectItem>
-                <SelectItem value="ADMISSION">Admission</SelectItem>
-                <SelectItem value="ACADEMIC">Academic</SelectItem>
-                <SelectItem value="FINANCE">Finance</SelectItem>
-                <SelectItem value="POLICY">Policy</SelectItem>
-                <SelectItem value="MEETING">Meeting</SelectItem>
+                {visibleCategories.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -245,8 +259,8 @@ export function DocumentsPage() {
               <TableRow className="bg-slate-50 dark:bg-slate-800/70">
                 <TableHead>Title</TableHead>
                 <TableHead className="hidden md:table-cell">Category</TableHead>
-                <TableHead className="hidden md:table-cell">Audience</TableHead>
-                <TableHead className="hidden lg:table-cell">Uploaded By</TableHead>
+                {!isTeacherView && <TableHead className="hidden md:table-cell">Audience</TableHead>}
+                {!isTeacherView && <TableHead className="hidden lg:table-cell">Uploaded By</TableHead>}
                 <TableHead className="hidden sm:table-cell">Size</TableHead>
                 <TableHead className="hidden lg:table-cell">Date</TableHead>
                 <TableHead className="w-28 text-right">Actions</TableHead>
@@ -255,11 +269,11 @@ export function DocumentsPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-slate-500">Loading documents...</TableCell>
+                  <TableCell colSpan={documentTableColSpan} className="py-10 text-center text-slate-500">Loading documents...</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-12">
+                  <TableCell colSpan={documentTableColSpan} className="py-12">
                     <div className="flex flex-col items-center text-center gap-2">
                       <FolderOpen className="w-10 h-10 text-slate-300 dark:text-slate-600" />
                       <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No documents found</p>
@@ -281,12 +295,16 @@ export function DocumentsPage() {
                     <TableCell className="hidden md:table-cell">
                       <Badge variant="outline">{doc.category}</Badge>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Badge variant="secondary">{doc.targetRoles}</Badge>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm text-slate-600 dark:text-slate-300">
-                      {doc.uploadedByName}
-                    </TableCell>
+                    {!isTeacherView && (
+                      <TableCell className="hidden md:table-cell">
+                        <Badge variant="secondary">{doc.targetRoles}</Badge>
+                      </TableCell>
+                    )}
+                    {!isTeacherView && (
+                      <TableCell className="hidden lg:table-cell text-sm text-slate-600 dark:text-slate-300">
+                        {doc.uploadedByName}
+                      </TableCell>
+                    )}
                     <TableCell className="hidden sm:table-cell text-sm text-slate-500">
                       {formatBytes(doc.size)}
                     </TableCell>

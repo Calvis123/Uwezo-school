@@ -115,6 +115,13 @@ const getInitials = (name: string) =>
     .toUpperCase()
     .slice(0, 2)
 
+const getClassLabel = (cls?: Pick<TeacherClass, 'name' | 'stream'> | Pick<AttendanceClass, 'name' | 'stream'> | null) => {
+  if (!cls) return 'Class'
+  if (!cls.stream) return cls.name
+  if (new RegExp(`\\s+${cls.stream}$`, 'i').test(cls.name)) return cls.name
+  return `${cls.name} ${cls.stream}`
+}
+
 const getLevelColor = (level: string) => {
   switch (level) {
     case 'PRE_NURSERY':
@@ -211,7 +218,7 @@ export function TeacherDashboard() {
     setLoading(true)
     setError(false)
     try {
-      const res = await teacherApi.dashboard(user.id)
+      const res = await teacherApi.dashboard()
       if (res.success && res.data) {
         setData(res.data)
       } else {
@@ -294,7 +301,7 @@ export function TeacherDashboard() {
     return {
       time: times[i] || '8:00 AM',
       subject: subjects[i] || 'Lesson',
-      class: cls.name,
+      class: getClassLabel(cls),
       duration: durations[i] || '40 min',
       id: `${cls.id}-${i}`,
     }
@@ -303,6 +310,8 @@ export function TeacherDashboard() {
   // Stats
   const pendingGrades = data.pendingGrades ?? data.upcomingExams.length
   const unreadMessages = data.unreadMessages ?? 0
+  const defaultClassId = data.attendanceToday?.pending?.[0]?.id || data.classes[0]?.id || ''
+  const classNavOptions = defaultClassId ? { classId: defaultClassId } : undefined
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
@@ -455,7 +464,7 @@ export function TeacherDashboard() {
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex-col gap-2 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-700 dark:hover:text-teal-300 hover:border-teal-200 dark:hover:border-teal-800 rounded-xl transition-all duration-200"
-              onClick={() => navigateTo('attendance')}
+              onClick={() => navigateTo('attendance', classNavOptions)}
             >
               <div className="h-10 w-10 rounded-xl bg-teal-50 dark:bg-teal-900/40 flex items-center justify-center shadow-sm">
                 <UserCheck className="w-5 h-5 text-teal-600 dark:text-teal-400" />
@@ -472,7 +481,7 @@ export function TeacherDashboard() {
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex-col gap-2 text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-700 dark:hover:text-violet-300 hover:border-violet-200 dark:hover:border-violet-800 rounded-xl transition-all duration-200"
-              onClick={() => navigateTo('mark-entry')}
+              onClick={() => navigateTo('mark-entry', classNavOptions)}
             >
               <div className="h-10 w-10 rounded-xl bg-violet-50 dark:bg-violet-900/40 flex items-center justify-center shadow-sm">
                 <PencilLine className="w-5 h-5 text-violet-600 dark:text-violet-400" />
@@ -489,7 +498,7 @@ export function TeacherDashboard() {
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex-col gap-2 text-slate-700 dark:text-slate-300 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:text-sky-700 dark:hover:text-sky-300 hover:border-sky-200 dark:hover:border-sky-800 rounded-xl transition-all duration-200"
-              onClick={() => navigateTo('exams')}
+              onClick={() => navigateTo('exams', classNavOptions)}
             >
               <div className="h-10 w-10 rounded-xl bg-sky-50 dark:bg-sky-900/40 flex items-center justify-center shadow-sm">
                 <FileText className="w-5 h-5 text-sky-600 dark:text-sky-400" />
@@ -538,7 +547,7 @@ export function TeacherDashboard() {
                             <GraduationCap className={cn('w-5 h-5', getClassIconColor(cls.level))} />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{cls.name}</p>
+                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{getClassLabel(cls)}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <Badge variant="secondary" className={cn('text-[9px] px-1.5 py-0', getLevelColor(cls.level))}>
                                 {getLevelLabel(cls.level)}
@@ -721,7 +730,7 @@ export function TeacherDashboard() {
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{cls.name}</p>
+                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{getClassLabel(cls)}</p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">{cls.studentCount} students</p>
                         </div>
                       </div>
@@ -904,7 +913,7 @@ export function TeacherDashboard() {
                   variant="ghost"
                   size="sm"
                   className="text-teal-600 dark:text-teal-400 text-xs gap-1 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/30"
-                  onClick={() => navigateTo('exams')}
+                  onClick={() => navigateTo('exams', classNavOptions)}
                 >
                   View All
                   <ArrowRight className="w-3 h-3" />

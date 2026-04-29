@@ -6,17 +6,28 @@ import { apiRouteError } from '@/lib/api-route-error'
 
 // Level order for class hierarchy
 const LEVEL_ORDER: Record<string, number> = {
-  PRE_NURSERY: 0,
-  NURSERY: 1,
-  PP1: 2,
-  PP2: 3,
-  GRADE_1: 4,
-  GRADE_2: 5,
-  GRADE_3: 6,
-  GRADE_4: 7,
-  GRADE_5: 8,
-  GRADE_6: 9,
-  JUNIOR_SECONDARY: 10,
+  PP1: 0,
+  PP2: 1,
+  GRADE_1: 2,
+  GRADE_2: 3,
+  GRADE_3: 4,
+  GRADE_4: 5,
+  GRADE_5: 6,
+  GRADE_6: 7,
+  GRADE_7: 8,
+  GRADE_8: 9,
+  GRADE_9: 10,
+}
+
+const getClassLevel = (cls: { name: string; level: string }) => {
+  const name = cls.name.toLowerCase()
+  if (name.includes('pp1') || name.includes('pre-primary 1')) return 'PP1'
+  if (name.includes('pp2') || name.includes('pre-primary 2')) return 'PP2'
+
+  const gradeMatch = name.match(/grade\s*([1-9])/)
+  if (gradeMatch) return `GRADE_${gradeMatch[1]}`
+
+  return cls.level
 }
 
 export async function GET(request: NextRequest) {
@@ -36,21 +47,20 @@ export async function GET(request: NextRequest) {
 
     // Group classes by level with order
     const levelGroups: Record<string, { level: string; order: number; classes: any[] }> = {}
-    const sortedLevels = new Set<string>()
 
     classes.forEach(cls => {
-      if (!levelGroups[cls.level]) {
-        levelGroups[cls.level] = {
-          level: cls.level,
-          order: LEVEL_ORDER[cls.level] ?? 99,
+      const classLevel = getClassLevel(cls)
+      if (!levelGroups[classLevel]) {
+        levelGroups[classLevel] = {
+          level: classLevel,
+          order: LEVEL_ORDER[classLevel] ?? 99,
           classes: [],
         }
-        sortedLevels.add(cls.level)
       }
-      levelGroups[cls.level].classes.push({
+      levelGroups[classLevel].classes.push({
         id: cls.id,
         name: cls.name,
-        level: cls.level,
+        level: classLevel,
         stream: cls.stream,
         capacity: cls.capacity,
         studentCount: cls._count.students,
@@ -81,10 +91,10 @@ export async function GET(request: NextRequest) {
     // Also build a simple next-class map for each class
     const nextClassMap: Record<string, string[]> = {}
     for (const cls of classes) {
-      const currentOrder = LEVEL_ORDER[cls.level] ?? 99
+      const currentOrder = LEVEL_ORDER[getClassLevel(cls)] ?? 99
       // Find the next level
       const nextClasses = classes.filter(c => {
-        const nextOrder = LEVEL_ORDER[c.level] ?? 99
+        const nextOrder = LEVEL_ORDER[getClassLevel(c)] ?? 99
         return nextOrder === currentOrder + 1 && (cls.stream === c.stream || !c.stream)
       })
       nextClassMap[cls.id] = nextClasses.map(c => c.id)

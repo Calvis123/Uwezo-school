@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const enabled = (map.sms_enabled || 'false') === 'true'
     const provider = map.sms_provider || 'SIMULATED'
-    const senderId = map.sms_sender_id || 'OLIVES'
+    const senderId = map.sms_sender_id || 'UWEZOSCHOOL'
 
     if (!enabled) {
       return NextResponse.json(

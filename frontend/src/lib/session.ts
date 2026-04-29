@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { env } from "@/lib/env";
 
-const COOKIE_NAME = "olives_session";
+const COOKIE_NAME = "uwezo_school_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 export type SessionPayload = {

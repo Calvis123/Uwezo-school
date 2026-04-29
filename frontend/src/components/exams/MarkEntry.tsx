@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { Save, Loader2, AlertCircle, CheckCircle2, Users, BookOpen, ArrowLeft } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { examsApi } from '@/lib/api'
+import { examsApi, teacherApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -77,8 +77,16 @@ interface Subject {
   level: string
 }
 
+function getClassLabel(cls?: { name?: string | null; stream?: string | null }) {
+  if (!cls?.name) return ''
+  if (!cls.stream) return cls.name
+  if (new RegExp(`\\s+${cls.stream}$`, 'i').test(cls.name)) return cls.name
+  return `${cls.name} ${cls.stream}`
+}
+
 export function MarkEntry() {
-  const { selectedExamId, setCurrentView } = useAppStore()
+  const { selectedExamId, selectedClassId, setCurrentView, user } = useAppStore()
+  const isTeacherView = user?.role === 'TEACHER'
   const [examId, setExamId] = useState(selectedExamId || '')
   const [examList, setExamList] = useState<any[]>([])
   const [students, setStudents] = useState<StudentResult[]>([])
@@ -90,20 +98,51 @@ export function MarkEntry() {
   const [classLevel, setClassLevel] = useState('PRIMARY')
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    loadExams()
-  }, [])
-
   const loadExams = async () => {
     try {
-      const res = await examsApi.list()
+      let classIds: string[] = []
+      let scopedClassId = ''
+      if (isTeacherView) {
+        const classesRes = await teacherApi.classes()
+        if (classesRes.success && classesRes.data) {
+          const teacherClasses = Array.isArray(classesRes.data) ? classesRes.data : []
+          classIds = teacherClasses.map((c: any) => c.id)
+          scopedClassId = selectedClassId && classIds.includes(selectedClassId)
+            ? selectedClassId
+            : classIds.length === 1
+              ? classIds[0]
+              : ''
+        }
+      } else {
+        scopedClassId = selectedClassId || ''
+      }
+
+      const res = await examsApi.list(scopedClassId ? { classId: scopedClassId } : undefined)
       if (res.success && res.data) {
-        setExamList(res.data || [])
+        const list = Array.isArray(res.data) ? res.data : []
+        const allowedClassIds = scopedClassId ? [scopedClassId] : classIds
+        const scopedList = allowedClassIds.length > 0
+          ? list.filter((exam: any) => allowedClassIds.includes(exam.classId))
+          : list
+        setExamList(scopedList)
+
+        if (!examId && scopedList.length > 0) {
+          const activeExam = scopedList.find((exam: any) => exam.status === 'ACTIVE')
+          setExamId(activeExam?.id || scopedList[0].id)
+        } else if (examId && !scopedList.some((exam: any) => exam.id === examId)) {
+          setExamId('')
+        }
+      } else {
+        setExamList([])
       }
     } catch {
       setExamList([])
     }
   }
+
+  useEffect(() => {
+    loadExams()
+  }, [isTeacherView, selectedClassId])
 
   useEffect(() => {
     if (examId) {
@@ -123,7 +162,8 @@ export function MarkEntry() {
       if (res.success && res.data) {
         const data = res.data
         setStudents(data.students || [])
-        setSubjects(data.subjects || [])
+        const fetchedSubjects = data.subjects || []
+        setSubjects(fetchedSubjects)
         if (data.exam?.class?.level) {
           setClassLevel(data.exam.class.level)
         }
@@ -131,7 +171,7 @@ export function MarkEntry() {
         // Build marks map from API data
         const marksMap: Record<string, string> = {}
         data.students?.forEach((s: StudentResult) => {
-          subjects.forEach((sub) => {
+          fetchedSubjects.forEach((sub: Subject) => {
             const markEntry = s.marks[sub.id]
             if (markEntry && markEntry.marks > 0) {
               marksMap[`${s.student.id}-${sub.id}`] = String(markEntry.marks)
@@ -147,11 +187,17 @@ export function MarkEntry() {
     } catch {
       setStudents([])
       setSubjects([])
-      setMarks([])
+      setMarks({})
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [])
 
   const handleMarkChange = useCallback((studentId: string, subjectId: string, value: string) => {
     setMarks((prev) => ({ ...prev, [`${studentId}-${subjectId}`]: value }))
@@ -353,7 +399,7 @@ export function MarkEntry() {
               <SelectContent>
                 {examList.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
-                    {e.name} {e.class?.name ? `(${e.class.name})` : ''}
+                    {e.name} {getClassLabel(e.class) ? `(${getClassLabel(e.class)})` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>

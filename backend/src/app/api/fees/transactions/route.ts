@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     const [student, feeStructure] = await Promise.all([
       db.student.findUnique({
         where: { id: studentId },
-        select: { id: true, status: true, usesTransport: true, classId: true },
+        select: { id: true, status: true, studentType: true, usesTransport: true, classId: true },
       }),
       db.feeStructure.findUnique({
         where: { id: feeStructureId },
@@ -123,6 +123,18 @@ export async function POST(request: NextRequest) {
     if (feeStructure.category === 'TRANSPORT' && !student.usesTransport) {
       return NextResponse.json(
         { success: false, error: 'Transport charges are only allowed for students marked as using transport' },
+        { status: 400 }
+      );
+    }
+    if (feeStructure.category === 'BOARDING' && student.studentType !== 'BOARDING') {
+      return NextResponse.json(
+        { success: false, error: 'Boarding fees can only be recorded for boarding students' },
+        { status: 400 }
+      );
+    }
+    if (feeStructure.category === 'TUITION' && student.studentType === 'BOARDING') {
+      return NextResponse.json(
+        { success: false, error: 'Tuition fees are not applicable to boarding students in this setup' },
         { status: 400 }
       );
     }

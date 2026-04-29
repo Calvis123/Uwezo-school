@@ -54,6 +54,11 @@ interface NotificationResponse {
   totalCount: number
 }
 
+const localStorageKeys = {
+  allReadAt: (userId: string) => `uwezo_school_notifications_all_read_at_${userId}`,
+  readIds: (userId: string) => `uwezo_school_notifications_read_ids_${userId}`,
+}
+
 // ── Notification Type Config ───────────────────────────────────────
 // Matches the required icons and colors from the task spec
 
@@ -413,6 +418,64 @@ export function NotificationCenter() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hasFetchedRef = useRef(false)
 
+  const getLocalAllReadAt = useCallback((): number => {
+    if (!user?.id || typeof window === 'undefined') return 0
+    const raw = window.localStorage.getItem(localStorageKeys.allReadAt(user.id))
+    const parsed = raw ? Number(raw) : 0
+    return Number.isFinite(parsed) ? parsed : 0
+  }, [user?.id])
+
+  const getLocalReadIds = useCallback((): Set<string> => {
+    if (!user?.id || typeof window === 'undefined') return new Set<string>()
+    try {
+      const raw = window.localStorage.getItem(localStorageKeys.readIds(user.id))
+      if (!raw) return new Set<string>()
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return new Set<string>()
+      return new Set(parsed.filter((v) => typeof v === 'string'))
+    } catch {
+      return new Set<string>()
+    }
+  }, [user?.id])
+
+  const persistLocalReadIds = useCallback((ids: Set<string>) => {
+    if (!user?.id || typeof window === 'undefined') return
+    window.localStorage.setItem(localStorageKeys.readIds(user.id), JSON.stringify(Array.from(ids)))
+  }, [user?.id])
+
+  const markLocalReadId = useCallback((id: string) => {
+    const ids = getLocalReadIds()
+    ids.add(id)
+    persistLocalReadIds(ids)
+  }, [getLocalReadIds, persistLocalReadIds])
+
+  const markLocalAllReadNow = useCallback((): number => {
+    const now = Date.now()
+    if (!user?.id || typeof window === 'undefined') return now
+    window.localStorage.setItem(localStorageKeys.allReadAt(user.id), String(now))
+    return now
+  }, [user?.id])
+
+  const applyLocalReadState = useCallback((items: Notification[]): Notification[] => {
+    const localAllReadAt = getLocalAllReadAt()
+    const localReadIds = getLocalReadIds()
+    return items.map((n) => {
+      const ts = new Date(n.timestamp).getTime()
+      const readByAll = Number.isFinite(ts) && localAllReadAt > 0 && ts <= localAllReadAt
+      const readById = localReadIds.has(n.id)
+      return {
+        ...n,
+        isRead: n.isRead || readByAll || readById,
+      }
+    })
+  }, [getLocalAllReadAt, getLocalReadIds])
+
+  const groupByTime = useCallback((items: Notification[]): GroupedNotifications => ({
+    today: items.filter((n) => n.timeGroup === 'today'),
+    yesterday: items.filter((n) => n.timeGroup === 'yesterday'),
+    earlier: items.filter((n) => n.timeGroup === 'earlier'),
+  }), [])
+
   const fetchNotifications = useCallback(async () => {
     setLoading(true)
     try {
@@ -420,10 +483,13 @@ export function NotificationCenter() {
       const res = await notificationsApi.list(user.id)
       if (res.success && res.data) {
         const data = res.data as NotificationResponse
-        setNotifications(data.notifications)
-        setGrouped(data.grouped)
-        setUnreadCount(data.unreadCount)
-        setNotificationCount(data.unreadCount)
+        const mergedNotifications = applyLocalReadState(data.notifications)
+        const mergedGrouped = groupByTime(mergedNotifications)
+        const mergedUnreadCount = mergedNotifications.filter((n) => !n.isRead).length
+        setNotifications(mergedNotifications)
+        setGrouped(mergedGrouped)
+        setUnreadCount(mergedUnreadCount)
+        setNotificationCount(mergedUnreadCount)
         hasFetchedRef.current = true
       }
     } catch {
@@ -431,7 +497,7 @@ export function NotificationCenter() {
     } finally {
       setLoading(false)
     }
-  }, [user?.id, setNotificationCount])
+  }, [user?.id, setNotificationCount, applyLocalReadState, groupByTime])
 
   // Fetch when popover opens + auto-refresh every 60s
   useEffect(() => {
@@ -449,23 +515,38 @@ export function NotificationCenter() {
   const handleMarkAllRead = async () => {
     if (markingAllRead || unreadCount === 0) return
     setMarkingAllRead(true)
+    const allReadAt = markLocalAllReadNow()
     try {
       const res = await notificationsApi.markAllRead()
-      if (!res.success) return
-      // Optimistically update all notifications as read
+      const shouldApplyLocalOnly = !res.success
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true }))
+        prev.map((n) => {
+          const ts = new Date(n.timestamp).getTime()
+          const shouldMarkRead = Number.isFinite(ts) ? ts <= allReadAt : true
+          return shouldMarkRead ? { ...n, isRead: true } : n
+        })
       )
       setGrouped((prev) => ({
-        today: prev.today.map((n) => ({ ...n, isRead: true })),
-        yesterday: prev.yesterday.map((n) => ({ ...n, isRead: true })),
-        earlier: prev.earlier.map((n) => ({ ...n, isRead: true })),
+        today: prev.today.map((n) => {
+          const ts = new Date(n.timestamp).getTime()
+          return Number.isFinite(ts) && ts <= allReadAt ? { ...n, isRead: true } : n
+        }),
+        yesterday: prev.yesterday.map((n) => {
+          const ts = new Date(n.timestamp).getTime()
+          return Number.isFinite(ts) && ts <= allReadAt ? { ...n, isRead: true } : n
+        }),
+        earlier: prev.earlier.map((n) => {
+          const ts = new Date(n.timestamp).getTime()
+          return Number.isFinite(ts) && ts <= allReadAt ? { ...n, isRead: true } : n
+        }),
       }))
       setUnreadCount(0)
       setNotificationCount(0)
-      await fetchNotifications()
+      if (!shouldApplyLocalOnly) {
+        await fetchNotifications()
+      }
     } catch {
-      // Silent fail - will re-sync on next poll
+      // Keep local read state even if API fails.
     } finally {
       setMarkingAllRead(false)
     }
@@ -474,10 +555,12 @@ export function NotificationCenter() {
   const markNotificationRead = useCallback(async (id: string) => {
     if (markingRead === id) return
     setMarkingRead(id)
+    markLocalReadId(id)
     try {
       const res = await notificationsApi.markRead(id)
-      if (!res.success) return
-      // Optimistically update
+      if (!res.success) {
+        // Keep local read state even when backend update fails.
+      }
       const updateNotif = (n: Notification) =>
         n.id === id ? { ...n, isRead: true } : n
       setNotifications((prev) => prev.map(updateNotif))
@@ -492,11 +575,11 @@ export function NotificationCenter() {
         return next
       })
     } catch {
-      // Silent fail
+      // Keep local read state even when backend update fails.
     } finally {
       setMarkingRead(null)
     }
-  }, [markingRead, setNotificationCount])
+  }, [markingRead, setNotificationCount, markLocalReadId])
 
   const handleMarkRead = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()

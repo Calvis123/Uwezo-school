@@ -181,9 +181,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireUser(request, { roles: [...ADMIN_ROLES] });
+    const authed = await requireUser(request, { roles: [...ADMIN_ROLES] });
 
     const { id } = await params;
+    const permanent = request.nextUrl.searchParams.get('permanent') === 'true';
+
+    if (id === authed.id) {
+      return NextResponse.json(
+        { success: false, error: 'You cannot remove your own account while signed in' },
+        { status: 400 }
+      );
+    }
 
     const existing = await db.user.findUnique({ where: { id } });
     if (!existing) {
@@ -193,11 +201,54 @@ export async function DELETE(
       );
     }
 
+    if (existing.role === 'SUPER_ADMIN' && existing.status === 'ACTIVE') {
+      const superAdminCount = await db.user.count({ where: { role: 'SUPER_ADMIN', status: 'ACTIVE' } });
+      if (superAdminCount <= 1) {
+        return NextResponse.json(
+          { success: false, error: 'Cannot remove the last active Super Admin account' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (permanent) {
+      await db.$transaction(async (tx) => {
+        await tx.schoolClass.updateMany({
+          where: { teacherId: id },
+          data: { teacherId: null },
+        });
+        await tx.studentGuardian.deleteMany({
+          where: { guardianId: id },
+        });
+        await tx.message.deleteMany({
+          where: {
+            OR: [
+              { senderId: id },
+              { receiverId: id },
+            ],
+          },
+        });
+        await tx.user.delete({ where: { id } });
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'User permanently deleted successfully',
+      });
+    }
+
     // Soft delete: set status to INACTIVE
-    const user = await db.user.update({
-      where: { id },
-      data: { status: 'INACTIVE' },
-      select: userSelect,
+    const user = await db.$transaction(async (tx) => {
+      await tx.schoolClass.updateMany({
+        where: { teacherId: id },
+        data: { teacherId: null },
+      });
+
+      return tx.user.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+        select: userSelect,
+      });
     });
 
     return NextResponse.json({

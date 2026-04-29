@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/auth-server'
 import { STAFF_ROLES } from '@/lib/roles'
 import { apiRouteError } from '@/lib/api-route-error'
 import { getTeacherAssignedClassIds } from '@/lib/teacher-access'
+import { isAllClassesScopeDescription } from '@/lib/fee-structure-scope'
 
 // 30 requests per minute per IP
 const SEARCH_RATE_LIMIT = 30
@@ -102,7 +103,6 @@ export async function GET(request: NextRequest) {
     const feeStructures = classIds.length > 0
       ? await db.feeStructure.findMany({
           where: {
-            classId: { in: classIds },
             status: 'ACTIVE',
             ...(activeTerm ? { termId: activeTerm.id } : {}),
           },
@@ -114,13 +114,18 @@ export async function GET(request: NextRequest) {
 
     // Map: classId -> totalOwed
     const owedMap = new Map<string, number>()
+    let globalOwed = 0
     for (const fs of feeStructures) {
-      owedMap.set(fs.classId, (owedMap.get(fs.classId) || 0) + fs.amount)
+      if (isAllClassesScopeDescription(fs.description)) {
+        globalOwed += fs.amount
+      } else {
+        owedMap.set(fs.classId, (owedMap.get(fs.classId) || 0) + fs.amount)
+      }
     }
 
     const studentResults = students.map((s) => {
       const totalPaid = paidMap.get(s.id) || 0
-      const totalOwed = owedMap.get(s.classId) || 0
+      const totalOwed = (owedMap.get(s.classId) || 0) + globalOwed
       const balance = totalOwed - totalPaid
       return {
         id: s.id,

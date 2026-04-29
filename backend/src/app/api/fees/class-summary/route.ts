@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth-server'
 import { FINANCE_ROLES } from '@/lib/roles'
 import { apiRouteError } from '@/lib/api-route-error'
-import { isAllClassesScopeDescription } from '@/lib/fee-structure-scope'
+import { getApplicableFeeStructures } from '@/lib/fee-balance'
 
 type TermLite = {
   id: string
@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
           lastName: true,
           admissionNumber: true,
           classId: true,
+          studentType: true,
           usesTransport: true,
         },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -136,51 +137,9 @@ export async function GET(request: NextRequest) {
       classStudents.get(student.classId)!.push(student)
     }
 
-    const classTermBaseExpected = new Map<string, number>()
-    const classTermTransportExpected = new Map<string, number>()
-    const termGlobalBaseExpected = new Map<string, number>()
-    const termGlobalTransportExpected = new Map<string, number>()
-    const classTermDefaultStructure = new Map<string, string>()
-    const termGlobalDefaultStructure = new Map<string, string>()
-    for (const structure of feeStructures) {
-      const appliesToAllClasses = isAllClassesScopeDescription(structure.description)
-      const key = `${structure.classId}:${structure.termId}`
-      if (appliesToAllClasses) {
-        if (structure.category === 'TRANSPORT') {
-          termGlobalTransportExpected.set(
-            structure.termId,
-            (termGlobalTransportExpected.get(structure.termId) || 0) + Number(structure.amount || 0)
-          )
-        } else {
-          termGlobalBaseExpected.set(
-            structure.termId,
-            (termGlobalBaseExpected.get(structure.termId) || 0) + Number(structure.amount || 0)
-          )
-        }
-        if (!termGlobalDefaultStructure.has(structure.termId)) {
-          termGlobalDefaultStructure.set(structure.termId, structure.id)
-        }
-      } else {
-        if (!classIds.includes(structure.classId)) continue
-        if (structure.category === 'TRANSPORT') {
-          classTermTransportExpected.set(
-            key,
-            (classTermTransportExpected.get(key) || 0) + Number(structure.amount || 0)
-          )
-        } else {
-          classTermBaseExpected.set(
-            key,
-            (classTermBaseExpected.get(key) || 0) + Number(structure.amount || 0)
-          )
-        }
-        if (!classTermDefaultStructure.has(key)) {
-          classTermDefaultStructure.set(key, structure.id)
-        }
-      }
-    }
-
     const studentTermPaid = new Map<string, number>()
     const studentTermCount = new Map<string, number>()
+    const studentStructurePaid = new Map<string, number>()
     const studentLastPayment = new Map<
       string,
       { amount: number; paymentMethod: string; createdAt: Date; receiptNumber: string }
@@ -189,7 +148,9 @@ export async function GET(request: NextRequest) {
     for (const tx of transactions) {
       const termId = tx.feeStructure.termId
       const key = `${tx.studentId}:${termId}`
+      const structureKey = `${tx.studentId}:${tx.feeStructure.id}`
       studentTermPaid.set(key, (studentTermPaid.get(key) || 0) + Number(tx.amount || 0))
+      studentStructurePaid.set(structureKey, (studentStructurePaid.get(structureKey) || 0) + Number(tx.amount || 0))
       studentTermCount.set(key, (studentTermCount.get(key) || 0) + 1)
       if (!studentLastPayment.has(key)) {
         studentLastPayment.set(key, {
@@ -205,14 +166,12 @@ export async function GET(request: NextRequest) {
       const list = classStudents.get(schoolClass.id) || []
 
       const termSummary = terms.map((term) => {
-        const key = `${schoolClass.id}:${term.id}`
-        const baseExpectedPerStudent =
-          (classTermBaseExpected.get(key) || 0) + (termGlobalBaseExpected.get(term.id) || 0)
-        const transportExpectedPerStudent =
-          (classTermTransportExpected.get(key) || 0) + (termGlobalTransportExpected.get(term.id) || 0)
         const expected = list.reduce(
           (sum, student) =>
-            sum + baseExpectedPerStudent + (student.usesTransport ? transportExpectedPerStudent : 0),
+            sum + getApplicableFeeStructures(
+              feeStructures.filter((structure) => structure.termId === term.id),
+              student
+            ).reduce((structureSum, structure) => structureSum + Number(structure.amount || 0), 0),
           0
         )
         const paid = list.reduce((sum, student) => sum + (studentTermPaid.get(`${student.id}:${term.id}`) || 0), 0)
@@ -232,17 +191,22 @@ export async function GET(request: NextRequest) {
 
       const studentsPayload = list.map((student) => {
         const perTerm = terms.map((term) => {
-          const key = `${schoolClass.id}:${term.id}`
-          const expected =
-            (classTermBaseExpected.get(key) || 0) +
-            (termGlobalBaseExpected.get(term.id) || 0) +
-            (student.usesTransport
-              ? (classTermTransportExpected.get(key) || 0) + (termGlobalTransportExpected.get(term.id) || 0)
-              : 0)
+          const applicableStructures = getApplicableFeeStructures(
+            feeStructures.filter((structure) => structure.termId === term.id),
+            student
+          )
+          const expected = applicableStructures.reduce(
+            (sum, structure) => sum + Number(structure.amount || 0),
+            0
+          )
           const paid = studentTermPaid.get(`${student.id}:${term.id}`) || 0
           const balance = Math.max(0, expected - paid)
           const paymentStatus = getPaymentStatus(expected, paid)
           const lastPayment = studentLastPayment.get(`${student.id}:${term.id}`)
+          const nextDueStructure = applicableStructures.find((structure) => {
+            const paidForStructure = studentStructurePaid.get(`${student.id}:${structure.id}`) || 0
+            return paidForStructure < Number(structure.amount || 0)
+          })
           return {
             termId: term.id,
             termName: term.name,
@@ -255,10 +219,7 @@ export async function GET(request: NextRequest) {
             lastPaymentMethod: lastPayment?.paymentMethod || null,
             lastPaymentAmount: lastPayment?.amount || 0,
             lastReceiptNumber: lastPayment?.receiptNumber || null,
-            suggestedFeeStructureId:
-              classTermDefaultStructure.get(`${schoolClass.id}:${term.id}`) ||
-              termGlobalDefaultStructure.get(term.id) ||
-              null,
+            suggestedFeeStructureId: nextDueStructure?.id || applicableStructures[0]?.id || null,
           }
         })
 

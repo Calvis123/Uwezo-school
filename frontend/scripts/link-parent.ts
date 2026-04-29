@@ -1,5 +1,5 @@
 /**
- * Script to properly link parent@olives.co.ke to exactly 3 random active students
+ * Script to properly link parent@uwezoschool.co.ke to exactly 3 random active students
  * Run with: npx tsx scripts/link-parent.ts
  */
 import { PrismaClient } from '@prisma/client';
@@ -11,11 +11,11 @@ async function main() {
 
   // 1. Find parent user
   const parent = await prisma.user.findUnique({
-    where: { email: 'parent@olives.co.ke' },
+    where: { email: 'parent@uwezoschool.co.ke' },
   });
 
   if (!parent) {
-    console.error('❌ Parent user (parent@olives.co.ke) not found!');
+    console.error('❌ Parent user (parent@uwezoschool.co.ke) not found!');
     return;
   }
   console.log(`Found parent: ${parent.name} (${parent.email})`);
@@ -64,9 +64,9 @@ async function main() {
 
   console.log(`\n✅ Done! Parent ${parent.name} is now linked to ${selectedStudents.length} students.`);
 
-  // Also link parent2@olives.co.ke to 2 different students
+  // Also link parent2@uwezoschool.co.ke to 2 different students
   const parent2 = await prisma.user.findUnique({
-    where: { email: 'parent2@olives.co.ke' },
+    where: { email: 'parent2@uwezoschool.co.ke' },
   });
 
   if (parent2) {

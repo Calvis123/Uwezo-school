@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/auth-server';
 import { ALL_ROLES, FINANCE_ROLES } from '@/lib/roles';
 import { MARKED_ATTENDANCE_STATUSES } from '@/lib/attendance';
 import { apiRouteError } from '@/lib/api-route-error';
+import { getParentScopedStudentIds } from '@/lib/parent-access';
 
 interface NotificationItem {
   id: string;
@@ -148,12 +149,7 @@ export async function GET(request: NextRequest) {
 
     const [parentStudentIds, teacherClassIds] = await Promise.all([
       isParent
-        ? db.studentGuardian
-            .findMany({
-              where: { guardianId: user.id },
-              select: { studentId: true },
-            })
-            .then((rows) => rows.map((row) => row.studentId))
+        ? getParentScopedStudentIds(user.id)
         : Promise.resolve([] as string[]),
       isTeacher
         ? db.schoolClass
@@ -294,7 +290,7 @@ export async function GET(request: NextRequest) {
         title: 'Fee Payment Received',
         description: `${studentName} paid KES ${payment.amount.toLocaleString()} for ${payment.feeStructure.name}`,
         timestamp: payment.createdAt.toISOString(),
-        isRead: isNotificationRead(user.id, id) || isAllRead(user.id),
+        isRead: isNotificationRead(user.id, id) || isAllRead(user.id, payment.createdAt),
         link: resolveNotificationLink('PAYMENT', role),
         actorName: studentName,
         relativeTime: getRelativeTime(payment.createdAt),
@@ -312,7 +308,7 @@ export async function GET(request: NextRequest) {
           title: 'Attendance Updated',
           description: `${studentName} was ${record.status.toLowerCase()} on ${record.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.`,
           timestamp: record.createdAt.toISOString(),
-          isRead: isNotificationRead(user.id, id) || isAllRead(user.id),
+          isRead: isNotificationRead(user.id, id) || isAllRead(user.id, record.createdAt),
           link: resolveNotificationLink('ATTENDANCE', role),
           actorName: studentName,
           relativeTime: getRelativeTime(record.createdAt),
@@ -363,7 +359,7 @@ export async function GET(request: NextRequest) {
           title: 'Attendance Marked',
           description: `${entry.className}: ${entry.present}/${entry.total} students present${entry.absent > 0 ? ` (${entry.absent} absent)` : ''}`,
           timestamp: timestamp.toISOString(),
-          isRead: isNotificationRead(user.id, id) || isAllRead(user.id),
+          isRead: isNotificationRead(user.id, id) || isAllRead(user.id, timestamp),
           link: resolveNotificationLink('ATTENDANCE', role),
           relativeTime: getRelativeTime(timestamp),
           timeGroup: getTimeGroup(timestamp),
@@ -383,7 +379,7 @@ export async function GET(request: NextRequest) {
           ? `${studentName}: ${mark.subject.name} ${mark.marks}/${mark.exam.name || 'Exam'} (Grade ${grade})`
           : `${studentName} scored ${mark.marks}/${mark.exam.name || 'Exam'} in ${mark.subject.name} (Grade: ${grade})`,
         timestamp: mark.createdAt.toISOString(),
-        isRead: isNotificationRead(user.id, id) || isAllRead(user.id),
+        isRead: isNotificationRead(user.id, id) || isAllRead(user.id, mark.createdAt),
         link: resolveNotificationLink('EXAM', role),
         actorName: studentName,
         relativeTime: getRelativeTime(mark.createdAt),
@@ -401,8 +397,8 @@ export async function GET(request: NextRequest) {
         description: msg.subject,
         timestamp: msg.createdAt.toISOString(),
         isRead: isIncoming
-          ? msg.isRead || isNotificationRead(user.id, id) || isAllRead(user.id)
-          : isNotificationRead(user.id, id) || isAllRead(user.id),
+          ? msg.isRead || isNotificationRead(user.id, id) || isAllRead(user.id, msg.createdAt)
+          : isNotificationRead(user.id, id) || isAllRead(user.id, msg.createdAt),
         link: resolveNotificationLink('MESSAGE', role),
         actorName: isIncoming ? msg.sender.name : undefined,
         relativeTime: getRelativeTime(msg.createdAt),
@@ -420,7 +416,7 @@ export async function GET(request: NextRequest) {
         title: notice.title,
         description: notice.content.length > 100 ? `${notice.content.substring(0, 100)}...` : notice.content,
         timestamp: publishDate.toISOString(),
-        isRead: isNotificationRead(user.id, id) || isAllRead(user.id),
+        isRead: isNotificationRead(user.id, id) || isAllRead(user.id, publishDate),
         link: resolveNotificationLink('NOTICE', role),
         relativeTime: getRelativeTime(publishDate),
         timeGroup: getTimeGroup(publishDate),
@@ -437,7 +433,7 @@ export async function GET(request: NextRequest) {
         title: 'Student Absence Alert',
         description: `${studentName} (${absence.class?.name || 'Unknown class'}) was absent`,
         timestamp: absence.createdAt.toISOString(),
-        isRead: isNotificationRead(user.id, id) || isAllRead(user.id),
+        isRead: isNotificationRead(user.id, id) || isAllRead(user.id, absence.createdAt),
         link: resolveNotificationLink('ATTENDANCE', role),
         actorName: studentName,
         relativeTime: getRelativeTime(absence.createdAt),

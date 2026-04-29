@@ -227,6 +227,7 @@ export function StudentDetail() {
   const [healthRecords, setHealthRecords] = useState<any[]>([])
   const [healthConditions, setHealthConditions] = useState<any[]>([])
   const [healthLoading, setHealthLoading] = useState(true)
+  const canViewFeeTransport = user?.role !== 'TEACHER'
   const canRecordPayments = FINANCE_ROLES.includes((user?.role || '') as any)
 
   useEffect(() => {
@@ -297,11 +298,11 @@ export function StudentDetail() {
 
   useEffect(() => {
     if (student) {
-      loadFeeLedger()
+      if (canViewFeeTransport) loadFeeLedger()
       loadAcademics()
       loadHealth()
     }
-  }, [student, loadFeeLedger, loadAcademics, loadHealth])
+  }, [student, canViewFeeTransport, loadFeeLedger, loadAcademics, loadHealth])
 
   const handleCopyPin = () => {
     if (student?.resultsPin) {
@@ -411,14 +412,18 @@ export function StudentDetail() {
                     <User className="w-3.5 h-3.5" />
                     {student.gender === 'MALE' ? '♂ Male' : student.gender === 'FEMALE' ? '♀ Female' : student.gender}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    {studentTypeLabel}
-                  </div>
-                  <div className={cn('flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full', transportIdentity.className)}>
-                    <Bus className="w-3.5 h-3.5" />
-                    {transportIdentity.label.replace('Transport: ', '')}
-                  </div>
+                  {canViewFeeTransport && (
+                    <>
+                      <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        {studentTypeLabel}
+                      </div>
+                      <div className={cn('flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full', transportIdentity.className)}>
+                        <Bus className="w-3.5 h-3.5" />
+                        {transportIdentity.label.replace('Transport: ', '')}
+                      </div>
+                    </>
+                  )}
                   {age !== null && (
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2.5 py-1 rounded-full">
                       <Calendar className="w-3.5 h-3.5" />
@@ -463,7 +468,7 @@ export function StudentDetail() {
       {/* Hidden Print Content */}
       <div className="hidden print:block" id="print-profile-content">
         <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
-          <h1 className="text-2xl font-bold">Olives Schools</h1>
+          <h1 className="text-2xl font-bold">Uwezo School</h1>
           <p className="text-sm text-slate-600">Eldoret, Kenya</p>
           <p className="text-xs text-slate-500 mt-1">Student Profile Report</p>
         </div>
@@ -476,8 +481,12 @@ export function StudentDetail() {
             <h2 className="text-xl font-bold">{student.firstName} {student.lastName}</h2>
             <p className="text-sm text-slate-600">Admission #: {student.admissionNumber}</p>
             <p className="text-sm text-slate-600">Class: {student.class?.name}{student.stream ? ` - Stream ${student.stream}` : ''}</p>
-            <p className="text-sm text-slate-600">Student Type: {studentTypeLabel}</p>
-            <p className="text-sm text-slate-600">{transportIdentity.label}</p>
+            {canViewFeeTransport && (
+              <>
+                <p className="text-sm text-slate-600">Student Type: {studentTypeLabel}</p>
+                <p className="text-sm text-slate-600">{transportIdentity.label}</p>
+              </>
+            )}
             <p className="text-sm text-slate-600">Status: {student.status}</p>
           </div>
         </div>
@@ -515,7 +524,7 @@ export function StudentDetail() {
         )}
 
         <div className="text-center text-xs text-slate-400 mt-8 border-t pt-4">
-          Generated on {format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')} — Olives Schools Management System
+          Generated on {format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')} — Uwezo School Management System
         </div>
       </div>
 
@@ -532,12 +541,16 @@ export function StudentDetail() {
           <TabsTrigger value="communication" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Communication
           </TabsTrigger>
-          <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
-            Documents
-          </TabsTrigger>
-          <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
-            Fees
-          </TabsTrigger>
+          {canViewFeeTransport && (
+            <>
+              <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
+                Documents
+              </TabsTrigger>
+              <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
+                Fees
+              </TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="health" className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 text-sm">
             Health
           </TabsTrigger>
@@ -601,16 +614,20 @@ export function StudentDetail() {
                   <span className="text-slate-500 dark:text-slate-400">Class</span>
                   <span className="font-medium text-slate-900 dark:text-slate-100">{student.class?.name}{student.stream ? ` - Stream ${student.stream}` : ''}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Student Type</span>
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{studentTypeLabel}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Transport</span>
-                  <span className={cn('font-medium px-2 py-0.5 rounded text-xs', transportIdentity.className)}>
-                    {transportIdentity.label.replace('Transport: ', '')}
-                  </span>
-                </div>
+                {canViewFeeTransport && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500 dark:text-slate-400">Student Type</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{studentTypeLabel}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500 dark:text-slate-400">Transport</span>
+                      <span className={cn('font-medium px-2 py-0.5 rounded text-xs', transportIdentity.className)}>
+                        {transportIdentity.label.replace('Transport: ', '')}
+                      </span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500 dark:text-slate-400">Admission Date</span>
                   <span className="font-medium text-slate-900 dark:text-slate-100">{format(new Date(student.admissionDate), 'MMM d, yyyy')}</span>
@@ -661,14 +678,16 @@ export function StudentDetail() {
                     {quickStats?.totalExams || 0}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-amber-500" /> Fee Balance
-                  </span>
-                  <span className="text-sm font-bold text-red-600 dark:text-red-400">
-                    KES {feeLedger?.balance?.toLocaleString() || student.feeSummary?.outstanding?.toLocaleString() || '0'}
-                  </span>
-                </div>
+                {canViewFeeTransport && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-amber-500" /> Fee Balance
+                    </span>
+                    <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                      KES {feeLedger?.balance?.toLocaleString() || student.feeSummary?.outstanding?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+                )}
                 {quickStats?.bestSubject && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
@@ -996,6 +1015,8 @@ export function StudentDetail() {
           </Card>
         </TabsContent>
 
+        {canViewFeeTransport && (
+          <>
         {/* Documents Tab */}
         <TabsContent value="documents" className="mt-4 space-y-4">
           {/* Fee Payment History */}
@@ -1187,6 +1208,8 @@ export function StudentDetail() {
             </DialogContent>
           </Dialog>
         </TabsContent>
+          </>
+        )}
 
         {/* Health Tab */}
         <TabsContent value="health" className="mt-4 space-y-4">

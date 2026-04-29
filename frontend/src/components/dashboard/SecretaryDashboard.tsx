@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
@@ -28,6 +28,13 @@ interface SecretaryStats {
   activeClasses: number
   publishedNotices: number
   inboxMessages: number
+}
+
+function getClassLabel(cls?: { name?: string | null; stream?: string | null }) {
+  if (!cls?.name) return 'No class'
+  if (!cls.stream) return cls.name
+  if (new RegExp(`\\s+${cls.stream}$`, 'i').test(cls.name)) return cls.name
+  return `${cls.name} ${cls.stream}`
 }
 
 export function SecretaryDashboard() {
@@ -88,6 +95,7 @@ export function SecretaryDashboard() {
   }, [selectedClassId, user?.id])
 
   const today = useMemo(() => format(new Date(), 'EEEE, MMMM d, yyyy'), [])
+  const selectedClassNavOptions = selectedClassId !== 'all' ? { classId: selectedClassId } : undefined
 
   return (
     <div className="space-y-6">
@@ -116,7 +124,7 @@ export function SecretaryDashboard() {
       {error && (
         <Card>
           <CardContent className="p-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-slate-600 dark:text-slate-300">Couldn’t load secretary dashboard data.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Could not load secretary dashboard data.</p>
             <Button variant="outline" size="sm" onClick={loadData}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Retry
@@ -151,7 +159,7 @@ export function SecretaryDashboard() {
                   <SelectItem value="all">All Classes</SelectItem>
                   {classes.map((cls) => (
                     <SelectItem key={cls.id} value={cls.id}>
-                      {cls.name} {cls.stream ? `(${cls.stream})` : ''}
+                      {getClassLabel(cls)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -174,7 +182,7 @@ export function SecretaryDashboard() {
                       {student.firstName} {student.lastName}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {student.admissionNumber} • {student.class?.name || 'No class'}
+                      {student.admissionNumber} - {getClassLabel(student.class)}
                     </p>
                   </div>
                   <Badge variant="outline" className="text-[11px]">
@@ -183,7 +191,7 @@ export function SecretaryDashboard() {
                 </div>
               ))
             )}
-            <Button variant="ghost" size="sm" className="w-full justify-between" onClick={() => navigateTo('students')}>
+            <Button variant="ghost" size="sm" className="w-full justify-between" onClick={() => navigateTo('students', selectedClassNavOptions)}>
               Open full student records
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -195,7 +203,7 @@ export function SecretaryDashboard() {
             <CardTitle className="text-sm">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <QuickButton icon={UserPlus} label="Admissions / Students" onClick={() => navigateTo('students')} />
+            <QuickButton icon={UserPlus} label="Admissions / Students" onClick={() => navigateTo('students', selectedClassNavOptions)} />
             <QuickButton icon={Bell} label="Post Notice" onClick={() => navigateTo('notices')} />
             <QuickButton icon={MessageSquare} label="Messages" onClick={() => navigateTo('messages')} />
             <QuickButton icon={CalendarDays} label="School Calendar" onClick={() => navigateTo('calendar')} />

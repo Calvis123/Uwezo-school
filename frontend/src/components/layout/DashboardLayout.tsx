@@ -49,7 +49,7 @@ import {
 import { useAppStore } from '@/lib/store'
 import { authApi } from '@/lib/api'
 import { clearTabAuthenticated } from '@/lib/tab-auth'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
 import { NotificationCenter } from './NotificationCenter'
@@ -63,7 +63,7 @@ const navItems = [
   { id: 'classes', label: 'Classes', icon: School, roles: ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER'] },
   { id: 'promotions', label: 'Promotions', icon: ArrowUpCircle, roles: ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER'] },
   { id: 'teacher-dashboard', label: 'Teacher Workspace', icon: GraduationCap, roles: ['TEACHER'] },
-  { id: 'role-center', label: 'Role Center', icon: ShieldCheck, roles: ['SUPER_ADMIN', 'HEADTEACHER'] },
+  { id: 'role-center', label: 'Role Center', icon: ShieldCheck, roles: ['HEADTEACHER'] },
   { id: 'fees', label: 'Fees', icon: DollarSign, roles: ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER', 'BURSAR', 'PARENT'] },
   { id: 'export', label: 'Export', icon: Download, roles: ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER', 'DOS', 'BURSAR', 'SECRETARY'] },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, roles: ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER'] },
@@ -132,7 +132,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   } = useAppStore()
   const [navQuery, setNavQuery] = useState('')
 
-  const getRoleNavLabel = (id: string, fallback: string) => {
+  const getRoleNavLabel = useCallback((id: string, fallback: string) => {
     if (user?.role === 'BURSAR') {
       if (id === 'dashboard') return 'Bursar Dashboard'
       if (id === 'export') return 'Finance Export'
@@ -148,7 +148,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       if (id === 'export') return 'School Export Center'
     }
     return fallback
-  }
+  }, [user?.role])
 
   const visibleNavItems = useMemo(() => {
     const q = navQuery.trim().toLowerCase()
@@ -158,7 +158,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       if (!q) return true
       return label.toLowerCase().includes(q)
     })
-  }, [navQuery, user?.role])
+  }, [getRoleNavLabel, navQuery, user])
 
   const groupedNav = useMemo(() => {
     const groups: Record<string, typeof visibleNavItems> = {}
@@ -174,11 +174,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Logo / School Name */}
       <div className="relative shrink-0 flex items-center gap-3 px-4 py-4 border-b border-slate-200/80 dark:border-slate-700/60 bg-gradient-to-r from-teal-50/70 via-white to-white dark:from-teal-950/25 dark:via-slate-900 dark:to-slate-900">
-        <img src="/logo.png" alt="Olives Schools" className="w-10 h-10 rounded-xl flex-shrink-0 shadow-md object-contain" />
+        <img src="/logo.png" alt="Uwezo School" className="w-10 h-10 rounded-xl flex-shrink-0 shadow-md object-contain" />
         <div>
           <div className="flex items-center gap-1.5">
-            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight">Olives</h1>
-            <span className="text-sm font-bold text-teal-600 dark:text-teal-400 leading-tight">Schools</span>
+            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight">Uwezo School</h1>
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">Management System</p>
         </div>
@@ -496,11 +495,11 @@ function DashboardFooter() {
           <div className="flex items-center gap-2">
             <img
               src="/logo.png"
-              alt="Olives Schools"
+              alt="Uwezo School"
               className="w-6 h-6 rounded-md object-contain flex-shrink-0"
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              (c) 2025 Olives Schools - Eldoret, Kenya
+              (c) 2025 Uwezo School - Eldoret, Kenya
             </p>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-slate-400 dark:text-slate-500">
@@ -510,7 +509,7 @@ function DashboardFooter() {
             </span>
             <span className="hidden sm:flex items-center gap-1">
               <Mail className="w-3 h-3" />
-              info@olives.co.ke
+              info@uwezoschool.co.ke
             </span>
           </div>
         </div>
@@ -523,7 +522,55 @@ function DashboardFooter() {
 }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, logout } = useAppStore()
   const [searchOpen, setSearchOpen] = useState(false)
+  const autoLogoutInFlightRef = useRef(false)
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const checkIntervalMs = 30_000
+    const sleepThresholdMs = 90_000
+    let lastTick = Date.now()
+
+    const forceLogoutAfterSleep = async () => {
+      if (autoLogoutInFlightRef.current) return
+      autoLogoutInFlightRef.current = true
+      try {
+        await authApi.logout()
+      } finally {
+        clearTabAuthenticated()
+        logout()
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      const now = Date.now()
+      const elapsed = now - lastTick
+      lastTick = now
+      if (elapsed > sleepThresholdMs) {
+        window.clearInterval(intervalId)
+        void forceLogoutAfterSleep()
+      }
+    }, checkIntervalMs)
+
+    const onVisibilityChange = () => {
+      const now = Date.now()
+      const elapsed = now - lastTick
+      lastTick = now
+      if (document.visibilityState === 'visible' && elapsed > sleepThresholdMs) {
+        window.clearInterval(intervalId)
+        void forceLogoutAfterSleep()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [isAuthenticated, logout])
+
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       <a

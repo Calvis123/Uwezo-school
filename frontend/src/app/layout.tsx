@@ -4,9 +4,9 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 
 export const metadata: Metadata = {
-  title: "Olives School Management System",
-  description: "Comprehensive school management system for Olives Schools, Eldoret, Kenya. Manage students, fees, exams, attendance and more.",
-  keywords: ["Olives School", "School Management", "Education", "Students", "Fees", "Exams", "Kenya", "CBC"],
+  title: "Uwezo School Management System",
+  description: "Comprehensive school management system for Uwezo School, Eldoret, Kenya. Manage students, fees, exams, attendance and more.",
+  keywords: ["Uwezo School", "School Management", "Education", "Students", "Fees", "Exams", "Kenya", "CBC"],
   icons: {
     icon: '/favicon.ico.png',
   },

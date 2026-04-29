@@ -5,6 +5,12 @@ import { STAFF_ROLES } from '@/lib/roles'
 import { apiRouteError } from '@/lib/api-route-error'
 import { MARKED_ATTENDANCE_STATUSES } from '@/lib/attendance'
 
+function getClassLabel(cls: { name: string; stream?: string | null }) {
+  if (!cls.stream) return cls.name
+  if (new RegExp(`\\s+${cls.stream}$`, 'i').test(cls.name)) return cls.name
+  return `${cls.name} ${cls.stream}`
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authed = await requireUser(request, { roles: [...STAFF_ROLES] })
@@ -36,7 +42,7 @@ export async function GET(request: NextRequest) {
       include: {
         _count: { select: { students: { where: { status: 'ACTIVE' } } } },
       },
-      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+      orderBy: [{ level: 'asc' }, { name: 'asc' }, { stream: 'asc' }],
     })
 
     const classIds = teacherClasses.map((c) => c.id)
@@ -107,7 +113,7 @@ export async function GET(request: NextRequest) {
         startDate: { gte: today },
       },
       include: {
-        class: { select: { name: true } },
+        class: { select: { name: true, stream: true } },
       },
       orderBy: { startDate: 'asc' },
       take: 10,
@@ -174,7 +180,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         student: { select: { firstName: true, lastName: true, admissionNumber: true } },
-        class: { select: { name: true } },
+        class: { select: { name: true, stream: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
@@ -186,7 +192,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         student: { select: { firstName: true, lastName: true } },
-        exam: { select: { name: true, class: { select: { name: true } } } },
+        exam: { select: { name: true, class: { select: { name: true, stream: true } } } },
         subject: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -199,14 +205,14 @@ export async function GET(request: NextRequest) {
         id: a.id,
         type: 'attendance' as const,
         description: `${a.student.firstName} ${a.student.lastName} (${a.student.admissionNumber}) — ${a.status}`,
-        className: a.class.name,
+        className: getClassLabel(a.class),
         timestamp: a.createdAt,
       })),
       ...recentExamMarks.map((m) => ({
         id: m.id,
         type: 'exam' as const,
         description: `${m.student.firstName} ${m.student.lastName} — ${m.subject.name}: ${m.marks}/${m.exam.totalMarks} (${m.grade || 'N/A'})`,
-        className: m.exam.class.name,
+        className: getClassLabel(m.exam.class),
         timestamp: m.createdAt,
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5)
@@ -270,7 +276,7 @@ export async function GET(request: NextRequest) {
           status: e.status,
           startDate: e.startDate,
           endDate: e.endDate,
-          className: e.class.name,
+          className: getClassLabel(e.class),
         })),
         averagePerformance: avgPerformance,
         pendingGrades,

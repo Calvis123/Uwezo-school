@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import { Loader2, Save, Building2, GraduationCap, Globe, CreditCard, Shield, School, Calendar, CheckCircle2, Palette, Bell, Lock, User, Check, MessageSquare, Plus, RefreshCw } from 'lucide-react'
-import { authApi, settingsApi, smsApi, termsApi } from '@/lib/api'
+import { Loader2, Save, Building2, GraduationCap, Globe, CreditCard, Shield, School, Calendar, CheckCircle2, Palette, Bell, Lock, User, Check, MessageSquare, Plus, RefreshCw, Pencil, Trash2, Layers3, X } from 'lucide-react'
+import { authApi, settingsApi, smsApi, termsApi, usersApi } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
+import { readJson } from '@/lib/read-json'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,6 +17,16 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Dialog,
   DialogContent,
@@ -52,15 +63,102 @@ const roleLabels: Record<string, string> = {
   PARENT: 'Parent',
 }
 
+const CLASS_LEVEL_OPTIONS = [
+  { value: 'PP1', label: 'PP1' },
+  { value: 'PP2', label: 'PP2' },
+  { value: 'GRADE_1', label: 'Grade 1' },
+  { value: 'GRADE_2', label: 'Grade 2' },
+  { value: 'GRADE_3', label: 'Grade 3' },
+  { value: 'GRADE_4', label: 'Grade 4' },
+  { value: 'GRADE_5', label: 'Grade 5' },
+  { value: 'GRADE_6', label: 'Grade 6' },
+  { value: 'GRADE_7', label: 'Grade 7' },
+  { value: 'GRADE_8', label: 'Grade 8' },
+  { value: 'GRADE_9', label: 'Grade 9' },
+]
+
+const CLASS_STREAM_OPTIONS = ['A', 'B', 'C']
+
+type SettingsClassItem = {
+  id: string
+  name: string
+  level: string
+  stream?: string | null
+  teacherId?: string | null
+  capacity?: number
+  status: string
+  studentCount: number
+}
+
+type SettingsClassGroup = {
+  key: string
+  name: string
+  level: string
+  classes: SettingsClassItem[]
+}
+
+type TeacherOption = {
+  id: string
+  name: string
+  email?: string
+}
+
+type ClassFormState = {
+  name: string
+  level: string
+  stream: string
+  teacherId: string
+  capacity: string
+  status: string
+}
+
+const getBaseClassName = (item: SettingsClassItem) => {
+  const stream = item.stream?.trim()
+  if (!stream) return item.name
+
+  return item.name.replace(new RegExp(`\\s+${stream}$`, 'i'), '')
+}
+
+const getClassStreamLabel = (item: SettingsClassItem) => {
+  return item.stream || 'No stream'
+}
+
+const getClassLevelValue = (item: SettingsClassItem) => {
+  const baseName = getBaseClassName(item).toLowerCase()
+  if (baseName.includes('pp1') || baseName.includes('pre-primary 1')) return 'PP1'
+  if (baseName.includes('pp2') || baseName.includes('pre-primary 2')) return 'PP2'
+
+  const gradeMatch = baseName.match(/grade\s*([1-9])/)
+  if (gradeMatch) return `GRADE_${gradeMatch[1]}`
+
+  return item.level
+}
+
+const getClassLevelLabel = (item: SettingsClassItem) => {
+  const levelValue = getClassLevelValue(item)
+  return CLASS_LEVEL_OPTIONS.find((option) => option.value === levelValue)?.label || levelValue
+}
+
 export function SettingsPage() {
   const { user } = useAppStore()
   const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'HEADTEACHER'
+  const canManageClasses = user?.role === 'SUPER_ADMIN'
   const [termRecords, setTermRecords] = useState<any[]>([])
+  const [classRecords, setClassRecords] = useState<SettingsClassItem[]>([])
+  const [teacherOptions, setTeacherOptions] = useState<TeacherOption[]>([])
   const [termsLoading, setTermsLoading] = useState(false)
+  const [classesLoading, setClassesLoading] = useState(false)
   const [termDialogOpen, setTermDialogOpen] = useState(false)
+  const [classDialogOpen, setClassDialogOpen] = useState(false)
   const [savingTerm, setSavingTerm] = useState(false)
+  const [savingClass, setSavingClass] = useState(false)
+  const [inlineSavingId, setInlineSavingId] = useState<string | null>(null)
   const [generatingNextYear, setGeneratingNextYear] = useState(false)
   const [activatingTermId, setActivatingTermId] = useState<string | null>(null)
+  const [editingClassId, setEditingClassId] = useState<string | null>(null)
+  const [deletingClassId, setDeletingClassId] = useState<string | null>(null)
+  const [selectedClassByGroup, setSelectedClassByGroup] = useState<Record<string, string>>({})
+  const [classSearch, setClassSearch] = useState('')
   const [newTerm, setNewTerm] = useState({
     name: 'Term 1',
     year: String(new Date().getFullYear()),
@@ -68,12 +166,21 @@ export function SettingsPage() {
     endDate: '',
     status: 'UPCOMING',
   })
+  const [classForm, setClassForm] = useState<ClassFormState>({
+    name: '',
+    level: 'GRADE_1',
+    stream: '',
+    teacherId: '',
+    capacity: '40',
+    status: 'ACTIVE',
+  })
+  const [inlineClassForm, setInlineClassForm] = useState<ClassFormState | null>(null)
   const [settings, setSettings] = useState({
-    school_name: 'Olives School',
+    school_name: 'Uwezo School',
     school_motto: 'Nurturing Excellence, Building Futures',
     address: '123 School Road, Nairobi, Kenya',
     phone: '+254 700 123 456',
-    email: 'info@olives.co.ke',
+    email: 'info@uwezoschool.co.ke',
     academic_year: '2025',
     current_term: 'Term 1',
     currency: 'KES',
@@ -81,13 +188,13 @@ export function SettingsPage() {
     email_alerts_enabled: 'false',
     sms_enabled: 'false',
     sms_provider: 'SIMULATED',
-    sms_sender_id: 'OLIVES',
+    sms_sender_id: 'UWEZOSCHOOL',
     sms_api_key: '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [smsTestPhone, setSmsTestPhone] = useState('')
-  const [smsTestMessage, setSmsTestMessage] = useState('Test SMS from Olives School Management System.')
+  const [smsTestMessage, setSmsTestMessage] = useState('Test SMS from Uwezo School Management System.')
   const [smsSending, setSmsSending] = useState(false)
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -99,10 +206,14 @@ export function SettingsPage() {
     if (isAdmin) {
       loadSettings()
       loadTermRecords()
+      if (canManageClasses) {
+        loadTeacherOptions()
+        loadClassRecords()
+      }
     } else {
       setLoading(false)
     }
-  }, [isAdmin])
+  }, [isAdmin, canManageClasses])
 
   const loadTermRecords = async () => {
     setTermsLoading(true)
@@ -117,6 +228,40 @@ export function SettingsPage() {
       setTermRecords([])
     } finally {
       setTermsLoading(false)
+    }
+  }
+
+  const loadClassRecords = async () => {
+    setClassesLoading(true)
+    try {
+      const res = await fetch('/api/classes')
+      const data = await readJson<any>(res)
+      if (data.success && data.data) {
+        setClassRecords(Array.isArray(data.data) ? data.data : [])
+      } else {
+        setClassRecords([])
+      }
+    } catch {
+      setClassRecords([])
+    } finally {
+      setClassesLoading(false)
+    }
+  }
+
+  const loadTeacherOptions = async () => {
+    try {
+      const res = await usersApi.list({ role: 'TEACHER', limit: 200, status: 'ACTIVE' })
+      if (res.success && res.data) {
+        setTeacherOptions((res.data.items || []).map((teacher: any) => ({
+          id: teacher.id,
+          name: teacher.name,
+          email: teacher.email,
+        })))
+      } else {
+        setTeacherOptions([])
+      }
+    } catch {
+      setTeacherOptions([])
     }
   }
 
@@ -253,6 +398,129 @@ export function SettingsPage() {
     }
   }
 
+  const createEmptyClassForm = (): ClassFormState => ({
+    name: '',
+    level: 'GRADE_1',
+    stream: '',
+    teacherId: '',
+    capacity: '40',
+    status: 'ACTIVE',
+  })
+
+  const createClassFormFromRecord = (item: SettingsClassItem): ClassFormState => ({
+    name: item.name,
+    level: getClassLevelValue(item),
+    stream: item.stream || '',
+    teacherId: item.teacherId || '',
+    capacity: String(item.capacity || 40),
+    status: item.status || 'ACTIVE',
+  })
+
+  const openCreateClassDialog = () => {
+    setEditingClassId(null)
+    setClassForm({
+      ...createEmptyClassForm(),
+    })
+    setClassDialogOpen(true)
+  }
+
+  const openInlineEdit = (item: SettingsClassItem) => {
+    setEditingClassId(item.id)
+    setInlineClassForm(createClassFormFromRecord(item))
+  }
+
+  const cancelInlineEdit = () => {
+    setEditingClassId(null)
+    setInlineClassForm(null)
+  }
+
+  const updateClassRecord = async (id: string | null, form: ClassFormState) => {
+    const payload = {
+      name: form.name.trim(),
+      level: form.level,
+      stream: form.stream.trim() || null,
+      teacherId: form.teacherId || null,
+      capacity: Number(form.capacity || 40),
+      status: form.status,
+    }
+
+    const url = id ? `/api/classes/${id}` : '/api/classes'
+    const method = id ? 'PUT' : 'POST'
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    return readJson<any>(res)
+  }
+
+  const handleSaveClass = async () => {
+    if (!classForm.name.trim()) {
+      toast.error('Class name is required')
+      return
+    }
+
+    setSavingClass(true)
+    try {
+      const data = await updateClassRecord(null, classForm)
+      if (data.success) {
+        toast.success('Class created successfully')
+        setClassDialogOpen(false)
+        setClassForm(createEmptyClassForm())
+        await loadClassRecords()
+      } else {
+        toast.error(data.error || 'Failed to save class')
+      }
+    } catch {
+      toast.error('Failed to save class')
+    } finally {
+      setSavingClass(false)
+    }
+  }
+
+  const handleSaveInlineClass = async (classId: string) => {
+    if (!inlineClassForm?.name.trim()) {
+      toast.error('Class name is required')
+      return
+    }
+
+    setInlineSavingId(classId)
+    try {
+      const data = await updateClassRecord(classId, inlineClassForm)
+      if (data.success) {
+        toast.success('Class updated successfully')
+        cancelInlineEdit()
+        await loadClassRecords()
+      } else {
+        toast.error(data.error || 'Failed to update class')
+      }
+    } catch {
+      toast.error('Failed to update class')
+    } finally {
+      setInlineSavingId(null)
+    }
+  }
+
+  const handleDeleteClass = async () => {
+    if (!deletingClassId) return
+    try {
+      const res = await fetch(`/api/classes/${deletingClassId}`, { method: 'DELETE' })
+      const data = await readJson<any>(res)
+      if (data.success) {
+        toast.success('Class removed successfully')
+        await loadClassRecords()
+      } else {
+        toast.error(data.error || 'Failed to remove class')
+      }
+    } catch {
+      toast.error('Failed to remove class')
+    } finally {
+      setDeletingClassId(null)
+    }
+  }
+
   const formatDateInput = (value?: string) => {
     if (!value) return '—'
     return new Date(value).toLocaleDateString('en-KE', {
@@ -332,6 +600,66 @@ export function SettingsPage() {
     .join('')
     .toUpperCase()
     .slice(0, 2) || 'U'
+
+  const availableStreamOptions = useMemo(() => {
+    const streamSet = new Set(
+      [...CLASS_STREAM_OPTIONS, ...classRecords.map((item) => item.stream || ''), classForm.stream, inlineClassForm?.stream || '']
+        .map((stream) => stream.trim())
+        .filter(Boolean)
+    )
+    return Array.from(streamSet).sort((a, b) => a.localeCompare(b))
+  }, [classRecords, classForm.stream, inlineClassForm?.stream])
+
+  const filteredClassRecords = useMemo(() => {
+    const term = classSearch.trim().toLowerCase()
+    if (!term) return classRecords
+    return classRecords.filter((cls) => {
+      const levelLabel = getClassLevelLabel(cls)
+      return [
+        cls.name,
+        cls.stream || '',
+        levelLabel,
+      ].some((value) => value.toLowerCase().includes(term))
+    })
+  }, [classRecords, classSearch])
+
+  const filteredClassGroups = useMemo<SettingsClassGroup[]>(() => {
+    const grouped = new Map<string, SettingsClassGroup>()
+
+    filteredClassRecords.forEach((cls) => {
+      const baseName = getBaseClassName(cls)
+      const levelValue = getClassLevelValue(cls)
+      const key = `${levelValue}::${baseName.toLowerCase()}`
+      const existing = grouped.get(key)
+
+      if (existing) {
+        existing.classes.push(cls)
+      } else {
+        grouped.set(key, {
+          key,
+          name: baseName,
+          level: levelValue,
+          classes: [cls],
+        })
+      }
+    })
+
+    return Array.from(grouped.values()).map((group) => ({
+      ...group,
+      classes: [...group.classes].sort((a, b) => {
+        const aStream = a.stream || ''
+        const bStream = b.stream || ''
+        return aStream.localeCompare(bStream, undefined, { numeric: true, sensitivity: 'base' })
+      }),
+    }))
+  }, [filteredClassRecords])
+
+  const activeClassCount = classRecords.filter((cls) => cls.status === 'ACTIVE').length
+  const activeStreamCount = new Set(classRecords.map((cls) => (cls.stream || '').trim()).filter(Boolean)).size
+  const teacherLookup = useMemo(
+    () => Object.fromEntries(teacherOptions.map((teacher) => [teacher.id, teacher.name])),
+    [teacherOptions]
+  )
 
   if (loading) {
     return (
@@ -688,6 +1016,314 @@ export function SettingsPage() {
           </Card>
         </motion.div>
 
+        {canManageClasses && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.15 }}
+            whileHover={{ y: -2 }}
+            className="group lg:col-span-2"
+          >
+            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 border-l-4 border-l-cyan-500 hover:shadow-md transition-shadow duration-300 rounded-2xl">
+              <CardHeader className="pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-cyan-50 dark:bg-cyan-900/40 flex items-center justify-center">
+                        <Layers3 className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                      </div>
+                      Class & Stream Management
+                    </CardTitle>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 ml-[2.5rem]">
+                      Add, edit, and remove classes available in your school, including stream labels like A, B, or C.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={openCreateClassDialog}
+                    className="h-8 bg-cyan-600 hover:bg-cyan-700 text-white"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Add Class
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50/80 px-4 py-3 dark:border-cyan-900/40 dark:bg-cyan-950/20">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-700 dark:text-cyan-300">Classes</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{classRecords.length}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{activeClassCount} active in the school register</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">Streams</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{activeStreamCount}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {availableStreamOptions.length > 0 ? availableStreamOptions.join(', ') : 'No streams added yet'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600 dark:text-slate-300">Teacher coverage</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                      {classRecords.filter((cls) => cls.teacherId).length}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Classes currently assigned to a teacher</p>
+                  </div>
+                </div>
+
+                <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-3 dark:border-slate-700/70 dark:bg-slate-900/30 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">School class register</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Add a new stream like Grade 6 B, then adjust stream, teacher, capacity, and status directly in the table.
+                    </p>
+                  </div>
+                  <Input
+                    value={classSearch}
+                    onChange={(e) => setClassSearch(e.target.value)}
+                    placeholder="Search class, level, or stream"
+                    className="w-full lg:w-72 bg-white dark:bg-slate-950/40"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-slate-200/70 dark:border-slate-700/70 overflow-hidden">
+                  <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                    <span className="col-span-3">Class</span>
+                    <span className="col-span-2">Level</span>
+                    <span className="col-span-2">Stream</span>
+                    <span className="col-span-2">Teacher</span>
+                    <span className="col-span-1">Capacity</span>
+                    <span className="col-span-1">Status</span>
+                    <span className="col-span-1 text-right">Action</span>
+                  </div>
+                  {classesLoading ? (
+                    <div className="p-3 space-y-2">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-10 rounded-lg" />
+                      ))}
+                    </div>
+                  ) : filteredClassGroups.length === 0 ? (
+                    <div className="px-3 py-6 text-center">
+                      <p className="text-sm text-slate-600 dark:text-slate-300">
+                        {classRecords.length === 0 ? 'No classes found.' : 'No classes match your search.'}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {classRecords.length === 0 ? 'Create your first class and stream here.' : 'Try a different class name, level, or stream.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                      {filteredClassGroups.map((group) => {
+                        const selectedId = selectedClassByGroup[group.key]
+                        const cls = group.classes.find((item) => item.id === selectedId) || group.classes[0]
+                        const levelLabel = getClassLevelLabel(cls)
+                        const isEditing = editingClassId === cls.id && inlineClassForm
+                        const teacherName = cls.teacherId ? teacherLookup[cls.teacherId] || 'Assigned teacher' : 'Unassigned'
+                        return (
+                          <div key={group.key} className="grid grid-cols-12 gap-3 px-4 py-3 items-center text-sm">
+                            <div className="col-span-3 min-w-0">
+                              {isEditing ? (
+                                <Input
+                                  value={inlineClassForm.name}
+                                  onChange={(e) => setInlineClassForm((prev) => prev ? ({ ...prev, name: e.target.value }) : prev)}
+                                  className="h-9 bg-white dark:bg-slate-950/40"
+                                />
+                              ) : (
+                                <>
+                                  <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">
+                                    {group.name}
+                                  </p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {cls.studentCount} active student{cls.studentCount === 1 ? '' : 's'}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                            <div className="col-span-2">
+                              {isEditing ? (
+                                <Select
+                                  value={inlineClassForm.level}
+                                  onValueChange={(value) => setInlineClassForm((prev) => prev ? ({ ...prev, level: value }) : prev)}
+                                >
+                                  <SelectTrigger className="h-9 bg-white dark:bg-slate-950/40">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {CLASS_LEVEL_OPTIONS.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <p className="text-slate-600 dark:text-slate-300">{levelLabel}</p>
+                              )}
+                            </div>
+                            <div className="col-span-2">
+                              {isEditing ? (
+                                <div className="space-y-1">
+                                  <Input
+                                    value={inlineClassForm.stream}
+                                    onChange={(e) => setInlineClassForm((prev) => prev ? ({ ...prev, stream: e.target.value.toUpperCase() }) : prev)}
+                                    placeholder="A, B, C, North..."
+                                    className="h-9 bg-white dark:bg-slate-950/40"
+                                    list={`stream-options-${cls.id}`}
+                                  />
+                                  <datalist id={`stream-options-${cls.id}`}>
+                                    {availableStreamOptions.map((stream) => (
+                                      <option key={stream} value={stream} />
+                                    ))}
+                                  </datalist>
+                                </div>
+                              ) : group.classes.length > 1 ? (
+                                <Select
+                                  value={cls.id}
+                                  onValueChange={(value) => setSelectedClassByGroup((current) => ({ ...current, [group.key]: value }))}
+                                >
+                                  <SelectTrigger className="h-9 w-32 bg-white dark:bg-slate-950/40">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {group.classes.map((streamClass) => (
+                                      <SelectItem key={streamClass.id} value={streamClass.id}>
+                                        {getClassStreamLabel(streamClass)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {cls.stream || 'No stream'}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="col-span-2">
+                              {isEditing ? (
+                                <Select
+                                  value={inlineClassForm.teacherId || '__UNASSIGNED__'}
+                                  onValueChange={(value) => setInlineClassForm((prev) => prev ? ({ ...prev, teacherId: value === '__UNASSIGNED__' ? '' : value }) : prev)}
+                                >
+                                  <SelectTrigger className="h-9 bg-white dark:bg-slate-950/40">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__UNASSIGNED__">Unassigned</SelectItem>
+                                    {teacherOptions.map((teacher) => (
+                                      <SelectItem key={teacher.id} value={teacher.id}>
+                                        {teacher.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <div>
+                                  <p className="text-slate-700 dark:text-slate-200 truncate">{teacherName}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {cls.teacherId ? 'Teacher assigned' : 'Needs assignment'}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="col-span-1">
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={inlineClassForm.capacity}
+                                  onChange={(e) => setInlineClassForm((prev) => prev ? ({ ...prev, capacity: e.target.value }) : prev)}
+                                  className="h-9 bg-white dark:bg-slate-950/40"
+                                />
+                              ) : (
+                                <p className="text-slate-600 dark:text-slate-300">{cls.capacity || 40}</p>
+                              )}
+                            </div>
+                            <div className="col-span-1">
+                              {isEditing ? (
+                                <Select
+                                  value={inlineClassForm.status}
+                                  onValueChange={(value) => setInlineClassForm((prev) => prev ? ({ ...prev, status: value }) : prev)}
+                                >
+                                  <SelectTrigger className="h-9 bg-white dark:bg-slate-950/40">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="ACTIVE">Active</SelectItem>
+                                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Badge
+                                  variant="secondary"
+                                  className={cn(
+                                    'text-[10px]',
+                                    cls.status === 'ACTIVE'
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                      : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                  )}
+                                >
+                                  {cls.status}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="col-span-1 flex justify-end gap-2">
+                              {isEditing ? (
+                                <>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+                                    onClick={() => handleSaveInlineClass(cls.id)}
+                                    disabled={inlineSavingId === cls.id}
+                                  >
+                                    {inlineSavingId === cls.id ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <Check className="w-3.5 h-3.5" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8"
+                                    onClick={cancelInlineEdit}
+                                    disabled={inlineSavingId === cls.id}
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8"
+                                    onClick={() => openInlineEdit(cls)}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8 text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-300 dark:border-rose-800 dark:hover:bg-rose-900/20"
+                                    onClick={() => setDeletingClassId(cls.id)}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Appearance & Notifications */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -781,7 +1417,7 @@ export function SettingsPage() {
                       <Input
                         value={settings.sms_sender_id}
                         onChange={(e) => setSettings({ ...settings, sms_sender_id: e.target.value })}
-                        placeholder="OLIVES"
+                        placeholder="UWEZOSCHOOL"
                         className="h-9 text-sm bg-white dark:bg-slate-900/50"
                       />
                     </div>
@@ -1066,6 +1702,154 @@ export function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={classDialogOpen} onOpenChange={setClassDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Class</DialogTitle>
+            <DialogDescription>
+              Create a new class entry such as Grade 6 B, then fine-tune it from the register below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Class Name</Label>
+              <Input
+                value={classForm.name}
+                onChange={(e) => setClassForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Grade 6"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Level</Label>
+                <Select
+                  value={classForm.level}
+                  onValueChange={(value) => setClassForm((prev) => ({ ...prev, level: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CLASS_LEVEL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Stream</Label>
+                <Input
+                  value={classForm.stream}
+                  onChange={(e) => setClassForm((prev) => ({ ...prev, stream: e.target.value.toUpperCase() }))}
+                  placeholder="A, B, C, North..."
+                  list="settings-class-stream-options"
+                />
+              </div>
+            </div>
+
+            <datalist id="settings-class-stream-options">
+              {availableStreamOptions.map((stream) => (
+                <option key={stream} value={stream} />
+              ))}
+            </datalist>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Class Teacher</Label>
+                <Select
+                  value={classForm.teacherId || '__UNASSIGNED__'}
+                  onValueChange={(value) => setClassForm((prev) => ({ ...prev, teacherId: value === '__UNASSIGNED__' ? '' : value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__UNASSIGNED__">Unassigned</SelectItem>
+                    {teacherOptions.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>
+                        {teacher.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Capacity</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={classForm.capacity}
+                  onChange={(e) => setClassForm((prev) => ({ ...prev, capacity: e.target.value }))}
+                  placeholder="40"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select
+                  value={classForm.status}
+                  onValueChange={(value) => setClassForm((prev) => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClassDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveClass}
+              disabled={savingClass}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            >
+              {savingClass ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Create Class'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(deletingClassId)} onOpenChange={(open) => !open && setDeletingClassId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Class</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate the class from the school list. Existing student records will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteClass}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Remove Class
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent className="sm:max-w-md">

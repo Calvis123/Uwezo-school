@@ -54,6 +54,12 @@ function canUserViewDocument(targetRoles: string, userRole: string) {
   return false;
 }
 
+function canUserViewDocumentCategory(category: string, userRole: string) {
+  const normalizedRole = userRole.toUpperCase();
+  if (normalizedRole !== 'TEACHER') return true;
+  return ['GENERAL', 'ACADEMIC', 'POLICY', 'MEETING'].includes((category || 'GENERAL').toUpperCase());
+}
+
 function toSafeFilePart(value: string) {
   return value
     .toLowerCase()
@@ -92,6 +98,7 @@ export async function GET(request: NextRequest) {
     const docs = await readDocuments();
     const visibleDocs = docs
       .filter((doc) => canUserViewDocument(doc.targetRoles, user.role))
+      .filter((doc) => canUserViewDocumentCategory(doc.category, user.role))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({ success: true, data: visibleDocs });

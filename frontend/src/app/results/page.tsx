@@ -97,7 +97,7 @@ export default function ResultsPage() {
               <GraduationCap className="h-7 w-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Olives School</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Uwezo School</h1>
               <p className="text-teal-100 text-sm">Excellence in Education</p>
             </div>
           </div>
@@ -347,7 +347,7 @@ export default function ResultsPage() {
 
             {/* Footer note */}
             <div className="text-center text-xs text-gray-400 pt-2 no-print">
-              <p>Results retrieved from Olives School Management System</p>
+              <p>Results retrieved from Uwezo School Management System</p>
             </div>
           </div>
         )}
@@ -357,7 +357,7 @@ export default function ResultsPage() {
       <footer className="mt-auto bg-gray-100 border-t border-gray-200 py-4 no-print">
         <div className="max-w-2xl mx-auto px-4 text-center">
           <p className="text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} Olives School &mdash; Results Portal
+            &copy; {new Date().getFullYear()} Uwezo School &mdash; Results Portal
           </p>
         </div>
       </footer>

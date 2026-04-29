@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
-import { AlertCircle, CheckCircle2, Clock3, ReceiptText } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock3, ReceiptText, Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -79,6 +79,12 @@ interface ClassFeeSummaryProps {
 
 function fmt(amount: number) {
   return `KES ${Math.round(amount).toLocaleString()}`
+}
+
+function paymentStatusLabel(status: StudentTerm['paymentStatus'] | StudentRow['overallStatus']) {
+  if (status === 'PAID') return 'Cleared'
+  if (status === 'PARTIAL') return 'Partially paid'
+  return 'Unpaid'
 }
 
 export function ClassFeeSummary({
@@ -226,7 +232,7 @@ export function ClassFeeSummary({
             Class Fees by Term ({data.year}) — Paid vs Balance per Student
           </CardTitle>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Payment statistics are shown per term for each student.
+            Read each row from left to right: amount paid, balance remaining, latest payment, then the action to add another payment.
           </p>
         </CardHeader>
       </Card>
@@ -234,10 +240,40 @@ export function ClassFeeSummary({
       {data.classes.map((cls) => (
         <Card key={cls.id} className="border-slate-200/80 dark:border-slate-700/80 shadow-sm">
           <CardHeader className="pb-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-sm">
-                {cls.name} {cls.stream || ''} ({cls.studentCount} students)
-              </CardTitle>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-3">
+                <CardTitle className="text-sm">
+                  {cls.name} {cls.stream || ''} ({cls.studentCount} students)
+                </CardTitle>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {displayTerms.map((term) => {
+                    const stat = cls.termSummary.find((item) => item.termId === term.id)
+                    return (
+                      <div
+                        key={term.id}
+                        className="rounded-lg border border-slate-200/70 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-800/50"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{term.name}</p>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {(stat?.collectionRate || 0).toFixed(0)}% collected
+                          </Badge>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <p className="text-slate-400 dark:text-slate-500">Paid</p>
+                            <p className="font-semibold text-emerald-700 dark:text-emerald-300">{fmt(stat?.paid || 0)}</p>
+                          </div>
+                          <div>
+                            <p className="text-slate-400 dark:text-slate-500">Balance</p>
+                            <p className="font-semibold text-amber-700 dark:text-amber-300">{fmt(stat?.balance || 0)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
               <div className="flex gap-1.5 flex-wrap">
                 {displayTerms.map((term) => {
                   const stat = cls.termSummary.find((item) => item.termId === term.id)
@@ -261,10 +297,10 @@ export function ClassFeeSummary({
                   <TableHead>Student</TableHead>
                   <TableHead>Admission</TableHead>
                   {displayTerms.map((term) => (
-                    <TableHead key={term.id}>{term.name} (Paid / Balance)</TableHead>
+                    <TableHead key={term.id}>{term.name} Summary</TableHead>
                   ))}
-                  <TableHead>Last Payment Record</TableHead>
-                  <TableHead className="w-28">Update</TableHead>
+                  <TableHead>Latest Payment</TableHead>
+                  <TableHead className="w-40">Next Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -289,11 +325,7 @@ export function ClassFeeSummary({
                           <div>
                             <p className="font-medium">{student.name}</p>
                             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {student.overallStatus === 'UNPAID'
-                                ? 'Unpaid'
-                                : student.overallStatus === 'PARTIAL'
-                                  ? 'Partially paid'
-                                  : 'Fee cleared'}
+                              {paymentStatusLabel(student.overallStatus)}
                             </p>
                           </div>
                         </div>
@@ -303,11 +335,25 @@ export function ClassFeeSummary({
                         const info = student.perTerm.find((entry) => entry.termId === term.id)
                         return (
                           <TableCell key={term.id}>
-                            <p className="text-xs text-emerald-700 dark:text-emerald-300">{fmt(info?.paid || 0)}</p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300">{fmt(info?.balance || 0)}</p>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {info?.paymentCount || 0} payment(s)
-                            </p>
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-3 text-[11px]">
+                                <span className="text-slate-400 dark:text-slate-500">Paid</span>
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-300">{fmt(info?.paid || 0)}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3 text-[11px]">
+                                <span className="text-slate-400 dark:text-slate-500">Balance</span>
+                                <span className="font-semibold text-amber-700 dark:text-amber-300">{fmt(info?.balance || 0)}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3 text-[11px]">
+                                <span className="text-slate-400 dark:text-slate-500">Status</span>
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {paymentStatusLabel(info?.paymentStatus || 'UNPAID')}
+                                </Badge>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {info?.paymentCount || 0} recorded payment(s)
+                              </p>
+                            </div>
                           </TableCell>
                         )
                       })}
@@ -326,26 +372,35 @@ export function ClassFeeSummary({
                             </p>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400">No payment record yet</span>
+                          <span className="text-xs text-slate-400">No payment has been recorded yet</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-700 dark:text-teal-300 dark:hover:bg-teal-900/30"
-                          onClick={() =>
-                            onUpdateStudent?.({
-                              studentId: student.id,
-                              studentName: student.name,
-                              classId: cls.id,
-                              termId: dueTerm?.termId || null,
-                              suggestedFeeStructureId: dueTerm?.suggestedFeeStructureId || null,
-                            })
-                          }
-                        >
-                          Update
-                        </Button>
+                        <div className="space-y-2">
+                          <div className="rounded-lg bg-slate-50 px-3 py-2 text-[11px] dark:bg-slate-800/60">
+                            <p className="font-medium text-slate-700 dark:text-slate-300">Recommended term</p>
+                            <p className="text-slate-500 dark:text-slate-400">
+                              {dueTerm?.termName || 'Current term'}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-700 dark:text-teal-300 dark:hover:bg-teal-900/30"
+                            onClick={() =>
+                              onUpdateStudent?.({
+                                studentId: student.id,
+                                studentName: student.name,
+                                classId: cls.id,
+                                termId: dueTerm?.termId || null,
+                                suggestedFeeStructureId: dueTerm?.suggestedFeeStructureId || null,
+                              })
+                            }
+                          >
+                            <Wallet className="mr-2 h-4 w-4" />
+                            Add Payment
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -358,7 +413,7 @@ export function ClassFeeSummary({
             <div className="rounded-lg border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-900/10">
               <div className="px-4 py-3 border-b border-amber-200/70 dark:border-amber-800/40">
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                  Pending Amounts per Student (Term-wise)
+                  Students With Outstanding Balances
                 </p>
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   {cls.name} {cls.stream || ''} — students with outstanding balances only.
@@ -371,9 +426,9 @@ export function ClassFeeSummary({
                       <TableHead>Student</TableHead>
                       <TableHead>Admission</TableHead>
                       {displayTerms.map((term) => (
-                        <TableHead key={term.id}>{term.name} Pending</TableHead>
+                        <TableHead key={term.id}>{term.name} Balance</TableHead>
                       ))}
-                      <TableHead>Total Pending</TableHead>
+                      <TableHead>Total Balance</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -1,10 +1,10 @@
 ---
 Task ID: 1-10
 Agent: Main Orchestrator + 2 Subagents (Backend + Frontend)
-Task: Build Olives School Management System - Complete MVP
+Task: Build Uwezo School Management System - Complete MVP
 
 Work Log:
-- Read and analyzed the comprehensive project brief (olives-schools-js-stack.md)
+- Read and analyzed the comprehensive project brief (Uwezo School-schools-js-stack.md)
 - Adapted the tech stack from MongoDB/Mongoose to Prisma/SQLite (our standard stack)
 - Designed and implemented 12 Prisma models: User, Student, SchoolClass, Subject, Term, FeeStructure, FeeTransaction, Exam, ExamMark, Attendance, StudentGuardian, SchoolNotice, SystemSetting
 - Pushed schema to SQLite database and ran Prisma generate
@@ -20,7 +20,7 @@ Stage Summary:
 - Database: 571 students, 19 classes, 571 guardian links, 225 fee structures, fee transactions, 7 exams with marks, 3159 attendance records
 - Backend: 21 API route files, comprehensive CRUD operations, dashboard statistics
 - Frontend: Single-page application with 10 views (login, dashboard, students, student-detail, fees, exams, attendance, notices, settings), Zustand state management, TanStack Query-ready API client
-- Demo login: admin@olives.co.ke / admin123 (Super Admin), teacher@olives.co.ke / teacher123, parent@olives.co.ke / parent123
+- Demo login: admin@uwezoschool.co.ke / admin123 (Super Admin), teacher@uwezoschool.co.ke / teacher123, parent@uwezoschool.co.ke / parent123
 - Key results: All APIs tested ✅, Lint clean ✅, Page loads 200 ✅
 
 ---
@@ -115,13 +115,13 @@ Work Log:
 - **Login Page Enhancements**:
   - Version badge updated from "Version 3.0" to "Version 4.0"
   - Added typewriter-like animation for "Nurturing Excellence, Building Futures" tagline using custom `TypewriterText` component with blinking cursor effect
-  - Added "Powered by Olives Tech" in 9px muted text below the version badge
+  - Added "Powered by Uwezo School Tech" in 9px muted text below the version badge
   - Demo credential cards now show subtle teal glow/shadow on hover
 
 - **Dashboard Footer Enhancement**:
   - Replaced gradient icon with actual school logo (24x24 `img` tag)
-  - Copyright: "© 2025 Olives Schools — Eldoret, Kenya"
-  - Contact info: "+254 700 123 456 · info@olives.co.ke"
+  - Copyright: "© 2025 Uwezo School — Eldoret, Kenya"
+  - Contact info: "+254 700 123 456 · info@uwezoschool.co.ke"
   - Added "Made with ♥ in Kenya" centered below
   - Footer uses `mt-auto` for sticky positioning, full dark mode support
   - Removed unused `MapPin` import from DashboardLayout
@@ -157,10 +157,10 @@ Stage Summary:
 14. ✅ Browser QA: All 8 pages verified
 
 ### Demo Credentials
-- **Super Admin**: admin@olives.co.ke / admin123
-- **Admin**: admin2@olives.co.ke / admin123
-- **Teacher**: teacher@olives.co.ke / teacher123
-- **Parent**: parent@olives.co.ke / parent123
+- **Super Admin**: admin@uwezoschool.co.ke / admin123
+- **Admin**: admin2@uwezoschool.co.ke / admin123
+- **Teacher**: teacher@uwezoschool.co.ke / teacher123
+- **Parent**: parent@uwezoschool.co.ke / parent123
 
 ### QA Screenshots Saved
 - `/download/qa-01-login.png` — Login page
@@ -234,7 +234,7 @@ Work Log:
   - Toggle button placed in header action bar
 
 - **IMPROVED: Sidebar Design**:
-  - New branding: "Olives" (teal) / "School" (muted) on one line
+  - New branding: "UWEZOSCHOOL" (teal) / "School" (muted) on one line
   - Academic year + term indicator bar: "2025 Academic Year · Term 1"
   - Active nav item: solid teal left border + tinted background
   - Mobile: Sheet drawer overlay (slides from left) instead of inline
@@ -334,7 +334,7 @@ Implement comprehensive dark mode support, improve sidebar/header UX, add page t
 - **Dark mode classes added across ALL components**: DashboardLayout, DashboardHome, StatsCards, Charts, StudentList, StudentDetail, LoginPage, FeesPage, FeePayments, FeeStructures, FeeReports, ExamList, AttendanceMarking, NoticeList, SettingsPage, UserManagement
 
 #### 2. Improved Sidebar Design
-- **Logo section**: "Olives" (teal) + "School" on same line, "Management System" subtitle below
+- **Logo section**: "UWEZOSCHOOL" (teal) + "School" on same line, "Management System" subtitle below
 - **School year/term indicator**: Teal-tinted bar showing "2025 Academic Year · Term 1"
 - **Active state**: Solid teal left border (`border-l-[3px]`) + teal-50/dark:bg-teal-900/30 background
 - **Mobile**: Replaced inline sidebar with shadcn/ui `Sheet` drawer overlay (slides from left)
@@ -405,7 +405,7 @@ Implement comprehensive dark mode support, improve sidebar/header UX, add page t
 ---
 ## Task ID: feat-exams - Frontend Developer
 ### Work Task
-Improve Exam page and add Report Cards + Print functionality for the Olives School Management System.
+Improve Exam page and add Report Cards + Print functionality for the Uwezo School Management System.
 
 ### Work Summary
 
@@ -443,7 +443,7 @@ Improve Exam page and add Report Cards + Print functionality for the Olives Scho
 - **Selectors**: Class → Exam (filtered by class) → Student dropdown chain
 - **Class Summary Table**: Ranked table with position, admission number, total marks, mean, grade badge, "View Card" action
 - **Professional Report Card Design**:
-  - School header: "Olives Schools — Eldoret, Kenya" with gradient background (teal), contact info
+  - School header: "Uwezo School — Eldoret, Kenya" with gradient background (teal), contact info
   - Student info section: Name, Admission Number, Class, Position
   - Marks table: Numbered rows with Subject, Marks, Grade (color-coded badge), Remarks
   - Summary: Total Marks, Mean Grade badge, Position, Grade Scale indicator
@@ -481,12 +481,12 @@ Implement a complete parent portal with dedicated API routes, a comprehensive fr
 
 #### 1. Seed Data Script: `/scripts/link-parent.ts`
 - Created a one-time script to fix the parent-student guardian links
-- Removed 286 existing guardian links for parent@olives.co.ke (was linked to ALL even-indexed students from seed)
+- Removed 286 existing guardian links for parent@uwezoschool.co.ke (was linked to ALL even-indexed students from seed)
 - Created exactly 3 links to students from different classes:
   - Peter Rotich (Pre-Nursery) - FATHER
   - David Macharia (Nursery) - MOTHER
   - John Bett (Grade 1 A) - GUARDIAN
-- Also cleaned up parent2@olives.co.ke links (2 students)
+- Also cleaned up parent2@uwezoschool.co.ke links (2 students)
 
 #### 2. API Routes Created
 
@@ -553,7 +553,7 @@ A comprehensive 600-line component with the following sections:
 
 #### Quality
 - `npm run lint` — ✅ Zero errors, zero warnings
-- Seed data verified: parent@olives.co.ke linked to 3 students from different classes
+- Seed data verified: parent@uwezoschool.co.ke linked to 3 students from different classes
 - All TypeScript types properly defined
 
 #### Files Created
@@ -569,7 +569,7 @@ A comprehensive 600-line component with the following sections:
 3. `/src/components/layout/DashboardLayout.tsx` — Parent sidebar filtering, dynamic header title
 
 #### Parent Login Credentials
-- **Email**: parent@olives.co.ke
+- **Email**: parent@uwezoschool.co.ke
 - **Password**: parent123
 - **Name**: Peter Otieno
 - **Role**: PARENT
@@ -660,7 +660,7 @@ Improve the visual styling of ALL existing pages with more detail, polish, and p
 ---
 ## Task ID: 7-student-promotion
 Agent: Full-stack Developer
-Task: Build Student Promotion/Graduation feature for the Olives School Management System
+Task: Build Student Promotion/Graduation feature for the Uwezo School Management System
 
 ### Work Task
 Implement a comprehensive student promotion management system with database model, API routes, frontend wizard, and integration points across the application.
@@ -1065,7 +1065,7 @@ Work Log:
 - Opened http://localhost:3000 with agent-browser
 - Login page loaded successfully — all elements rendered: email/password fields, Sign In button, 3 demo credential buttons (Super Admin, Teacher, Parent), Forgot Password link
 - Clicked "Super Admin" demo button — did NOT auto-navigate (stayed on login page). This is a known P2 issue.
-- Manually logged in with admin@olives.co.ke / admin123 via Sign In button — login successful
+- Manually logged in with admin@uwezoschool.co.ke / admin123 via Sign In button — login successful
 - Dashboard loaded with full data:
   - Sidebar: ALL 10 nav items present ✅ (Dashboard, Users, Students, Fees, Exams & Results, Attendance, Calendar, Messages, Notices, Settings)
   - Stats: 547 Students, 19 Classes, KES 9,277,780 Fee Collection (71.1%), 62.0% Attendance
@@ -1208,7 +1208,7 @@ Current Project Status: Feature-rich production-ready app with 12 pages, 30+ API
 ---
 Task ID: cron-round5
 Agent: Main Orchestrator + 6 Subagents
-Task: Implement improvements from olives-schools-prompt-improved.md brief
+Task: Implement improvements from Uwezo School-schools-prompt-improved.md brief
 
 Work Log:
 - Read improved project brief and performed gap analysis: 11 features missing, 2 partial, 3 complete
@@ -1275,10 +1275,10 @@ Stage Summary:
 - Attendance Rate: **59.0%**
 
 ### Demo Credentials
-- Super Admin: admin@olives.co.ke / admin123
-- Admin: admin2@olives.co.ke / admin123
-- Teacher: teacher@olives.co.ke / teacher123
-- Parent: parent@olives.co.ke / parent123
+- Super Admin: admin@uwezoschool.co.ke / admin123
+- Admin: admin2@uwezoschool.co.ke / admin123
+- Teacher: teacher@uwezoschool.co.ke / teacher123
+- Parent: parent@uwezoschool.co.ke / parent123
 
 ### All 13 Pages
 Dashboard, Users, Students, Classes, Fees, Export, Analytics, Exams & Results, Attendance, Calendar, Messages, Notices, Settings
@@ -1661,10 +1661,10 @@ Stage Summary:
 4. ✅ Notices: Pinned section, Lucide icons, color coding
 
 ### Demo Credentials
-- **Super Admin**: admin@olives.co.ke / admin123
-- **Admin**: admin2@olives.co.ke / admin123
-- **Teacher**: teacher@olives.co.ke / teacher123
-- **Parent**: parent@olives.co.ke / parent123
+- **Super Admin**: admin@uwezoschool.co.ke / admin123
+- **Admin**: admin2@uwezoschool.co.ke / admin123
+- **Teacher**: teacher@uwezoschool.co.ke / teacher123
+- **Parent**: parent@uwezoschool.co.ke / parent123
 
 ### Unresolved Issues / Next Phase Priorities
 1. ~~Add parent portal view~~ ✅ DONE
@@ -1950,8 +1950,8 @@ Improve visual styling and UX details including chart dark mode, notification ce
 #### 4. Sticky Footer (DashboardLayout.tsx)
 - Added `DashboardFooter` component with:
   - School branding (teal gradient icon)
-  - Copyright: "© 2025 Olives Schools — Eldoret, Kenya"
-  - Contact info: Phone (+254 700 123 456), Email (info@olives.co.ke), Location (Eldoret, Uasin Gishu)
+  - Copyright: "© 2025 Uwezo School — Eldoret, Kenya"
+  - Contact info: Phone (+254 700 123 456), Email (info@uwezoschool.co.ke), Location (Eldoret, Uasin Gishu)
   - Responsive: contact items progressively hidden on smaller screens
   - Border-top separator with padding
 - Restructured main content area: padding moved from `<main>` to inner flex container
@@ -2058,7 +2058,7 @@ Task: Browser QA, bug fixes, feature additions, and styling improvements
 
 **Sticky Footer Added**:
 - New `DashboardFooter` component in DashboardLayout
-- Shows: "© 2025 Olives Schools — Eldoret, Kenya"
+- Shows: "© 2025 Uwezo School — Eldoret, Kenya"
 - Contact info: Phone, Email, Location (responsive hiding on smaller screens)
 - Proper `mt-auto` sticky footer behavior with `min-h-full flex flex-col`
 
@@ -2084,10 +2084,10 @@ Task: Browser QA, bug fixes, feature additions, and styling improvements
 - **Features**: Login, Dashboard, Students, Classes, Fees, Exams (mark entry + report cards + print), Attendance, Calendar, Messages, Notices, Activity Feed, Analytics, Export, Class Reports, Settings, User Management, Parent Portal, Teacher Dashboard, Global Search, NotificationCenter, Dark Mode, M-Pesa Payment Dialog
 
 ### Demo Credentials
-- **Super Admin**: admin@olives.co.ke / admin123
-- **Admin**: admin2@olives.co.ke / admin123
-- **Teacher**: teacher@olives.co.ke / teacher123
-- **Parent**: parent@olives.co.ke / parent123
+- **Super Admin**: admin@uwezoschool.co.ke / admin123
+- **Admin**: admin2@uwezoschool.co.ke / admin123
+- **Teacher**: teacher@uwezoschool.co.ke / teacher123
+- **Parent**: parent@uwezoschool.co.ke / parent123
 
 ### QA Screenshots (Round 5)
 - `/download/qa-r5-dashboard.png` — Dashboard (light mode)
@@ -2205,7 +2205,7 @@ Full-featured command palette with:
 **Classes, Users, Notices**: All existing categories preserved with enhanced display
 
 **Recent Searches (localStorage)**:
-- Saves up to 5 recent searches (key: `olives-search-recent`)
+- Saves up to 5 recent searches (key: `uwezo-school-search-recent`)
 - Shown when dialog opens; also shown while typing if matching
 - "Clear" button to clear all recent searches
 - Clicking fills search input and triggers search
@@ -2361,7 +2361,7 @@ Task: Comprehensive QA, styling improvements, and new features (Round 5)
 - Generated professional school logo via AI image generation (saved to `/public/logo.png`)
 - Generated favicon (`/public/favicon.ico.png`)
 - Updated sidebar: Replaced GraduationCap icon with actual school logo image
-- Updated login page: Replaced gradient icon with logo image, title now "Olives Schools"
+- Updated login page: Replaced gradient icon with logo image, title now "Uwezo School"
 - Updated report card header: Logo appears on printed report cards
 - Updated layout metadata: Favicon, description, keywords
 - Added favicon reference in layout.tsx metadata
@@ -2465,9 +2465,9 @@ Stage Summary:
 22. ✅ Responsive Design (mobile-first with touch targets)
 
 ### Demo Credentials
-- **Super Admin**: admin@olives.co.ke / admin123
-- **Teacher**: teacher@olives.co.ke / teacher123
-- **Parent**: parent@olives.co.ke / parent123
+- **Super Admin**: admin@uwezoschool.co.ke / admin123
+- **Teacher**: teacher@uwezoschool.co.ke / teacher123
+- **Parent**: parent@uwezoschool.co.ke / parent123
 
 ### Unresolved Issues / Next Phase Priorities
 1. ~~Add M-Pesa payment integration~~ ✅ DONE (STK push simulation)
@@ -2710,13 +2710,13 @@ Task: Comprehensive QA, styling improvements, and new features (Round 6)
 
 #### 5. Login Page Enhancements (Subagent: full-stack-developer)
 - Updated version badge to "Version 4.0"
-- Added "Powered by Olives Tech" subtle text
+- Added "Powered by Uwezo School Tech" subtle text
 - Added typewriter animation for motto
 - Added teal glow hover effect on demo credential cards
 
 #### 6. Dashboard Footer Enhancement (Subagent: full-stack-developer)
 - Added school logo (24x24) to footer
-- Contact info: "+254 700 123 456 · info@olives.co.ke"
+- Contact info: "+254 700 123 456 · info@uwezoschool.co.ke"
 - "Made with ♥ in Kenya" centered text
 - mt-auto for sticky positioning
 - Dark mode support
@@ -2752,7 +2752,7 @@ Stage Summary:
 ---
 ## Task ID: 7-health-records
 Agent: Full-stack Developer
-Task: Build Student Health Records Module for Olives School Management System
+Task: Build Student Health Records Module for Uwezo School Management System
 
 ### Work Task
 Implement a comprehensive health records module with CRUD operations for health records and chronic conditions, school-wide health overview dashboard, student health tab integration, and seed data with realistic Kenyan health information.

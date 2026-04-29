@@ -56,7 +56,7 @@ export function AppLoader() {
         >
           <img
             src="/logo.png"
-            alt="Olives Schools"
+            alt="Uwezo School"
             className="w-20 h-20 rounded-2xl shadow-lg shadow-teal-200/50 dark:shadow-teal-900/50 object-contain"
           />
         </motion.div>

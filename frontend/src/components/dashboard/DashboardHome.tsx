@@ -338,38 +338,39 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome banner */}
+            {/* Welcome banner */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-gradient-to-r from-teal-600 via-teal-600 to-teal-700 rounded-2xl p-4 sm:p-6 text-white shadow-lg dark:shadow-xl dark:shadow-teal-900/40 relative overflow-hidden"
+        className="relative overflow-hidden rounded-2xl border border-teal-400/20 bg-gradient-to-r from-slate-900 via-teal-900 to-teal-800 p-5 sm:p-7 text-white shadow-lg shadow-teal-900/20"
       >
-        {/* Decorative circles */}
-        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/5" />
-        <div className="absolute -bottom-8 -right-4 w-24 h-24 rounded-full bg-white/5" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_40%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.06),transparent)]" />
 
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-              Welcome back, {user?.name?.split(' ')[0] || 'Admin'}! 👋
+          <div className="space-y-1.5">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-teal-100/80 font-medium">
+              School Command Center
+            </p>
+            <h2 className="text-xl sm:text-2xl font-semibold leading-tight">
+              Welcome back, {user?.name?.split(' ')[0] || 'Admin'}
             </h2>
-            <p className="text-teal-100 text-sm mt-1 flex items-center gap-2">
-              <CalendarDays className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <p className="text-teal-50/90 text-sm flex items-center gap-2">
+              <CalendarDays className="w-3.5 h-3.5" />
               {todayStr}
               {stats?.activeTerm && (
-                <span className="inline-flex items-center ml-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-300 mr-1.5 inline-block" />
+                <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] ml-2">
                   {stats.activeTerm}
                 </span>
               )}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              className="text-teal-100 hover:text-white hover:bg-teal-500/50 transition-colors"
+              className="h-9 rounded-full border border-white/25 bg-white/10 px-4 text-white hover:bg-white/20 hover:text-white transition-colors"
               onClick={() => navigateTo('notices')}
             >
               {stats?.totalNotices || 0} Notices
@@ -695,3 +696,4 @@ function AdminDashboard() {
     </div>
   )
 }
+

@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import path from 'path'
+import { resolveEmbeddedPdfFonts } from '@/lib/pdf-fonts'
 
 type PdfRow = Record<string, string | number>
 
@@ -12,24 +13,6 @@ type BuildExportPdfInput = {
   stamp: string
   maxRows?: number
   showDate?: boolean
-}
-
-function resolveEmbeddedPdfFonts() {
-  const baseCandidates = [
-    path.join(process.cwd(), 'public', 'fonts'),
-    path.join(process.cwd(), 'frontend', 'public', 'fonts'),
-    path.join(process.cwd(), '..', 'public', 'fonts'),
-  ]
-
-  for (const base of baseCandidates) {
-    const regular = path.join(base, 'arial.ttf')
-    const bold = path.join(base, 'arialbd.ttf')
-    if (fs.existsSync(regular) && fs.existsSync(bold)) {
-      return { regular, bold }
-    }
-  }
-
-  return null
 }
 
 function resolveSchoolLogoPath() {
@@ -134,7 +117,7 @@ export async function buildStyledExportPdf({
       .font(headingFont)
       .fontSize(19)
       .fillColor('#0f172a')
-      .text('Olives Schools', { align: 'center' })
+      .text('Uwezo School', { align: 'center' })
     doc.moveDown(0.25)
     doc
       .font(bodyFont)

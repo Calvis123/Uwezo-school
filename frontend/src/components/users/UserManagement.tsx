@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { format } from 'date-fns'
 import { motion } from 'framer-motion'
 import {
@@ -103,6 +103,7 @@ interface UserFormData {
   name: string
   email: string
   password: string
+  confirmPassword: string
   phone: string
   role: string
   gender: string
@@ -114,6 +115,7 @@ const emptyForm: UserFormData = {
   name: '',
   email: '',
   password: '',
+  confirmPassword: '',
   phone: '',
   role: 'TEACHER',
   gender: '',
@@ -150,6 +152,18 @@ const roleOptions = [
 
 const headteacherManageableRoles = ['TEACHER', 'DOS', 'SECRETARY', 'BURSAR']
 
+function getClassLabel(cls: Pick<ClassItem, 'name' | 'stream'>) {
+  return `${cls.name}${cls.stream ? ` ${cls.stream}` : ''}`
+}
+
+function sortClassesByNameAndStream(items: ClassItem[]) {
+  return [...items].sort((a, b) => {
+    const nameDiff = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    if (nameDiff !== 0) return nameDiff
+    return (a.stream || '').localeCompare(b.stream || '', undefined, { numeric: true, sensitivity: 'base' })
+  })
+}
+
 // Validation
 function validateForm(data: UserFormData, isEdit: boolean): string | null {
   if (!data.name.trim()) return 'Name is required'
@@ -159,6 +173,9 @@ function validateForm(data: UserFormData, isEdit: boolean): string | null {
   }
   if (!isEdit && !data.password.trim()) return 'Password is required'
   if (!isEdit && data.password.length < 6) return 'Password must be at least 6 characters'
+  if (!isEdit && data.password !== data.confirmPassword) return 'Passwords do not match'
+  if (isEdit && data.password && data.password.length < 6) return 'Password must be at least 6 characters'
+  if (isEdit && data.password && data.password !== data.confirmPassword) return 'Passwords do not match'
   if (!data.role) return 'Role is required'
   if (data.role === 'TEACHER' && !data.assignedClassId) return 'Please assign the teacher to a class'
   return null
@@ -195,6 +212,12 @@ export function UserManagement() {
   const creatableRoleOptions = currentUser?.role === 'HEADTEACHER'
     ? roleOptions.filter((r) => ['TEACHER', 'DOS', 'SECRETARY', 'BURSAR'].includes(r.value))
     : roleOptions
+  const teacherAssignableClasses = useMemo(() => {
+    const currentAssignedId = editUser?.assignedClasses?.[0]?.id || ''
+    return sortClassesByNameAndStream(
+      classOptions.filter((cls) => !cls.teacherId || cls.teacherId === editUser?.id || cls.id === currentAssignedId)
+    )
+  }, [classOptions, editUser])
 
   const loadUsers = useCallback(async () => {
     if (filterRole === 'PARENT') {
@@ -292,7 +315,7 @@ export function UserManagement() {
 
   const openCreateForm = () => {
     setEditUser(null)
-    setFormData(emptyForm)
+    setFormData({ ...emptyForm })
     setFormErrors({})
     setFormOpen(true)
   }
@@ -304,13 +327,14 @@ export function UserManagement() {
     }
     setEditUser(user)
     setFormData({
-      name: user.name,
-      email: user.email,
+      name: user.name || '',
+      email: user.email || '',
       password: '',
+      confirmPassword: '',
       phone: user.phone || '',
-      role: user.role,
+      role: user.role || 'TEACHER',
       gender: user.gender || '',
-      status: user.status,
+      status: user.status || 'ACTIVE',
       assignedClassId: user.assignedClasses?.[0]?.id || '',
     })
     setFormErrors({})
@@ -323,12 +347,16 @@ export function UserManagement() {
       if (field === 'role' && value !== 'TEACHER') {
         next.assignedClassId = ''
       }
+      if (field === 'password' && !value) {
+        next.confirmPassword = ''
+      }
       return next
     })
-    if (formErrors[field]) {
+    if (formErrors[field] || formErrors.general) {
       setFormErrors((prev) => {
         const next = { ...prev }
         delete next[field]
+        delete next.general
         return next
       })
     }
@@ -381,17 +409,17 @@ export function UserManagement() {
     if (!deleteId) return
     const targetUser = allUsersForActions.find((u) => u.id === deleteId)
     if (!canManageTargetUser(targetUser)) {
-      toast.error('You are not allowed to deactivate this user')
+      toast.error('You are not allowed to delete this user')
       setDeleteId(null)
       return
     }
     try {
-      const result = await usersApi.delete(deleteId)
+      const result = await usersApi.delete(deleteId, { permanent: true })
       if (result.success) {
-        toast.success('User deactivated successfully')
+        toast.success('User deleted successfully')
         refreshAllUsers()
       } else {
-        toast.error(result.error || 'Failed to deactivate user')
+        toast.error(result.error || 'Failed to delete user')
       }
     } catch {
       toast.error('An error occurred')
@@ -946,10 +974,10 @@ export function UserManagement() {
 
       {/* Add/Edit User Dialog */}
       <Dialog open={formOpen} onOpenChange={(open) => { if (!open) { setFormOpen(false); setEditUser(null); setFormErrors({}) } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>{editUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">{editUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+            <DialogDescription className="text-sm">
               {editUser
                 ? 'Update user information. Leave password blank to keep current.'
                 : 'Fill in the details to create a new user account.'}
@@ -957,7 +985,7 @@ export function UserManagement() {
           </DialogHeader>
 
           {formErrors.general && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
               {formErrors.general}
             </div>
           )}
@@ -968,9 +996,9 @@ export function UserManagement() {
               <Input
                 id="user-name"
                 placeholder="e.g. John Kamau"
-                value={formData.name}
+                value={formData.name || ''}
                 onChange={(e) => handleFormChange('name', e.target.value)}
-                className={formErrors.name ? 'border-red-300' : ''}
+                className={cn('h-11', formErrors.name && 'border-red-300')}
               />
             </div>
 
@@ -979,24 +1007,37 @@ export function UserManagement() {
               <Input
                 id="user-email"
                 type="email"
-                placeholder="e.g. john@olives.co.ke"
-                value={formData.email}
+                placeholder="e.g. john@uwezoschool.co.ke"
+                value={formData.email || ''}
                 onChange={(e) => handleFormChange('email', e.target.value)}
-                className={formErrors.email ? 'border-red-300' : ''}
+                className={cn('h-11', formErrors.email && 'border-red-300')}
               />
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="user-password">
-                Password {editUser && <span className="text-slate-400 font-normal">(leave blank to keep current)</span>}
+                Password {editUser && <span className="font-normal text-slate-400">(optional)</span>}
               </Label>
               <Input
                 id="user-password"
                 type="password"
-                placeholder={editUser ? '••••••••' : 'Minimum 6 characters'}
-                value={formData.password}
+                placeholder={editUser ? 'New password' : 'Minimum 6 characters'}
+                value={formData.password || ''}
                 onChange={(e) => handleFormChange('password', e.target.value)}
-                className={formErrors.password ? 'border-red-300' : ''}
+                className={cn('h-11', formErrors.password && 'border-red-300')}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="user-confirm-password">Confirm Password</Label>
+              <Input
+                id="user-confirm-password"
+                type="password"
+                placeholder="Re-enter password"
+                value={formData.confirmPassword || ''}
+                onChange={(e) => handleFormChange('confirmPassword', e.target.value)}
+                disabled={Boolean(editUser && !formData.password)}
+                className={cn('h-11', formErrors.confirmPassword && 'border-red-300')}
               />
             </div>
 
@@ -1005,16 +1046,17 @@ export function UserManagement() {
               <Input
                 id="user-phone"
                 placeholder="e.g. +254 712 345 678"
-                value={formData.phone}
+                value={formData.phone || ''}
                 onChange={(e) => handleFormChange('phone', e.target.value)}
+                className="h-11"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label htmlFor="user-role">Role</Label>
-                <Select value={formData.role} onValueChange={(v) => handleFormChange('role', v)}>
-                  <SelectTrigger id="user-role">
+                <Select value={formData.role || 'TEACHER'} onValueChange={(v) => handleFormChange('role', v)}>
+                  <SelectTrigger id="user-role" className="h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1027,8 +1069,8 @@ export function UserManagement() {
 
               <div className="grid gap-2">
                 <Label htmlFor="user-gender">Gender</Label>
-                <Select value={formData.gender} onValueChange={(v) => handleFormChange('gender', v)}>
-                  <SelectTrigger id="user-gender">
+                <Select value={formData.gender || ''} onValueChange={(v) => handleFormChange('gender', v)}>
+                  <SelectTrigger id="user-gender" className="h-11">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1044,28 +1086,33 @@ export function UserManagement() {
               <div className="grid gap-2">
                 <Label htmlFor="assigned-class">Assigned Class</Label>
                 <Select
-                  value={formData.assignedClassId}
+                  value={formData.assignedClassId || ''}
                   onValueChange={(v) => handleFormChange('assignedClassId', v)}
                 >
-                  <SelectTrigger id="assigned-class">
+                  <SelectTrigger id="assigned-class" className="h-11">
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classOptions.map((cls) => (
+                    {teacherAssignableClasses.map((cls) => (
                       <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name}{cls.stream ? ` ${cls.stream}` : ''}
+                        {getClassLabel(cls)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {teacherAssignableClasses.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-300">
+                    No unassigned classes are available. Free a class by editing its current teacher first.
+                  </p>
+                )}
               </div>
             )}
 
             {editUser && (
               <div className="grid gap-2">
                 <Label htmlFor="user-status">Status</Label>
-                <Select value={formData.status} onValueChange={(v) => handleFormChange('status', v)}>
-                  <SelectTrigger id="user-status">
+                <Select value={formData.status || 'ACTIVE'} onValueChange={(v) => handleFormChange('status', v)}>
+                  <SelectTrigger id="user-status" className="h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1077,15 +1124,16 @@ export function UserManagement() {
             )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button
               variant="outline"
+              className="h-11"
               onClick={() => { setFormOpen(false); setEditUser(null); setFormErrors({}) }}
             >
               Cancel
             </Button>
             <Button
-              className="bg-teal-600 hover:bg-teal-700 text-white"
+              className="h-11 bg-teal-600 px-6 text-white hover:bg-teal-700"
               onClick={handleSubmit}
               disabled={formSubmitting}
             >
@@ -1250,9 +1298,9 @@ export function UserManagement() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate User</AlertDialogTitle>
+            <AlertDialogTitle>Delete User Permanently</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to deactivate this user? This will set their status to inactive and they will no longer be able to log in.
+              This will permanently remove the user account from the system. Teacher class assignments, guardian links, and messages involving this user will be removed. Use Deactivate instead if you only want to block login temporarily.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1261,7 +1309,7 @@ export function UserManagement() {
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700"
             >
-              Deactivate
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

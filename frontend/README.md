@@ -1,4 +1,4 @@
-# Olives (Next.js + Prisma + Supabase Postgres)
+# Uwezo School (Next.js + Prisma + Supabase Postgres)
 
 ## Prereqs
 

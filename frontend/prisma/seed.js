@@ -149,7 +149,7 @@ function getRemarks(grade) {
 }
 
 async function main() {
-  console.log("Seeding Olives School Management System...\n");
+  console.log("Seeding Uwezo School Management System...\n");
 
   await prisma.examMark.deleteMany();
   await prisma.attendance.deleteMany();
@@ -171,7 +171,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Allan Kimeli",
-        email: "admin@olives.co.ke",
+        email: "admin@uwezoschool.co.ke",
         password: hashSync("admin123", 10),
         phone: "+254712345678",
         role: "SUPER_ADMIN",
@@ -182,7 +182,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Rose Chepkoech",
-        email: "headteacher@olives.co.ke",
+        email: "headteacher@uwezoschool.co.ke",
         password: hashSync("head123", 10),
         phone: "+254712345670",
         role: "HEADTEACHER",
@@ -193,7 +193,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Daniel Kiprotich",
-        email: "dos@olives.co.ke",
+        email: "dos@uwezoschool.co.ke",
         password: hashSync("dos123", 10),
         phone: "+254712345671",
         role: "DOS",
@@ -204,7 +204,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Lucy Wanjiru",
-        email: "secretary@olives.co.ke",
+        email: "secretary@uwezoschool.co.ke",
         password: hashSync("secret123", 10),
         phone: "+254712345672",
         role: "SECRETARY",
@@ -215,7 +215,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "James Rotich",
-        email: "bursar@olives.co.ke",
+        email: "bursar@uwezoschool.co.ke",
         password: hashSync("bursar123", 10),
         phone: "+254712345673",
         role: "BURSAR",
@@ -226,7 +226,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Mary Wanjiku",
-        email: "teacher@olives.co.ke",
+        email: "teacher@uwezoschool.co.ke",
         password: hashSync("teacher123", 10),
         phone: "+254723456789",
         role: "TEACHER",
@@ -237,7 +237,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "John Mwangi",
-        email: "teacher2@olives.co.ke",
+        email: "teacher2@uwezoschool.co.ke",
         password: hashSync("teacher123", 10),
         phone: "+254723456790",
         role: "TEACHER",
@@ -248,7 +248,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Ruth Akinyi",
-        email: "teacher3@olives.co.ke",
+        email: "teacher3@uwezoschool.co.ke",
         password: hashSync("teacher123", 10),
         phone: "+254723456791",
         role: "TEACHER",
@@ -259,7 +259,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Peter Otieno",
-        email: "parent@olives.co.ke",
+        email: "parent@uwezoschool.co.ke",
         password: hashSync("parent123", 10),
         phone: "+254734567890",
         role: "PARENT",
@@ -270,7 +270,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Agnes Wambui",
-        email: "parent2@olives.co.ke",
+        email: "parent2@uwezoschool.co.ke",
         password: hashSync("parent123", 10),
         phone: "+254734567891",
         role: "PARENT",
@@ -292,17 +292,17 @@ async function main() {
 
   console.log("Creating classes...");
   const classNames = [
-    { name: "Pre-Nursery", level: "PRE_NURSERY" },
-    { name: "Nursery", level: "NURSERY" },
-    { name: "Grade 1", level: "PRIMARY" },
-    { name: "Grade 2", level: "PRIMARY" },
-    { name: "Grade 3", level: "PRIMARY" },
-    { name: "Grade 4", level: "PRIMARY" },
-    { name: "Grade 5", level: "PRIMARY" },
-    { name: "Grade 6", level: "PRIMARY" },
-    { name: "Grade 7", level: "JUNIOR_SECONDARY" },
-    { name: "Grade 8", level: "JUNIOR_SECONDARY" },
-    { name: "Grade 9", level: "JUNIOR_SECONDARY" },
+    { name: "PP1", level: "PP1" },
+    { name: "PP2", level: "PP2" },
+    { name: "Grade 1", level: "GRADE_1" },
+    { name: "Grade 2", level: "GRADE_2" },
+    { name: "Grade 3", level: "GRADE_3" },
+    { name: "Grade 4", level: "GRADE_4" },
+    { name: "Grade 5", level: "GRADE_5" },
+    { name: "Grade 6", level: "GRADE_6" },
+    { name: "Grade 7", level: "GRADE_7" },
+    { name: "Grade 8", level: "GRADE_8" },
+    { name: "Grade 9", level: "GRADE_9" },
   ];
 
   const classes = await Promise.all(
@@ -528,9 +528,9 @@ async function main() {
   console.log("Creating system settings...");
   await prisma.systemSetting.createMany({
     data: [
-      { key: "SCHOOL_NAME", value: "Olives Schools" },
+      { key: "SCHOOL_NAME", value: "Uwezo School" },
       { key: "SCHOOL_PHONE", value: "+254700000000" },
-      { key: "SCHOOL_EMAIL", value: "info@olives.co.ke" },
+      { key: "SCHOOL_EMAIL", value: "info@uwezoschool.co.ke" },
     ],
   });
 
@@ -554,15 +554,15 @@ async function main() {
 
   console.log("\nSeeding completed successfully!");
   console.log("\nDemo Login Credentials:");
-  console.log("  Super Admin: admin@olives.co.ke / admin123");
-  console.log("  Headteacher: headteacher@olives.co.ke / head123");
-  console.log("  DOS:         dos@olives.co.ke / dos123");
-  console.log("  Secretary:   secretary@olives.co.ke / secret123");
-  console.log("  Bursar:      bursar@olives.co.ke / bursar123");
-  console.log("  Teacher:     teacher@olives.co.ke / teacher123");
-  console.log("  Teacher 2:   teacher2@olives.co.ke / teacher123");
-  console.log("  Teacher 3:   teacher3@olives.co.ke / teacher123");
-  console.log("  Parent:      parent@olives.co.ke / parent123");
+  console.log("  Super Admin: admin@uwezoschool.co.ke / admin123");
+  console.log("  Headteacher: headteacher@uwezoschool.co.ke / head123");
+  console.log("  DOS:         dos@uwezoschool.co.ke / dos123");
+  console.log("  Secretary:   secretary@uwezoschool.co.ke / secret123");
+  console.log("  Bursar:      bursar@uwezoschool.co.ke / bursar123");
+  console.log("  Teacher:     teacher@uwezoschool.co.ke / teacher123");
+  console.log("  Teacher 2:   teacher2@uwezoschool.co.ke / teacher123");
+  console.log("  Teacher 3:   teacher3@uwezoschool.co.ke / teacher123");
+  console.log("  Parent:      parent@uwezoschool.co.ke / parent123");
 }
 
 main()

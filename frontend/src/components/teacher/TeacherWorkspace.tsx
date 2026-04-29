@@ -22,6 +22,13 @@ interface AssignedClass {
   averageScore?: number
 }
 
+function getClassLabel(cls?: Pick<AssignedClass, 'name' | 'stream'> | null) {
+  if (!cls) return 'My Class'
+  if (!cls.stream) return cls.name
+  if (new RegExp(`\\s+${cls.stream}$`, 'i').test(cls.name)) return cls.name
+  return `${cls.name} ${cls.stream}`
+}
+
 export function TeacherWorkspace() {
   const { user, navigateTo } = useAppStore()
   const [loading, setLoading] = useState(true)
@@ -46,7 +53,7 @@ export function TeacherWorkspace() {
     if (!user?.id) return
     setLoading(true)
     try {
-      const res = await teacherApi.classes(user.id)
+      const res = await teacherApi.classes()
       if (res.success && res.data) {
         const assigned: AssignedClass[] = Array.isArray(res.data)
           ? res.data
@@ -124,7 +131,7 @@ export function TeacherWorkspace() {
         className="rounded-2xl p-5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-sky-600 text-white"
       >
         <p className="text-sm text-indigo-100">Teacher Workspace</p>
-        <h2 className="text-xl font-bold mt-1">{selectedClass?.name || 'My Class'}</h2>
+        <h2 className="text-xl font-bold mt-1">{getClassLabel(selectedClass)}</h2>
         <p className="text-xs text-indigo-100 mt-1">
           Focused class operations for attendance, students and exams.
         </p>
@@ -147,7 +154,7 @@ export function TeacherWorkspace() {
                     : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/30 dark:text-slate-300'
                 )}
               >
-                <p className="text-sm font-semibold">{cls.name}</p>
+                <p className="text-sm font-semibold">{getClassLabel(cls)}</p>
                 <p className="text-[11px] opacity-80">{cls.studentCount} students</p>
               </button>
             ))}
@@ -203,10 +210,10 @@ export function TeacherWorkspace() {
 
                 <TabsContent value="overview" className="space-y-3">
                   <p className="text-sm text-slate-600 dark:text-slate-300">
-                    You are working in <span className="font-semibold">{selectedClass?.name}</span>. Everything below is class-scoped.
+                    You are working in <span className="font-semibold">{getClassLabel(selectedClass)}</span>.
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">Class: {selectedClass?.name}</Badge>
+                    <Badge variant="secondary">Class: {getClassLabel(selectedClass)}</Badge>
                     <Badge variant="secondary">Students: {studentsCount}</Badge>
                     <Badge variant="secondary">Attendance: {attendanceRate.toFixed(1)}%</Badge>
                   </div>

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Printer, ArrowLeft, FileText, GraduationCap, Users, AlertCircle, Loader2 } from 'lucide-react'
+import { Printer, ArrowLeft, FileText, Users } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { examsApi, refApi } from '@/lib/api'
+import { examsApi, refApi, teacherApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -96,7 +96,8 @@ interface StudentResult {
 }
 
 export function ReportCards() {
-  const { selectedExamId, classes, setCurrentView } = useAppStore()
+  const { selectedExamId, classes, setCurrentView, user } = useAppStore()
+  const isTeacherView = user?.role === 'TEACHER'
   const [examId, setExamId] = useState(selectedExamId || '')
   const [classId, setClassId] = useState('')
   const [studentId, setStudentId] = useState('')
@@ -113,14 +114,31 @@ export function ReportCards() {
 
   // Load reference data
   useEffect(() => {
-    if (classes.length === 0) {
+    if (isTeacherView) {
+      teacherApi.classes().then((res) => {
+        if (res.success && res.data) {
+          const teacherClasses = Array.isArray(res.data) ? res.data : []
+          setLocalClasses(teacherClasses)
+          if (teacherClasses.length === 1) {
+            setClassId(teacherClasses[0].id)
+          } else if (classId && !teacherClasses.some((c: any) => c.id === classId)) {
+            setClassId('')
+            setExamId('')
+            setStudentId('')
+            setSelectedStudent(null)
+          }
+        } else {
+          setLocalClasses([])
+        }
+      })
+    } else if (classes.length === 0) {
       refApi.classes().then((res) => {
         if (res.success && res.data) setLocalClasses(res.data)
       })
     } else {
       setLocalClasses(classes)
     }
-  }, [classes])
+  }, [classes, isTeacherView, classId])
 
   // Load exams when class is selected
   const loadExamsForClass = useCallback(async (cId: string) => {
@@ -146,6 +164,18 @@ export function ReportCards() {
       setExamId('')
     }
   }, [classId, loadExamsForClass])
+
+  useEffect(() => {
+    if (!examId || classId) return
+    examsApi.list().then((res) => {
+      if (!res.success || !res.data) return
+      const exams = Array.isArray(res.data) ? res.data : []
+      const selectedExam = exams.find((e: any) => e.id === examId)
+      if (selectedExam?.classId) {
+        setClassId(selectedExam.classId)
+      }
+    })
+  }, [examId, classId])
 
   useEffect(() => {
     if (examId && classId) {
@@ -291,7 +321,7 @@ export function ReportCards() {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-600">Class</label>
               <Select value={classId} onValueChange={(v) => { setClassId(v); setExamId(''); setStudentId(''); setSelectedStudent(null) }}>
-                <SelectTrigger className="w-[160px] h-9 text-sm">
+                <SelectTrigger className="w-[160px] h-9 text-sm" disabled={isTeacherView && localClasses.length <= 1}>
                   <SelectValue placeholder="Select class" />
                 </SelectTrigger>
                 <SelectContent>
@@ -370,7 +400,7 @@ export function ReportCards() {
                     <img src="/logo.png" alt="" className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center print:hidden object-contain shadow-md" />
                     <div>
                       <h1 className="text-xl font-bold tracking-tight print:text-2xl print:text-teal-800">
-                        Olives Schools
+                        Uwezo School
                       </h1>
                       <p className="text-teal-100 text-sm print:text-slate-600 print:text-base">
                         Eldoret, Kenya
@@ -568,7 +598,7 @@ export function ReportCards() {
               {/* Footer */}
               <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 text-center print:bg-transparent print:py-2 print:border-t print:border-slate-300">
                 <p className="text-[10px] text-slate-400 print:text-xs print:text-slate-500">
-                  This is an official document from Olives Schools, Eldoret, Kenya.
+                  This is an official document from Uwezo School, Eldoret, Kenya.
                   {selectedStudent.totalMarks > 0 && ` Generated on ${format(new Date(), 'MMMM d, yyyy')}.`}
                 </p>
               </div>

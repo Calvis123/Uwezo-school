@@ -1,12 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, Search, FileText } from 'lucide-react'
+import { Plus, FileText } from 'lucide-react'
 import { toast } from 'sonner'
-import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { examsApi, refApi } from '@/lib/api'
+import { examsApi, refApi, teacherApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -43,7 +42,7 @@ interface ExamRow {
   name: string
   termId: string
   classId: string
-  class?: { name: string }
+  class?: { name: string; stream?: string | null }
   term?: { name: string; year: number }
   type: string
   startDate: string
@@ -52,8 +51,16 @@ interface ExamRow {
   totalMarks: number
 }
 
+function getClassLabel(cls?: { name?: string | null; stream?: string | null }) {
+  if (!cls?.name) return '-'
+  if (!cls.stream) return cls.name
+  if (new RegExp(`\\s+${cls.stream}$`, 'i').test(cls.name)) return cls.name
+  return `${cls.name} ${cls.stream}`
+}
+
 export function ExamList() {
-  const { classes, terms, setClasses, setTerms, navigateTo, setSelectedExamId, user } = useAppStore()
+  const { classes, terms, setClasses, setTerms, navigateTo, setSelectedExamId, user, selectedClassId } = useAppStore()
+  const isTeacherView = user?.role === 'TEACHER'
   const canCreateExam = user?.role === 'DOS'
   const canOpenMarkEntry = user?.role === 'DOS' || user?.role === 'TEACHER'
   const canOpenReport = ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER', 'DOS', 'TEACHER'].includes(user?.role || '')
@@ -62,7 +69,7 @@ export function ExamList() {
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [filterClass, setFilterClass] = useState('')
+  const [filterClass, setFilterClass] = useState(selectedClassId || '')
   const [filterStatus, setFilterStatus] = useState('')
   const [localClasses, setLocalClasses] = useState(classes)
   const [localTerms, setLocalTerms] = useState(terms)
@@ -98,7 +105,24 @@ export function ExamList() {
   }, [filterClass, filterStatus])
 
   useEffect(() => {
-    if (classes.length === 0) {
+    if (isTeacherView) {
+      teacherApi.classes().then((res) => {
+        if (res.success && res.data) {
+          const teacherClasses = Array.isArray(res.data) ? res.data : []
+          setLocalClasses(teacherClasses)
+          if (selectedClassId && teacherClasses.some((c: any) => c.id === selectedClassId)) {
+            setFilterClass(selectedClassId)
+          } else if (teacherClasses.length === 1) {
+            setFilterClass(teacherClasses[0].id)
+          } else if (filterClass && !teacherClasses.some((c: any) => c.id === filterClass)) {
+            setFilterClass('')
+          }
+        } else {
+          setLocalClasses([])
+          setFilterClass('')
+        }
+      })
+    } else if (classes.length === 0) {
       refApi.classes().then((res) => {
         if (res.success && res.data) { setClasses(res.data); setLocalClasses(res.data) }
       })
@@ -108,7 +132,7 @@ export function ExamList() {
         if (res.success && res.data) { setTerms(res.data); setLocalTerms(res.data) }
       })
     } else { setLocalTerms(terms) }
-  }, [classes, terms, setClasses, setTerms])
+  }, [classes, terms, setClasses, setTerms, isTeacherView, filterClass, selectedClassId])
 
   useEffect(() => { loadExams() }, [loadExams])
 
@@ -152,13 +176,13 @@ export function ExamList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <Select value={filterClass} onValueChange={(v) => setFilterClass(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-40 h-9">
-              <SelectValue placeholder="All Classes" />
+            <SelectTrigger className="w-40 h-9" disabled={isTeacherView && localClasses.length <= 1}>
+              <SelectValue placeholder={isTeacherView ? 'Assigned Class' : 'All Classes'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Classes</SelectItem>
+              {!isTeacherView && <SelectItem value="all">All Classes</SelectItem>}
               {localClasses.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>{getClassLabel(c)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -220,7 +244,7 @@ export function ExamList() {
                       <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
                       <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No exams scheduled</p>
                       <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">
-                        {canCreateExam ? 'Create your first exam to get started' : 'Exams will appear here once published'}
+                        {canCreateExam ? 'Create your first exam to get started' : 'No exams found'}
                       </p>
                     </div>
                   </TableCell>
@@ -230,10 +254,10 @@ export function ExamList() {
                   <TableRow key={exam.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40">
                     <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">{exam.name}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm text-slate-600 dark:text-slate-400">
-                      {exam.class?.name || '—'}
+                      {getClassLabel(exam.class)}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">
-                      {exam.term ? `${exam.term.name} ${exam.term.year}` : '—'}
+                      {exam.term ? `${exam.term.name} ${exam.term.year}` : '-'}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <Badge variant="secondary" className="text-[10px]">
@@ -256,7 +280,7 @@ export function ExamList() {
                               variant="outline"
                               size="sm"
                               className="h-7 text-xs"
-                              onClick={() => { setSelectedExamId(exam.id); navigateTo('mark-entry') }}
+                              onClick={() => { setSelectedExamId(exam.id); navigateTo('mark-entry', { classId: exam.classId }) }}
                             >
                               Marks
                             </Button>
@@ -305,7 +329,7 @@ export function ExamList() {
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {localClasses.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{getClassLabel(c)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -1,6 +1,6 @@
 # Backend
 
-This service hosts the API routes and database access for Olives.
+This service hosts the API routes and database access for Uwezo School.
 
 ## Run
 

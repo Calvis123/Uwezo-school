@@ -134,7 +134,7 @@ export async function buildStyledExportPdf({
       .font(headingFont)
       .fontSize(19)
       .fillColor('#0f172a')
-      .text('Olives Schools', { align: 'center' })
+      .text('Uwezo School', { align: 'center' })
     doc.moveDown(0.25)
     doc
       .font(bodyFont)

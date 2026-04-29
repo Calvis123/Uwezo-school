@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth-server';
 import { MARKED_ATTENDANCE_STATUSES } from '@/lib/attendance';
+import { getParentPrimaryStudentId } from '@/lib/parent-access';
+import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
+import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,20 +14,19 @@ export async function GET(request: NextRequest) {
     // Find guardian info
     // (Already validated above)
 
-    // Find linked children
-    const guardianLinks = await db.studentGuardian.findMany({
-      where: { guardianId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        student: {
-          include: { class: true },
-        },
-      },
-    });
-
-    // Parent portal policy: one parent login maps to one primary student profile.
-    // If historical data has multiple links, use the most recently linked student.
-    const scopedLinks = guardianLinks.slice(0, 1);
+    const primaryStudentId = await getParentPrimaryStudentId(guardianId);
+    const scopedLinks = primaryStudentId
+      ? await db.studentGuardian.findMany({
+          where: { guardianId, studentId: primaryStudentId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            student: {
+              include: { class: true },
+            },
+          },
+          take: 1,
+        })
+      : [];
     const students = scopedLinks.map((l) => l.student);
 
     // Get active term
@@ -40,13 +42,13 @@ export async function GET(request: NextRequest) {
         // Fee balance
         const feeStructures = await db.feeStructure.findMany({
           where: {
-            classId: student.classId,
+            OR: [
+              { classId: student.classId },
+              { description: { startsWith: ALL_CLASSES_MARKER } },
+            ],
             ...(activeTerm ? { termId: activeTerm.id } : {}),
           },
         });
-        const applicableFeeStructures = feeStructures.filter(
-          (structure) => structure.category !== 'TRANSPORT' || student.usesTransport
-        );
         const payments = await db.feeTransaction.findMany({
           where: {
             studentId: student.id,
@@ -60,12 +62,11 @@ export async function GET(request: NextRequest) {
               : {}),
           },
         });
-        const applicableStructureIds = new Set(applicableFeeStructures.map((structure) => structure.id));
-        const applicablePayments = payments.filter((payment) =>
-          applicableStructureIds.has(payment.feeStructureId)
+        const { totalFees, totalPaid, balance } = summarizeStudentFeeBalance(
+          feeStructures,
+          payments,
+          student
         );
-        const totalFees = applicableFeeStructures.reduce((s, f) => s + f.amount, 0);
-        const totalPaid = applicablePayments.reduce((s, p) => s + p.amount, 0);
 
         // Attendance rate for active term
         let attendanceRate = 0;
@@ -109,14 +110,16 @@ export async function GET(request: NextRequest) {
 
         return {
           id: student.id,
+          admissionNumber: student.admissionNumber,
           firstName: student.firstName,
           lastName: student.lastName,
           gender: student.gender,
+          status: student.status,
           relationship: link.relationship,
           class: student.class
             ? { id: student.class.id, name: student.class.name, level: student.class.level, stream: student.class.stream }
             : null,
-          fees: { totalFees, totalPaid, balance: totalFees - totalPaid },
+          fees: { totalFees, totalPaid, balance },
           attendance: { rate: attendanceRate },
           recentExam: latestMarks.length > 0
             ? { name: latestMarks[0].exam.name, avgScore }
@@ -128,7 +131,7 @@ export async function GET(request: NextRequest) {
     // Total fee balances across all children
     const totalFeesDue = childrenSummary.reduce((s, c) => s + c.fees.totalFees, 0);
     const totalFeesPaid = childrenSummary.reduce((s, c) => s + c.fees.totalPaid, 0);
-    const totalFeesBalance = totalFeesDue - totalFeesPaid;
+    const totalFeesBalance = Math.max(0, totalFeesDue - totalFeesPaid);
     const avgAttendance =
       childrenSummary.length > 0
         ? Math.round(childrenSummary.reduce((s, c) => s + c.attendance.rate, 0) / childrenSummary.length)

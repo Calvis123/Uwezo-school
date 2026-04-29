@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth-server';
 import { FINANCE_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
-import { isAllClassesScopeDescription } from '@/lib/fee-structure-scope';
+import { getApplicableFeeStructures } from '@/lib/fee-balance';
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         classId: true,
+        studentType: true,
         usesTransport: true,
         feeTransactions: {
           where: {
@@ -60,30 +61,6 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Build maps of classId -> total fee for each category type
-    const classBaseFeesMap: Record<string, number> = {};
-    const classTransportFeesMap: Record<string, number> = {};
-    let globalBaseFees = 0;
-    let globalTransportFees = 0;
-    for (const fs of studentFees) {
-      const appliesToAllClasses = isAllClassesScopeDescription(fs.description);
-      if (fs.category === 'TRANSPORT') {
-        if (appliesToAllClasses) {
-          globalTransportFees += fs.amount;
-        } else {
-          if (!classTransportFeesMap[fs.classId]) classTransportFeesMap[fs.classId] = 0;
-          classTransportFeesMap[fs.classId] += fs.amount;
-        }
-      } else {
-        if (appliesToAllClasses) {
-          globalBaseFees += fs.amount;
-        } else {
-          if (!classBaseFeesMap[fs.classId]) classBaseFeesMap[fs.classId] = 0;
-          classBaseFeesMap[fs.classId] += fs.amount;
-        }
-      }
-    }
-
     let totalExpected = 0;
     let totalOutstanding = 0;
     let fullyPaidCount = 0;
@@ -91,10 +68,10 @@ export async function GET(request: NextRequest) {
     let unpaidCount = 0;
 
     for (const student of activeStudents) {
-      const expected =
-        (classBaseFeesMap[student.classId] || 0) +
-        globalBaseFees +
-        (student.usesTransport ? (classTransportFeesMap[student.classId] || 0) + globalTransportFees : 0);
+      const expected = getApplicableFeeStructures(studentFees, student).reduce(
+        (sum, structure) => sum + Number(structure.amount || 0),
+        0
+      );
       const paid = student.feeTransactions.reduce((sum, t) => sum + t.amount, 0);
       const balance = expected - paid;
       totalExpected += expected;

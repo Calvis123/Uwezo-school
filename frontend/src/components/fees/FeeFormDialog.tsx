@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Loader2, Smartphone, FileDown } from 'lucide-react'
+import { Loader2, Smartphone, FileDown, Landmark, ChevronsUpDown, Check } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { feesApi, refApi, studentsApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -26,7 +27,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { MpesaPaymentDialog } from './MpesaPaymentDialog'
+import { cn } from '@/lib/utils'
 
 const feeSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -75,6 +89,17 @@ function pickLatestYearTerm(terms: any[]) {
   return inLatestYear.find((term: any) => term.status === 'ACTIVE') || inLatestYear[0] || null
 }
 
+function getApplicablePaymentCategories(student: any): string[] {
+  if (!student) return []
+  const studentType = student.studentType === 'BOARDING' ? 'BOARDING' : 'DAY'
+  if (studentType === 'BOARDING') {
+    return ['BOARDING', 'EXTRACURRICULAR', 'OTHER']
+  }
+  return student.usesTransport
+    ? ['TUITION', 'TRANSPORT', 'EXTRACURRICULAR', 'OTHER']
+    : ['TUITION', 'EXTRACURRICULAR', 'OTHER']
+}
+
 export function FeeFormDialog({
   open,
   onClose,
@@ -98,6 +123,9 @@ export function FeeFormDialog({
   const [paymentNotes, setPaymentNotes] = useState('')
   const [students, setStudents] = useState<any[]>([])
   const [feeStructures, setFeeStructures] = useState<any[]>([])
+  const [studentOptionsLoading, setStudentOptionsLoading] = useState(false)
+  const [studentPickerOpen, setStudentPickerOpen] = useState(false)
+  const [feePickerOpen, setFeePickerOpen] = useState(false)
 
   // Bank transfer fields
   const [bankName, setBankName] = useState('')
@@ -107,6 +135,7 @@ export function FeeFormDialog({
   // M-Pesa dialog state
   const [mpesaDialogOpen, setMpesaDialogOpen] = useState(false)
   const [mpesaResetKey, setMpesaResetKey] = useState(0)
+  const wasOpenRef = useRef(false)
 
   const openMpesaDialog = useCallback(() => {
     setMpesaResetKey((prev) => prev + 1)
@@ -129,74 +158,72 @@ export function FeeFormDialog({
   })
 
   useEffect(() => {
-    if (open) {
-      // Reset success state
-      setSuccessReceiptNumber('')
-      setBankName('')
-      setBankReference('')
-      setBankTransferDate('')
-      setPaymentStudentId('')
-      setPaymentClassId('')
-      setPaymentFeeStructureId('')
-      setPaymentTermId('')
-      setPaymentAmount('')
-      setPaymentMethod('CASH')
-      setPaymentNotes('')
+    if (!open) {
+      wasOpenRef.current = false
+      return
+    }
+    if (wasOpenRef.current) return
+    wasOpenRef.current = true
 
-      if (classes.length === 0) {
-        refApi.classes().then((res) => {
-          if (res.success && res.data) setLocalClasses(res.data)
-        })
-      } else {
-        setLocalClasses(classes)
-      }
-      if (terms.length === 0) {
-        refApi.terms().then((res) => {
-          if (res.success && res.data) {
-            setLocalTerms(res.data)
-            const preferredTerm = initialStructureTermId
-              ? res.data.find((t: any) => t.id === initialStructureTermId)
-              : pickLatestYearTerm(res.data)
-            if (mode === 'structure' && preferredTerm && !form.getValues('termId')) {
-              form.setValue('termId', preferredTerm.id)
-            }
-            if (mode === 'payment' && preferredTerm && !paymentTermId) {
-              setPaymentTermId(preferredTerm.id)
-            }
-          }
-        })
-      } else {
-        setLocalTerms(terms)
-        const preferredTerm = initialStructureTermId
-          ? terms.find((t: any) => t.id === initialStructureTermId)
-          : pickLatestYearTerm(terms)
-        if (mode === 'structure' && preferredTerm && !form.getValues('termId')) {
-          form.setValue('termId', preferredTerm.id)
-        }
-        if (mode === 'payment' && preferredTerm && !paymentTermId) {
-          setPaymentTermId(preferredTerm.id)
-        }
-      }
+    // Reset success state
+    setSuccessReceiptNumber('')
+    setBankName('')
+    setBankReference('')
+    setBankTransferDate('')
+    setPaymentStudentId('')
+    setPaymentClassId('')
+    setPaymentFeeStructureId('')
+    setPaymentTermId('')
+    setPaymentAmount('')
+    setPaymentMethod('CASH')
+    setPaymentNotes('')
 
-      // Load students and fee structures for payment mode
-      if (mode === 'payment') {
-        if (students.length === 0) {
-          studentsApi.list({ limit: 500, status: 'ACTIVE' }).then((res) => {
-            if (res.success && res.data) {
-              const items = res.data.items || res.data || []
-              setStudents(items)
-            }
-          })
-        }
-        feesApi.structures({ limit: 500, allTerms: true, ...(paymentCategory ? { category: paymentCategory } : {}) }).then((res) => {
-          if (res.success && res.data) {
-            const items = res.data.items || res.data || []
-            setFeeStructures(items)
+    if (classes.length === 0) {
+      refApi.classes().then((res) => {
+        if (res.success && res.data) setLocalClasses(res.data)
+      })
+    } else {
+      setLocalClasses(classes)
+    }
+
+    if (terms.length === 0) {
+      refApi.terms().then((res) => {
+        if (res.success && res.data) {
+          setLocalTerms(res.data)
+          const preferredTerm = initialStructureTermId
+            ? res.data.find((t: any) => t.id === initialStructureTermId)
+            : pickLatestYearTerm(res.data)
+          if (mode === 'structure' && preferredTerm && !form.getValues('termId')) {
+            form.setValue('termId', preferredTerm.id)
           }
-        })
+          if (mode === 'payment' && preferredTerm) {
+            setPaymentTermId(preferredTerm.id)
+          }
+        }
+      })
+    } else {
+      setLocalTerms(terms)
+      const preferredTerm = initialStructureTermId
+        ? terms.find((t: any) => t.id === initialStructureTermId)
+        : pickLatestYearTerm(terms)
+      if (mode === 'structure' && preferredTerm && !form.getValues('termId')) {
+        form.setValue('termId', preferredTerm.id)
+      }
+      if (mode === 'payment' && preferredTerm) {
+        setPaymentTermId(preferredTerm.id)
       }
     }
-  }, [open, classes, terms, mode, paymentCategory, students.length, form, paymentTermId, initialStructureTermId])
+
+    if (mode === 'payment') {
+      setStudents([])
+      feesApi.structures({ limit: 500, allTerms: true, ...(paymentCategory ? { category: paymentCategory } : {}) }).then((res) => {
+        if (res.success && res.data) {
+          const items = res.data.items || res.data || []
+          setFeeStructures(items)
+        }
+      })
+    }
+  }, [open, classes, terms, mode, paymentCategory, form, initialStructureTermId])
 
   useEffect(() => {
     if (!open || mode !== 'payment' || !initialPayment) return
@@ -206,22 +233,6 @@ export function FeeFormDialog({
     if (initialPayment.termId) setPaymentTermId(initialPayment.termId)
     if (initialPayment.amount && initialPayment.amount > 0) setPaymentAmount(String(initialPayment.amount))
   }, [open, mode, initialPayment])
-
-  useEffect(() => {
-    if (!paymentStudentId) return
-    const selected = students.find((s: any) => s.id === paymentStudentId)
-    if (selected?.classId && paymentClassId !== selected.classId) {
-      setPaymentClassId(selected.classId)
-    }
-  }, [paymentStudentId, students, paymentClassId])
-
-  useEffect(() => {
-    if (!paymentFeeStructureId) return
-    const selected = feeStructures.find((f: any) => f.id === paymentFeeStructureId)
-    if (selected?.classId && paymentClassId !== selected.classId) {
-      setPaymentClassId(selected.classId)
-    }
-  }, [paymentFeeStructureId, feeStructures, paymentClassId])
 
   useEffect(() => {
     if (editItem) {
@@ -365,15 +376,27 @@ export function FeeFormDialog({
 
   const selectedStudent = students.find((s: any) => s.id === paymentStudentId)
   const selectedFee = feeStructures.find((f: any) => f.id === paymentFeeStructureId)
-  const filteredStudents = students.filter((student: any) => !paymentClassId || student.classId === paymentClassId)
+  const selectedClass = localClasses.find((c: any) => c.id === paymentClassId)
+  const filteredStudents = useMemo(
+    () => students.filter((student: any) => !paymentClassId || student.classId === paymentClassId),
+    [students, paymentClassId]
+  )
+  const applicableCategories = getApplicablePaymentCategories(selectedStudent)
   const filteredFeeStructures = feeStructures.filter((fee: any) => {
     const selectedClassId = paymentClassId || selectedStudent?.classId
     const appliesToAllClasses = Boolean(fee.appliesToAllClasses)
     const matchesStudentClass = !selectedClassId || appliesToAllClasses || fee.classId === selectedClassId
     const matchesTerm = !paymentTermId || fee.termId === paymentTermId
     const matchesCategory = !paymentCategory || fee.category === paymentCategory
-    return matchesStudentClass && matchesTerm && matchesCategory
+    const matchesStudentProfile = !selectedStudent || applicableCategories.includes(String(fee.category || '').toUpperCase())
+    return matchesStudentClass && matchesTerm && matchesCategory && matchesStudentProfile
   })
+  const selectedStudentLabel = selectedStudent
+    ? `${selectedStudent.firstName} ${selectedStudent.lastName}${selectedStudent.admissionNumber ? ` (${selectedStudent.admissionNumber})` : ''}`
+    : ''
+  const selectedFeeLabel = selectedFee
+    ? `${selectedFee.name} (${selectedFee.term?.name || 'Term'}) - KES ${Number(selectedFee.amount || 0).toLocaleString()}`
+    : ''
 
   useEffect(() => {
     if (mode !== 'payment' || paymentCategory !== 'TRANSPORT') return
@@ -391,18 +414,90 @@ export function FeeFormDialog({
     }
   }, [mode, paymentCategory, paymentClassId, paymentTermId, paymentFeeStructureId, feeStructures, paymentAmount])
 
+  useEffect(() => {
+    if (!open || mode !== 'payment' || paymentCategory === 'TRANSPORT') return
+    if (!selectedStudent || !paymentTermId) return
+
+    const currentFeeStillValid = filteredFeeStructures.some((fee: any) => fee.id === paymentFeeStructureId)
+    if (currentFeeStillValid) return
+
+    const preferredCategories = selectedStudent.studentType === 'BOARDING'
+      ? ['BOARDING', 'OTHER', 'EXTRACURRICULAR']
+      : ['TUITION', 'TRANSPORT', 'OTHER', 'EXTRACURRICULAR']
+
+    const preferred = preferredCategories
+      .map((category) => filteredFeeStructures.find((fee: any) => fee.category === category))
+      .find(Boolean)
+
+    if (preferred) {
+      setPaymentFeeStructureId(preferred.id)
+      if (preferred.amount) {
+        setPaymentAmount(String(preferred.amount))
+      }
+    } else if (paymentFeeStructureId) {
+      setPaymentFeeStructureId('')
+    }
+  }, [open, mode, paymentCategory, selectedStudent, paymentTermId, filteredFeeStructures, paymentFeeStructureId])
+
+  useEffect(() => {
+    if (!open || mode !== 'payment') return
+    if (!paymentClassId) {
+      if (students.length > 0) {
+        setStudents([])
+      }
+      if (paymentStudentId) {
+        setPaymentStudentId('')
+      }
+      setStudentPickerOpen(false)
+      return
+    }
+
+    let cancelled = false
+    setStudentOptionsLoading(true)
+    studentsApi.list({ classId: paymentClassId, status: 'ACTIVE', limit: 500 }).then((res) => {
+      if (cancelled) return
+      if (res.success && res.data) {
+        const items = res.data.items || res.data || []
+        setStudents(items)
+        if (paymentStudentId && !items.some((student: any) => student.id === paymentStudentId)) {
+          setPaymentStudentId('')
+        }
+      } else {
+        setStudents([])
+        if (paymentStudentId) setPaymentStudentId('')
+      }
+    }).catch(() => {
+      if (cancelled) return
+      setStudents([])
+      if (paymentStudentId) setPaymentStudentId('')
+    }).finally(() => {
+      if (!cancelled) {
+        setStudentOptionsLoading(false)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, mode, paymentClassId])
+
   if (mode === 'payment') {
     return (
       <>
         <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Record Payment</DialogTitle>
+          <DialogContent className="flex max-h-[calc(100vh-2rem)] max-w-2xl flex-col p-0 overflow-hidden sm:max-h-[calc(100vh-3rem)]">
+            <DialogHeader className="shrink-0">
+              <div className="border-b border-slate-200/70 bg-slate-50/80 px-6 py-5 dark:border-slate-700/70 dark:bg-slate-800/50">
+                <DialogTitle className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Record Payment</DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Capture a school fee payment for the selected student and term.
+                </DialogDescription>
+              </div>
             </DialogHeader>
 
             {/* Success State */}
             {successReceiptNumber ? (
-              <div className="flex flex-col items-center py-4 space-y-4">
+              <div className="flex flex-col items-center space-y-4 overflow-y-auto px-6 py-6">
                 <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
                   <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -432,136 +527,242 @@ export function FeeFormDialog({
               </div>
             ) : (
               <>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Class</Label>
-                    <Select value={paymentClassId} onValueChange={(val) => {
-                      setPaymentClassId(val)
-                      const selected = students.find((s: any) => s.id === paymentStudentId)
-                      if (selected && selected.classId !== val) {
+                <div className="flex-1 overflow-y-auto">
+                  <div className="space-y-6 px-6 py-6">
+                  <div className="grid gap-5 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.35)] dark:border-slate-700/70 dark:bg-slate-900/70 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Class</Label>
+                      <Select value={paymentClassId} onValueChange={(val) => {
+                        setPaymentClassId(val)
                         setPaymentStudentId('')
-                      }
-                      if (paymentFeeStructureId) {
-                        const fee = feeStructures.find((f: any) => f.id === paymentFeeStructureId)
-                        if (fee && !fee.appliesToAllClasses && fee.classId !== val) setPaymentFeeStructureId('')
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {localClasses.map((c: any) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}{c.stream ? ` ${c.stream}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        setStudentPickerOpen(false)
+                        if (paymentFeeStructureId) {
+                          const fee = feeStructures.find((f: any) => f.id === paymentFeeStructureId)
+                          if (fee && !fee.appliesToAllClasses && fee.classId !== val) setPaymentFeeStructureId('')
+                        }
+                      }}>
+                        <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900">
+                          <SelectValue placeholder="Select class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {localClasses.map((c: any) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}{c.stream ? ` ${c.stream}` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {localClasses.length} class{localClasses.length === 1 ? '' : 'es'} available in your school.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Student</Label>
+                      <Popover open={studentPickerOpen} onOpenChange={setStudentPickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={studentPickerOpen}
+                            disabled={!paymentClassId || studentOptionsLoading}
+                            className="h-12 w-full justify-between rounded-xl border-slate-200 bg-white px-3 font-normal shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
+                          >
+                            <span className="truncate text-left">
+                              {paymentClassId
+                                ? studentOptionsLoading
+                                  ? 'Loading students...'
+                                  : selectedStudentLabel || 'Search and select student'
+                                : 'Select class first'}
+                            </span>
+                            {studentOptionsLoading ? (
+                              <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin opacity-60" />
+                            ) : (
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                          <Command shouldFilter>
+                            <CommandInput placeholder="Search student..." />
+                            <CommandList>
+                              <CommandEmpty>
+                                {paymentClassId ? 'No matching student found.' : 'Select class first.'}
+                              </CommandEmpty>
+                              {filteredStudents.map((s: any) => {
+                                const label = `${s.firstName} ${s.lastName}${s.admissionNumber ? ` (${s.admissionNumber})` : ''}`
+                                return (
+                                  <CommandItem
+                                    key={s.id}
+                                    value={`${label} ${s.class?.name || ''}`}
+                                    onSelect={() => {
+                                      setPaymentStudentId(s.id)
+                                      if (s.classId) setPaymentClassId(s.classId)
+                                      setStudentPickerOpen(false)
+                                    }}
+                                  >
+                                    <Check className={cn('h-4 w-4', paymentStudentId === s.id ? 'opacity-100' : 'opacity-0')} />
+                                    <div className="flex min-w-0 flex-col">
+                                      <span className="truncate">{label}</span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                                        {selectedClass?.name || s.class?.name || 'Selected class'}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                )
+                              })}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {paymentClassId
+                          ? studentOptionsLoading
+                            ? 'Refreshing class student list...'
+                            : `${filteredStudents.length} active student${filteredStudents.length === 1 ? '' : 's'} in ${selectedClass?.name || 'selected class'}.`
+                          : 'Student options will appear after class selection.'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Student</Label>
-                    <Select value={paymentStudentId} onValueChange={(val) => {
-                      setPaymentStudentId(val)
-                      const student = students.find((s: any) => s.id === val)
-                      if (student?.classId) setPaymentClassId(student.classId)
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select student" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredStudents.map((s: any) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.firstName} {s.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                  {selectedStudent && paymentCategory !== 'TRANSPORT' && (
+                    <div className="rounded-2xl border border-teal-200/70 bg-gradient-to-r from-teal-50 via-cyan-50 to-white px-5 py-4 text-sm shadow-[0_20px_45px_-35px_rgba(13,148,136,0.55)] dark:border-teal-800/50 dark:from-teal-950/40 dark:via-cyan-950/20 dark:to-slate-900">
+                      <p className="font-semibold text-teal-800 dark:text-teal-200">
+                        Applicable fee structures for {selectedStudent.firstName} {selectedStudent.lastName}
+                      </p>
+                      <p className="mt-1.5 text-sm leading-6 text-teal-700 dark:text-teal-300">
+                        {selectedStudent.studentType === 'BOARDING'
+                          ? 'This student is registered as boarding, so boarding-related fee structures are shown automatically.'
+                          : selectedStudent.usesTransport
+                            ? 'This student is a day scholar using transport, so tuition and transport fee structures are both available.'
+                            : 'This student is a day scholar, so tuition-related fee structures are shown automatically.'}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid gap-5 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.35)] dark:border-slate-700/70 dark:bg-slate-900/70 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        {paymentCategory === 'TRANSPORT' ? 'Transport Fee Structure' : 'Fee Structure'}
+                      </Label>
+                      <Popover open={feePickerOpen} onOpenChange={setFeePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={feePickerOpen}
+                            disabled={!paymentClassId}
+                            className="h-12 w-full justify-between rounded-xl border-slate-200 bg-white px-3 font-normal shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
+                          >
+                            <span className="truncate text-left">
+                              {selectedFeeLabel || 'Search and select fee structure'}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                          <Command shouldFilter>
+                            <CommandInput placeholder="Search fee structure..." />
+                            <CommandList>
+                              <CommandEmpty>No matching fee structure found.</CommandEmpty>
+                              {filteredFeeStructures.map((f: any) => {
+                                const label = `${f.name} (${f.term?.name || 'Term'}) - KES ${Number(f.amount || 0).toLocaleString()}`
+                                return (
+                                  <CommandItem
+                                    key={f.id}
+                                    value={`${label} ${f.category || ''} ${f.class?.name || ''}`}
+                                    onSelect={() => {
+                                      setPaymentFeeStructureId(f.id)
+                                      if (f?.termId) setPaymentTermId(f.termId)
+                                      if (f?.amount) setPaymentAmount(String(f.amount))
+                                      setFeePickerOpen(false)
+                                    }}
+                                  >
+                                    <Check className={cn('h-4 w-4', paymentFeeStructureId === f.id ? 'opacity-100' : 'opacity-0')} />
+                                    <div className="flex min-w-0 flex-col">
+                                      <span className="truncate">{label}</span>
+                                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                                        {f.category || 'Fee'}{f.appliesToAllClasses ? ' - All Classes' : ''}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                )
+                              })}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {paymentClassId ? 'Only matching fee structures are shown.' : 'Select class first to narrow fee structures.'}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Term</Label>
+                      <Select value={paymentTermId} onValueChange={(val) => {
+                        setPaymentTermId(val)
+                        if (paymentFeeStructureId) {
+                          const fee = feeStructures.find((f: any) => f.id === paymentFeeStructureId)
+                          if (fee?.termId !== val) setPaymentFeeStructureId('')
+                        }
+                      }}>
+                        <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900">
+                          <SelectValue placeholder="Select term" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {localTerms.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name} {t.year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>{paymentCategory === 'TRANSPORT' ? 'Transport Fee Structure' : 'Fee Structure'}</Label>
-                    <Select value={paymentFeeStructureId} onValueChange={(val) => {
-                      setPaymentFeeStructureId(val)
-                      // Auto-fill amount when fee structure is selected
-                      const fee = feeStructures.find((f: any) => f.id === val)
-                      if (fee?.termId) setPaymentTermId(fee.termId)
-                      if (fee?.amount) {
-                        setPaymentAmount(String(fee.amount))
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select fee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredFeeStructures.map((f: any) => (
-                          <SelectItem key={f.id} value={f.id}>
-                            {f.name} ({f.term?.name || 'Term'}) - KES {f.amount?.toLocaleString()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Term</Label>
-                    <Select value={paymentTermId} onValueChange={(val) => {
-                      setPaymentTermId(val)
-                      if (paymentFeeStructureId) {
-                        const fee = feeStructures.find((f: any) => f.id === paymentFeeStructureId)
-                        if (fee?.termId !== val) setPaymentFeeStructureId('')
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select term" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {localTerms.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name} {t.year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Amount (KES) *</Label>
-                    <Input
-                      type="number"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="Enter amount"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Payment Method</Label>
-                    <Select value={paymentMethod} onValueChange={(val) => {
-                      setPaymentMethod(val)
-                      // Reset bank fields when switching away from BANK
-                      if (val !== 'BANK') {
-                        setBankName('')
-                        setBankReference('')
-                        setBankTransferDate('')
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CASH">Cash</SelectItem>
-                        <SelectItem value="MPESA">M-Pesa</SelectItem>
-                        <SelectItem value="BANK">Bank Transfer</SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                  <div className="grid gap-5 rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.35)] dark:border-slate-700/70 dark:bg-slate-900/70 md:grid-cols-[1.2fr_0.8fr]">
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Amount (KES) *</Label>
+                      <Input
+                        type="number"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        placeholder="Enter amount"
+                        className="h-12 rounded-xl border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Payment Method</Label>
+                      <Select value={paymentMethod} onValueChange={(val) => {
+                        setPaymentMethod(val)
+                        if (val !== 'BANK') {
+                          setBankName('')
+                          setBankReference('')
+                          setBankTransferDate('')
+                        }
+                      }}>
+                        <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CASH">Cash</SelectItem>
+                          <SelectItem value="MPESA">M-Pesa</SelectItem>
+                          <SelectItem value="BANK">Bank Transfer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Bank Transfer Fields */}
                   {paymentMethod === 'BANK' && (
-                    <div className="space-y-3 rounded-lg border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-900/20 p-3">
-                      <p className="text-xs font-medium text-sky-700 dark:text-sky-300 uppercase tracking-wider">
+                    <div className="space-y-4 rounded-2xl border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-cyan-50 p-4 shadow-[0_20px_45px_-35px_rgba(14,165,233,0.45)] dark:border-sky-800 dark:from-sky-950/30 dark:via-slate-900 dark:to-cyan-950/20">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                         Bank Transfer Details
                       </p>
                       <div className="space-y-2">
                         <Label className="text-sm">Bank Name *</Label>
                         <Select value={bankName} onValueChange={setBankName}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
                             <SelectValue placeholder="Select bank" />
                           </SelectTrigger>
                           <SelectContent>
@@ -579,6 +780,7 @@ export function FeeFormDialog({
                           value={bankReference}
                           onChange={(e) => setBankReference(e.target.value)}
                           placeholder="e.g. CHK-001234"
+                          className="h-12 rounded-xl border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
                         />
                       </div>
                       <div className="space-y-2">
@@ -587,21 +789,28 @@ export function FeeFormDialog({
                           type="date"
                           value={bankTransferDate}
                           onChange={(e) => setBankTransferDate(e.target.value)}
+                          className="h-12 rounded-xl border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
                         />
                       </div>
                     </div>
                   )}
 
                   <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Textarea value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} rows={2} />
+                    <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Notes</Label>
+                    <Textarea
+                      value={paymentNotes}
+                      onChange={(e) => setPaymentNotes(e.target.value)}
+                      rows={3}
+                      className="min-h-[120px] rounded-2xl border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
+                    />
                   </div>
                 </div>
-                <DialogFooter className="gap-2">
-                  <Button variant="outline" onClick={onClose}>Cancel</Button>
+                </div>
+                <DialogFooter className="shrink-0 gap-2 border-t border-slate-200/70 bg-slate-50/70 px-6 py-4 dark:border-slate-700/70 dark:bg-slate-900/50">
+                  <Button variant="outline" className="h-11 rounded-xl px-5" onClick={onClose}>Cancel</Button>
                   {paymentMethod === 'MPESA' ? (
                     <Button
-                      className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white"
+                      className="h-11 rounded-xl bg-gradient-to-r from-green-600 to-green-500 px-5 text-white hover:from-green-700 hover:to-green-600"
                       onClick={openMpesaDialog}
                       disabled={!paymentStudentId || !paymentAmount}
                     >
@@ -610,7 +819,7 @@ export function FeeFormDialog({
                     </Button>
                   ) : (
                     <Button
-                      className="bg-teal-600 hover:bg-teal-700"
+                      className="h-11 rounded-xl bg-teal-600 px-5 hover:bg-teal-700"
                       onClick={handleRecordPayment}
                       disabled={
                         loading ||
@@ -660,6 +869,9 @@ export function FeeFormDialog({
           <DialogTitle className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {editItem ? 'Edit Fee Structure' : 'Add Fee Structure'}
           </DialogTitle>
+          <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
+            Configure the fee structure details for the selected class and term.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmitStructure)} className="space-y-5 px-6 py-5">
           <div className="space-y-2">

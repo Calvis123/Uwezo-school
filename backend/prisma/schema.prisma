@@ -61,7 +61,7 @@ model PromotionRecord {
 model SchoolClass {
   id              String   @id @default(cuid())
   name            String   // "Grade 1", "Nursery", etc.
-  level           String   // PRE_NURSERY, NURSERY, PRIMARY, JUNIOR_SECONDARY
+  level           String   // PP1, PP2, GRADE_1 ... GRADE_9
   stream          String?  // "A", "B", "C"
   teacherId       String?
   capacity        Int      @default(40)

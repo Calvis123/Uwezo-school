@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { format } from 'date-fns'
 import { Plus, Search, DollarSign, FileDown, TrendingUp, Wallet, Percent, Smartphone, Landmark, Banknote, Filter, Bus, CheckCircle2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -67,6 +67,38 @@ interface TransportRosterRow {
     lastReceiptNumber: string | null
     suggestedFeeStructureId: string | null
   }
+}
+
+const classLevelOrder: Record<string, number> = {
+  PP1: 0,
+  PP2: 1,
+  GRADE_1: 2,
+  GRADE_2: 3,
+  GRADE_3: 4,
+  GRADE_4: 5,
+  GRADE_5: 6,
+  GRADE_6: 7,
+  GRADE_7: 8,
+  GRADE_8: 9,
+  GRADE_9: 10,
+}
+
+const getClassDisplayName = (classItem: { name?: string; stream?: string | null }) => {
+  const name = classItem.name || 'Class'
+  const stream = classItem.stream?.trim()
+  if (!stream) return name
+  if (new RegExp(`\\s+${stream}$`, 'i').test(name)) return name
+  return `${name} ${stream}`
+}
+
+const sortClassesByLevelAndStream = (items: any[]) => {
+  return [...items].sort((a, b) => {
+    const levelDiff = (classLevelOrder[a.level] ?? 99) - (classLevelOrder[b.level] ?? 99)
+    if (levelDiff !== 0) return levelDiff
+    const nameDiff = String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
+    if (nameDiff !== 0) return nameDiff
+    return String(a.stream || '').localeCompare(String(b.stream || ''), undefined, { numeric: true, sensitivity: 'base' })
+  })
 }
 
 // Circular Progress Component
@@ -368,6 +400,7 @@ export function FeePayments({ termId, view = 'payments' }: { termId?: string; vi
 
   const selectedStudentObj = students.find((s: any) => s.id === selectedStudent)
   const selectedFeeObj = feeStructures.find((f: any) => f.id === selectedFee)
+  const classFilterOptions = useMemo(() => sortClassesByLevelAndStream(localClasses), [localClasses])
 
   if (view === 'transport') {
     return (
@@ -388,8 +421,8 @@ export function FeePayments({ termId, view = 'payments' }: { termId?: string; vi
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Classes</SelectItem>
-              {localClasses.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              {classFilterOptions.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{getClassDisplayName(c)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -642,8 +675,8 @@ export function FeePayments({ termId, view = 'payments' }: { termId?: string; vi
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Classes</SelectItem>
-            {localClasses.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            {classFilterOptions.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{getClassDisplayName(c)}</SelectItem>
             ))}
           </SelectContent>
         </Select>

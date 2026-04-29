@@ -353,16 +353,24 @@ export const usersApi = {
     request('/api/users', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
     request(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string) =>
-    request(`/api/users/${id}`, { method: 'DELETE' }),
+  delete: (id: string, params?: { permanent?: boolean }) =>
+    request(`/api/users/${id}${params?.permanent ? '?permanent=true' : ''}`, { method: 'DELETE' }),
 }
 
 // Teacher Portal
 export const teacherApi = {
-  dashboard: (teacherId: string) =>
-    request(`/api/teacher/dashboard?teacherId=${teacherId}`),
-  classes: (teacherId: string) =>
-    request(`/api/teacher/classes?teacherId=${teacherId}`),
+  dashboard: (teacherId?: string) => {
+    const searchParams = new URLSearchParams()
+    if (teacherId) searchParams.set('teacherId', teacherId)
+    const query = searchParams.toString()
+    return request(`/api/teacher/dashboard${query ? `?${query}` : ''}`)
+  },
+  classes: (teacherId?: string) => {
+    const searchParams = new URLSearchParams()
+    if (teacherId) searchParams.set('teacherId', teacherId)
+    const query = searchParams.toString()
+    return request(`/api/teacher/classes${query ? `?${query}` : ''}`)
+  },
 }
 
 // Messaging

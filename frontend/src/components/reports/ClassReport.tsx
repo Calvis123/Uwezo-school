@@ -14,7 +14,7 @@ import {
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { useAppStore } from '@/lib/store'
-import { reportsApi, examsApi, refApi } from '@/lib/api'
+import { reportsApi, examsApi, refApi, teacherApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -100,7 +100,7 @@ interface ClassReportData {
 }
 
 export function ClassReport() {
-  const { classes } = useAppStore()
+  const { classes, user, selectedClassId: storeSelectedClassId } = useAppStore()
   const [localClasses, setLocalClasses] = useState<any[]>([])
   const [terms, setTerms] = useState<any[]>([])
   const [selectedTermId, setSelectedTermId] = useState<string>('ALL')
@@ -137,27 +137,35 @@ export function ClassReport() {
 
   useEffect(() => {
     let isMounted = true
-    Promise.all([refApi.classes(), refApi.terms()]).then(([classesRes, termsRes]) => {
-      if (!isMounted) return
-      if (classesRes.success && classesRes.data) {
-        setLocalClasses(Array.isArray(classesRes.data) ? classesRes.data : [])
-      } else {
+    const loadClassesAndTerms = async () => {
+      try {
+        const [classesRes, termsRes] = await Promise.all([
+          user?.role === 'TEACHER' ? teacherApi.classes() : refApi.classes(),
+          refApi.terms(),
+        ])
+        if (!isMounted) return
+        if (classesRes.success && classesRes.data) {
+          setLocalClasses(Array.isArray(classesRes.data) ? classesRes.data : [])
+        } else {
+          setLocalClasses([])
+        }
+        if (termsRes.success && termsRes.data) {
+          setTerms(Array.isArray(termsRes.data) ? termsRes.data : [])
+        } else {
+          setTerms([])
+        }
+      } catch {
+        if (!isMounted) return
         setLocalClasses([])
-      }
-      if (termsRes.success && termsRes.data) {
-        setTerms(Array.isArray(termsRes.data) ? termsRes.data : [])
-      } else {
         setTerms([])
       }
-    }).catch(() => {
-      if (!isMounted) return
-      setLocalClasses([])
-      setTerms([])
-    })
+    }
+
+    loadClassesAndTerms()
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [user?.role])
 
   const loadReport = useCallback(async () => {
     if (!selectedClassId || !selectedExamId) return
@@ -237,6 +245,29 @@ export function ClassReport() {
   const mergedClasses = (localClasses.length > 0 ? localClasses : classes) || []
   const activeClasses = mergedClasses.filter((c: any) => c.status === 'ACTIVE' || !c.status)
 
+  const getClassLabel = (cls: any) => {
+    if (!cls?.name) return 'Class'
+    if (!cls.stream) return cls.name
+    if (new RegExp(`\\s+${cls.stream}$`, 'i').test(cls.name)) return cls.name
+    return `${cls.name} ${cls.stream}`
+  }
+
+  useEffect(() => {
+    if (storeSelectedClassId && activeClasses.some((c: any) => c.id === storeSelectedClassId) && selectedClassId !== storeSelectedClassId) {
+      setSelectedClassId(storeSelectedClassId)
+      return
+    }
+    if (user?.role !== 'TEACHER') return
+    if (activeClasses.length === 1 && !selectedClassId) {
+      setSelectedClassId(activeClasses[0].id)
+    }
+    if (selectedClassId && !activeClasses.some((c: any) => c.id === selectedClassId)) {
+      setSelectedClassId(undefined)
+      setSelectedExamId(undefined)
+      setReport(null)
+    }
+  }, [user?.role, activeClasses, selectedClassId, storeSelectedClassId])
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -294,7 +325,7 @@ export function ClassReport() {
             <div className="flex-1 space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Select Class</label>
               <Select value={selectedClassId} onValueChange={(val) => setSelectedClassId(val)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" disabled={user?.role === 'TEACHER' && activeClasses.length <= 1}>
                   <SelectValue placeholder="Choose a class..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -303,7 +334,7 @@ export function ClassReport() {
                   )}
                   {activeClasses.map((cls) => (
                     <SelectItem key={cls.id} value={cls.id}>
-                      {cls.name}{cls.stream ? ` - Stream ${cls.stream}` : ''} ({cls.studentCount} students)
+                      {getClassLabel(cls)} ({cls.studentCount} students)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -352,7 +383,7 @@ export function ClassReport() {
             <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-5 text-white print:bg-teal-700">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-bold">Olives Schools</h2>
+                  <h2 className="text-lg font-bold">Uwezo School</h2>
                   <p className="text-teal-100 text-sm">Eldoret, Kenya</p>
                 </div>
                 <div className="text-right">
@@ -553,7 +584,7 @@ export function ClassReport() {
 
           {/* Print footer */}
           <div className="hidden print:block text-center text-xs text-slate-500 border-t pt-4 mt-8">
-            Generated on {format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')} - Olives Schools Management System
+            Generated on {format(new Date(), 'MMMM d, yyyy \'at\' h:mm a')} - Uwezo School Management System
             <br />
             Class: {report.classInfo.name} | Exam: {report.examInfo.name} | Term: {report.examInfo.termName} | Students: {report.totalStudents}
           </div>

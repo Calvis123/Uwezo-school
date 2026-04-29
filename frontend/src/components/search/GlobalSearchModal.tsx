@@ -147,7 +147,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   },
 ]
 
-const RECENT_SEARCHES_KEY = 'olives-search-recent'
+const RECENT_SEARCHES_KEY = 'uwezo-school-search-recent'
 const MAX_RECENT_SEARCHES = 5
 
 // ── Category config ───────────────────────────────────────────────

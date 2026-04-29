@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Plus,
   Search,
@@ -23,6 +23,7 @@ import {
   UserRoundPlus,
   Link2,
   Bus,
+  LockKeyhole,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImportStudentsDialog } from './ImportStudentsDialog'
@@ -97,7 +98,7 @@ interface StudentRow {
     paidAmount?: number
     balance?: number
   }
-  class?: { id: string; name: string }
+  class?: { id: string; name: string; stream?: string | null }
   status: string
   feesDue?: number
   guardians?: Array<{
@@ -108,6 +109,39 @@ interface StudentRow {
       email?: string
     }
   }>
+}
+
+const classLevelOrder: Record<string, number> = {
+  PP1: 0,
+  PP2: 1,
+  GRADE_1: 2,
+  GRADE_2: 3,
+  GRADE_3: 4,
+  GRADE_4: 5,
+  GRADE_5: 6,
+  GRADE_6: 7,
+  GRADE_7: 8,
+  GRADE_8: 9,
+  GRADE_9: 10,
+}
+
+const getClassDisplayName = (classItem?: { name?: string; stream?: string | null }) => {
+  if (!classItem) return '-'
+  const name = classItem.name || 'Class'
+  const stream = classItem.stream?.trim()
+  if (!stream) return name
+  if (new RegExp(`\\s+${stream}$`, 'i').test(name)) return name
+  return `${name} ${stream}`
+}
+
+const sortClassesByLevelAndStream = (items: any[]) => {
+  return [...items].sort((a, b) => {
+    const levelDiff = (classLevelOrder[a.level] ?? 99) - (classLevelOrder[b.level] ?? 99)
+    if (levelDiff !== 0) return levelDiff
+    const nameDiff = String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
+    if (nameDiff !== 0) return nameDiff
+    return String(a.stream || '').localeCompare(String(b.stream || ''), undefined, { numeric: true, sensitivity: 'base' })
+  })
 }
 
 export function StudentList() {
@@ -132,9 +166,18 @@ export function StudentList() {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [localClasses, setLocalClasses] = useState(classes)
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
+  const [loadError, setLoadError] = useState<string | null>(null)
   const canAddStudent = ['SUPER_ADMIN', 'HEADTEACHER', 'SECRETARY'].includes(user?.role || '')
   const canViewParentInfo = ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER', 'DOS', 'SECRETARY', 'BURSAR'].includes(user?.role || '')
   const canLinkParent = canViewParentInfo
+  const canViewFeeTransport = user?.role !== 'TEACHER'
+  const isTeacherView = user?.role === 'TEACHER'
+  const classFilterOptions = useMemo(() => sortClassesByLevelAndStream(localClasses), [localClasses])
+  const assignedClass = useMemo(
+    () => classFilterOptions.find((c) => c.id === filterClass) || (isTeacherView && classFilterOptions.length === 1 ? classFilterOptions[0] : undefined),
+    [classFilterOptions, filterClass, isTeacherView]
+  )
+  const assignedClassId = assignedClass?.id || selectedClassId || ''
 
   // On mobile, default to card view
   useEffect(() => {
@@ -149,6 +192,7 @@ export function StudentList() {
 
   const loadStudents = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const result = await studentsApi.list({
         page,
@@ -162,23 +206,14 @@ export function StudentList() {
         setStudents(result.data.items || [])
         setTotal(result.data.total || 0)
       } else {
-        const demoStudents: StudentRow[] = [
-          { id: '1', admissionNumber: 'ADM-001', firstName: 'John', lastName: 'Kamau', gender: 'MALE', class: { id: '1', name: 'Grade 4' }, status: 'ACTIVE', feesDue: 15000 },
-          { id: '2', admissionNumber: 'ADM-002', firstName: 'Mary', lastName: 'Wanjiku', gender: 'FEMALE', class: { id: '2', name: 'Grade 5' }, status: 'ACTIVE', feesDue: 0 },
-          { id: '3', admissionNumber: 'ADM-003', firstName: 'Peter', lastName: 'Ochieng', gender: 'MALE', class: { id: '1', name: 'Grade 4' }, status: 'ACTIVE', feesDue: 25000 },
-          { id: '4', admissionNumber: 'ADM-004', firstName: 'Grace', lastName: 'Akinyi', gender: 'FEMALE', class: { id: '3', name: 'Grade 6' }, status: 'ACTIVE', feesDue: 8000 },
-          { id: '5', admissionNumber: 'ADM-005', firstName: 'David', lastName: 'Mwangi', gender: 'MALE', class: { id: '2', name: 'Grade 5' }, status: 'ACTIVE', feesDue: 0 },
-          { id: '6', admissionNumber: 'ADM-006', firstName: 'Sarah', lastName: 'Njeri', gender: 'FEMALE', class: { id: '4', name: 'Grade 7' }, status: 'ACTIVE', feesDue: 32000 },
-          { id: '7', admissionNumber: 'ADM-007', firstName: 'James', lastName: 'Otieno', gender: 'MALE', class: { id: '3', name: 'Grade 6' }, status: 'INACTIVE', feesDue: 45000 },
-          { id: '8', admissionNumber: 'ADM-008', firstName: 'Ann', lastName: 'Muthoni', gender: 'FEMALE', class: { id: '5', name: 'Grade 8' }, status: 'ACTIVE', feesDue: 12000 },
-          { id: '9', admissionNumber: 'ADM-009', firstName: 'Brian', lastName: 'Kipchoge', gender: 'MALE', class: { id: '4', name: 'Grade 7' }, status: 'ACTIVE', feesDue: 0 },
-          { id: '10', admissionNumber: 'ADM-010', firstName: 'Lucy', lastName: 'Wambui', gender: 'FEMALE', class: { id: '1', name: 'Grade 4' }, status: 'ACTIVE', feesDue: 18000 },
-        ]
-        setStudents(demoStudents)
-        setTotal(demoStudents.length)
+        setStudents([])
+        setTotal(0)
+        setLoadError(result.error || 'Failed to load students')
       }
     } catch {
       setStudents([])
+      setTotal(0)
+      setLoadError('Failed to load students')
     } finally {
       setLoading(false)
     }
@@ -205,15 +240,13 @@ export function StudentList() {
   }, [selectedClassId])
 
   useEffect(() => {
-    if (user?.role !== 'TEACHER') return
-    if (filterClass) return
-    const onlyClassId = localClasses.length === 1 ? localClasses[0].id : ''
-    const targetClassId = selectedClassId || onlyClassId
-    if (targetClassId) {
+    if (!isTeacherView) return
+    const targetClassId = selectedClassId || (localClasses.length === 1 ? localClasses[0].id : '')
+    if (targetClassId && filterClass !== targetClassId) {
       setFilterClass(targetClassId)
       setPage(1)
     }
-  }, [user?.role, filterClass, localClasses, selectedClassId])
+  }, [isTeacherView, filterClass, localClasses, selectedClassId])
 
   useEffect(() => {
     loadStudents()
@@ -339,9 +372,9 @@ export function StudentList() {
   const transportAssignedCount = students.filter((s) => s.transportInfo?.status === 'ASSIGNED').length
   const hasActiveFilters =
     Boolean(search.trim()) ||
-    Boolean(filterClass) ||
+    (!isTeacherView && Boolean(filterClass)) ||
     filterStatus !== 'ACTIVE' ||
-    filterStudentType !== 'ALL'
+    (canViewFeeTransport && filterStudentType !== 'ALL')
 
   // Generate page numbers for pagination with ellipsis
   const getPageNumbers = () => {
@@ -442,22 +475,24 @@ export function StudentList() {
               </CardContent>
             </Card>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-            <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow">
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center">
-                  <Bus className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Transport Pending</p>
-                  <p className="text-sm font-bold text-amber-700 dark:text-amber-300 tabular-nums">{transportPendingCount}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                    {transportAssignedCount} assigned - {dayScholarCount} day - {boardingCount} boarding
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {canViewFeeTransport && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+              <Card className="shadow-sm border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow">
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center">
+                    <Bus className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Transport Pending</p>
+                    <p className="text-sm font-bold text-amber-700 dark:text-amber-300 tabular-nums">{transportPendingCount}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                      {transportAssignedCount} assigned - {dayScholarCount} day - {boardingCount} boarding
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
         </div>
       )}
 
@@ -466,7 +501,7 @@ export function StudentList() {
         <div className="relative flex-1 sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
-            placeholder="Search by name, admission number, or class..."
+            placeholder={isTeacherView ? 'Search by name or admission number...' : 'Search by name, admission number, or class...'}
             className="pl-9 h-10 bg-white dark:bg-slate-800"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
@@ -507,17 +542,31 @@ export function StudentList() {
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
-          <Select value={filterClass} onValueChange={(v) => { setFilterClass(v === 'all' ? '' : v); setPage(1) }}>
-            <SelectTrigger className="w-full sm:w-44 h-10 bg-white dark:bg-slate-800">
-              <SelectValue placeholder="All Classes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Classes</SelectItem>
-              {localClasses.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isTeacherView ? (
+            <div className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:w-56">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-slate-900 dark:text-slate-100">
+                  {assignedClass ? getClassDisplayName(assignedClass) : 'Assigned class'}
+                </p>
+                <p className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                  Assigned class
+                </p>
+              </div>
+              <LockKeyhole className="h-4 w-4 flex-shrink-0 text-slate-400" />
+            </div>
+          ) : (
+            <Select value={filterClass} onValueChange={(v) => { setFilterClass(v === 'all' ? '' : v); setPage(1) }}>
+              <SelectTrigger className="w-full sm:w-44 h-10 bg-white dark:bg-slate-800">
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                {classFilterOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{getClassDisplayName(c)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1) }}>
             <SelectTrigger className="w-full sm:w-40 h-10 bg-white dark:bg-slate-800">
               <SelectValue />
@@ -529,23 +578,25 @@ export function StudentList() {
               <SelectItem value="TRANSFERRED">Transferred</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterStudentType} onValueChange={(v) => { setFilterStudentType(v as 'ALL' | 'DAY' | 'BOARDING'); setPage(1) }}>
-            <SelectTrigger className="w-full sm:w-44 h-10 bg-white dark:bg-slate-800">
-              <SelectValue placeholder="All Student Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Student Types</SelectItem>
-              <SelectItem value="DAY">Day Scholar</SelectItem>
-              <SelectItem value="BOARDING">Boarding</SelectItem>
-            </SelectContent>
-          </Select>
+          {canViewFeeTransport && (
+            <Select value={filterStudentType} onValueChange={(v) => { setFilterStudentType(v as 'ALL' | 'DAY' | 'BOARDING'); setPage(1) }}>
+              <SelectTrigger className="w-full sm:w-44 h-10 bg-white dark:bg-slate-800">
+                <SelectValue placeholder="All Student Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Student Types</SelectItem>
+                <SelectItem value="DAY">Day Scholar</SelectItem>
+                <SelectItem value="BOARDING">Boarding</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Button
             variant="outline"
             className="w-full sm:w-auto h-10"
             disabled={!hasActiveFilters}
             onClick={() => {
               setSearch('')
-              setFilterClass('')
+              setFilterClass(isTeacherView ? assignedClassId : '')
               setFilterStatus('ACTIVE')
               setFilterStudentType('ALL')
               setPage(1)
@@ -553,46 +604,53 @@ export function StudentList() {
           >
             Clear Filters
           </Button>
-          {/* Bulk Actions Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto h-10 gap-2 text-slate-600 dark:text-slate-400">
-                <ListChecks className="w-4 h-4" />
-                <span className="hidden sm:inline">Bulk Actions</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => toast.info('Select students first')}>
-                <Mail className="w-4 h-4 mr-2" />
-                Send Email
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info('Select students first')}>
-                <Printer className="w-4 h-4 mr-2" />
-                Print List
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info('Select students first')}>
-                <FileDown className="w-4 h-4 mr-2" />
-                Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') {
-                  navigateTo('promotions')
-                } else {
-                  toast.error('Only administrators can promote students')
-                }
-              }}>
-                <GraduationCap className="w-4 h-4 mr-2" />
-                Promote
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => toast.info('Select students first')} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Selected
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isTeacherView && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto h-10 gap-2 text-slate-600 dark:text-slate-400">
+                  <ListChecks className="w-4 h-4" />
+                  <span className="hidden sm:inline">Bulk Actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => toast.info('Select students first')}>
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Email
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => toast.info('Select students first')}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print List
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => toast.info('Select students first')}>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  if (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') {
+                    navigateTo('promotions')
+                  } else {
+                    toast.error('Only administrators can promote students')
+                  }
+                }}>
+                  <GraduationCap className="w-4 h-4 mr-2" />
+                  Promote
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => toast.info('Select students first')} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Selected
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
+          {loadError}
+        </div>
+      )}
 
       {/* Table / Card View */}
       {viewMode === 'table' ? (
@@ -600,7 +658,7 @@ export function StudentList() {
         <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
           <Table className="w-full">
             <caption className="sr-only">
-              Students registry with identity, transport status, class, fees, and actions
+              Students registry with identity, class, status, and actions
             </caption>
             <TableHeader className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
               <TableRow className="hover:bg-slate-50/95 dark:hover:bg-slate-800/95">
@@ -608,13 +666,19 @@ export function StudentList() {
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Admission #</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Name</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Gender</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Type</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Transport</TableHead>
+                {canViewFeeTransport && (
+                  <>
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Type</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Transport</TableHead>
+                  </>
+                )}
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Class</TableHead>
                 {canViewParentInfo && (
                   <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Parent/Guardian</TableHead>
                 )}
-                <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Fees Due</TableHead>
+                {canViewFeeTransport && (
+                  <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden lg:table-cell">Fees Due</TableHead>
+                )}
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right w-10">Actions</TableHead>
               </TableRow>
@@ -627,18 +691,22 @@ export function StudentList() {
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
+                    {canViewFeeTransport && (
+                      <>
+                        <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
+                      </>
+                    )}
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
                     {canViewParentInfo && <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>}
-                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
+                    {canViewFeeTransport && <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-16" /></TableCell>}
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : students.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canViewParentInfo ? 11 : 10} className="text-center py-12">
+                  <TableCell colSpan={6 + (canViewParentInfo ? 1 : 0) + (canViewFeeTransport ? 3 : 0)} className="text-center py-12">
                     <GraduationCap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                     <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No students found</p>
                     <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
@@ -704,31 +772,35 @@ export function StudentList() {
                           {student.gender === 'MALE' ? 'Male' : 'Female'}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge
-                          variant="outline"
-                          className={cn('text-[10px] px-2 py-0.5 font-medium', studentTypeCfg.className)}
-                        >
-                          {studentTypeCfg.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <div className="leading-tight">
-                          <Badge
-                            variant="outline"
-                            className={cn('text-[10px] px-2 py-0.5 font-medium', transportCfg.className)}
-                          >
-                            {transportCfg.label}
-                          </Badge>
-                          {transportStatus === 'ASSIGNED' && student.transportInfo?.bus?.busNumber ? (
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                              {student.transportInfo.bus.busNumber}
-                            </p>
-                          ) : null}
-                        </div>
-                      </TableCell>
+                      {canViewFeeTransport && (
+                        <>
+                          <TableCell className="hidden md:table-cell">
+                            <Badge
+                              variant="outline"
+                              className={cn('text-[10px] px-2 py-0.5 font-medium', studentTypeCfg.className)}
+                            >
+                              {studentTypeCfg.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <div className="leading-tight">
+                              <Badge
+                                variant="outline"
+                                className={cn('text-[10px] px-2 py-0.5 font-medium', transportCfg.className)}
+                              >
+                                {transportCfg.label}
+                              </Badge>
+                              {transportStatus === 'ASSIGNED' && student.transportInfo?.bus?.busNumber ? (
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                                  {student.transportInfo.bus.busNumber}
+                                </p>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                        </>
+                      )}
                       <TableCell className="hidden md:table-cell text-sm text-slate-600 dark:text-slate-400">
-                        {student.class?.name || '-'}
+                        {getClassDisplayName(student.class)}
                       </TableCell>
                       {canViewParentInfo && (
                         <TableCell className="hidden lg:table-cell">
@@ -746,21 +818,23 @@ export function StudentList() {
                           )}
                         </TableCell>
                       )}
-                      <TableCell className="hidden lg:table-cell">
-                        <div className="leading-tight">
-                          <Badge
-                            variant="outline"
-                            className={cn('text-[10px] px-2 py-0.5 font-medium', feeCfg.className)}
-                          >
-                            {feeCfg.label}
-                          </Badge>
-                          {typeof student.feeInfo?.balance === 'number' && student.feeInfo.balance > 0 ? (
-                            <p className="text-[10px] text-amber-700 dark:text-amber-300 mt-1">
-                              Balance: KES {student.feeInfo.balance.toLocaleString()}
-                            </p>
-                          ) : null}
-                        </div>
-                      </TableCell>
+                      {canViewFeeTransport && (
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="leading-tight">
+                            <Badge
+                              variant="outline"
+                              className={cn('text-[10px] px-2 py-0.5 font-medium', feeCfg.className)}
+                            >
+                              {feeCfg.label}
+                            </Badge>
+                            {typeof student.feeInfo?.balance === 'number' && student.feeInfo.balance > 0 ? (
+                              <p className="text-[10px] text-amber-700 dark:text-amber-300 mt-1">
+                                Balance: KES {student.feeInfo.balance.toLocaleString()}
+                              </p>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -862,7 +936,7 @@ export function StudentList() {
                           </p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span className="text-xs text-slate-600 dark:text-slate-400">
-                              {student.class?.name || '-'}
+                              {getClassDisplayName(student.class)}
                             </span>
                             <span className={cn(
                               'text-[10px] px-2 py-0.5 font-medium',
@@ -870,26 +944,30 @@ export function StudentList() {
                             )}>
                               {statusCfg.label}
                             </span>
-                            <span className={cn(
-                              'text-[10px] px-2 py-0.5 font-medium rounded border',
-                              studentTypeCfg.className
-                            )}>
-                              {studentTypeCfg.label}
-                            </span>
-                            <span className={cn(
-                              'text-[10px] px-2 py-0.5 font-medium rounded border',
-                              transportCfg.className
-                            )}>
-                              {transportStatus === 'ASSIGNED' && student.transportInfo?.bus?.busNumber
-                                ? `${transportCfg.label}: ${student.transportInfo.bus.busNumber}`
-                                : transportCfg.label}
-                            </span>
-                            <span className={cn(
-                              'text-[10px] px-2 py-0.5 font-medium rounded border',
-                              feeCfg.className
-                            )}>
-                              {feeCfg.label}
-                            </span>
+                            {canViewFeeTransport && (
+                              <>
+                                <span className={cn(
+                                  'text-[10px] px-2 py-0.5 font-medium rounded border',
+                                  studentTypeCfg.className
+                                )}>
+                                  {studentTypeCfg.label}
+                                </span>
+                                <span className={cn(
+                                  'text-[10px] px-2 py-0.5 font-medium rounded border',
+                                  transportCfg.className
+                                )}>
+                                  {transportStatus === 'ASSIGNED' && student.transportInfo?.bus?.busNumber
+                                    ? `${transportCfg.label}: ${student.transportInfo.bus.busNumber}`
+                                    : transportCfg.label}
+                                </span>
+                                <span className={cn(
+                                  'text-[10px] px-2 py-0.5 font-medium rounded border',
+                                  feeCfg.className
+                                )}>
+                                  {feeCfg.label}
+                                </span>
+                              </>
+                            )}
                           </div>
                           {canViewParentInfo && (
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -897,7 +975,7 @@ export function StudentList() {
                               {primaryGuardian?.guardian?.phone ? `  -  ${primaryGuardian.guardian.phone}` : ''}
                             </p>
                           )}
-                          {typeof student.feeInfo?.balance === 'number' && student.feeInfo.balance > 0 && (
+                          {canViewFeeTransport && typeof student.feeInfo?.balance === 'number' && student.feeInfo.balance > 0 && (
                             <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-1.5">
                               Fee balance: KES {student.feeInfo.balance.toLocaleString()}
                             </p>

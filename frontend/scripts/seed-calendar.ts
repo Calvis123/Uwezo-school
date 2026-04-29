@@ -1,5 +1,5 @@
 /**
- * Seed Calendar Events for Olives School Management System
+ * Seed Calendar Events for Uwezo School Management System
  * Creates realistic Kenyan school calendar events for 2025 and 2026
  *
  * Run with: bun run scripts/seed-calendar.ts
@@ -355,7 +355,7 @@ async function main() {
     },
     {
       title: 'Inter-School Football Tournament',
-      description: 'Olives Schools will host the annual inter-school football tournament. Teams from 8 neighbouring schools will participate. Both boys and girls categories.',
+      description: 'Uwezo School will host the annual inter-school football tournament. Teams from 8 neighbouring schools will participate. Both boys and girls categories.',
       startDate: new Date('2025-09-19T09:00:00'),
       endDate: new Date('2025-09-20T17:00:00'),
       startTime: '09:00',
@@ -371,7 +371,7 @@ async function main() {
 
     {
       title: 'Kenya Music Festival — Regional',
-      description: 'Olives School participates in the Kenya Music Festival regional competition. Categories include choral verse, solo singing, traditional dances, and instrumental music.',
+      description: 'Uwezo School participates in the Kenya Music Festival regional competition. Categories include choral verse, solo singing, traditional dances, and instrumental music.',
       startDate: new Date('2025-06-16T08:00:00'),
       endDate: new Date('2025-06-20T17:00:00'),
       startTime: '08:00',

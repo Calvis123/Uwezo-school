@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth-server";
+import { getParentPrimaryStudentId } from "@/lib/parent-access";
 
 // GET /api/parent/results/[studentId] - Get child exam results for logged-in guardian
 export async function GET(
@@ -11,11 +12,8 @@ export async function GET(
     const guardian = await requireUser(request, { roles: ["PARENT"] });
     const { studentId } = await params;
 
-    const link = await db.studentGuardian.findFirst({
-      where: { guardianId: guardian.id, studentId },
-      select: { id: true },
-    });
-    if (!link) {
+    const primaryStudentId = await getParentPrimaryStudentId(guardian.id);
+    if (!primaryStudentId || primaryStudentId !== studentId) {
       return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 

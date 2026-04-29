@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { summarizeStudentFeeBalance } from '@/lib/fee-balance'
+import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope'
 
 // Simple in-memory rate limiter
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
@@ -179,12 +181,13 @@ export async function POST(request: NextRequest) {
     if (latestTerm) {
       const feeStructures = await db.feeStructure.findMany({
         where: {
-          classId: student.classId,
+          OR: [
+            { classId: student.classId },
+            { description: { startsWith: ALL_CLASSES_MARKER } },
+          ],
           termId: latestTerm.id,
         },
       })
-
-      const totalFees = feeStructures.reduce((sum, fs) => sum + fs.amount, 0)
 
       const transactions = await db.feeTransaction.findMany({
         where: {
@@ -192,9 +195,7 @@ export async function POST(request: NextRequest) {
           status: 'COMPLETED',
         },
       })
-
-      const totalPaid = transactions.reduce((sum, t) => sum + t.amount, 0)
-      feeBalance = Math.max(0, totalFees - totalPaid)
+      feeBalance = summarizeStudentFeeBalance(feeStructures, transactions, student).balance
     }
 
     // Calculate summary

@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth-server';
 import { FINANCE_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
 import { MARKED_ATTENDANCE_STATUSES } from '@/lib/attendance';
+import { getApplicableFeeStructures } from '@/lib/fee-balance';
 
 export async function GET(request: NextRequest) {
   try {
@@ -102,24 +103,11 @@ export async function GET(request: NextRequest) {
       db.subject.count(),
     ]);
 
-    // Build class fee maps
-    const classBaseFeeMap: Record<string, number> = {};
-    const classTransportFeeMap: Record<string, number> = {};
-    for (const fs of feeStructures) {
-      if (fs.category === 'TRANSPORT') {
-        if (!classTransportFeeMap[fs.classId]) classTransportFeeMap[fs.classId] = 0;
-        classTransportFeeMap[fs.classId] += fs.amount;
-      } else {
-        if (!classBaseFeeMap[fs.classId]) classBaseFeeMap[fs.classId] = 0;
-        classBaseFeeMap[fs.classId] += fs.amount;
-      }
-    }
-
     // Calculate total expected fees
     let totalExpected = 0;
     for (const student of activeStudents) {
-      totalExpected += (classBaseFeeMap[student.classId] || 0) +
-        (student.usesTransport ? classTransportFeeMap[student.classId] || 0 : 0);
+      const applicableStructures = getApplicableFeeStructures(feeStructures, student);
+      totalExpected += applicableStructures.reduce((sum, structure) => sum + Number(structure.amount || 0), 0);
     }
 
     // Filter transactions to active term
@@ -127,7 +115,7 @@ export async function GET(request: NextRequest) {
       (t) => activeTerm && t.feeStructure.termId === activeTerm.id
     );
     const totalCollected = activeTermTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const outstanding = totalExpected - totalCollected;
+    const outstanding = Math.max(0, totalExpected - totalCollected);
     const collectionRate = totalExpected > 0
       ? Math.round((totalCollected / totalExpected) * 100 * 100) / 100
       : 0;
