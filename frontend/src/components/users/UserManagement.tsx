@@ -465,6 +465,168 @@ export function UserManagement() {
 
   const allUsersForActions = [...users, ...parentUsers]
   const totalVisibleUsers = total + parentTotal
+  const teacherUsers = users.filter((item) => item.role === 'TEACHER')
+  const otherSchoolUsers = users.filter((item) => item.role !== 'TEACHER')
+  const showTeachersSection = filterRole !== 'PARENT' && (!filterRole || filterRole === 'TEACHER')
+  const showOtherSchoolUsersSection = filterRole !== 'PARENT' && filterRole !== 'TEACHER'
+
+  const renderSchoolUserRows = (items: UserRow[], emptyMessage: string, showAssignedClass: boolean) => {
+    if (loading) {
+      return [...Array(6)].map((_, i) => (
+        <TableRow key={i}>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          </TableCell>
+          <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-36" /></TableCell>
+          <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+          <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+          {showAssignedClass && <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-24" /></TableCell>}
+          <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+          <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+        </TableRow>
+      ))
+    }
+
+    if (items.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={showAssignedClass ? 7 : 6} className="text-center py-12">
+            <UserCircle className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{emptyMessage}</p>
+            <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
+          </TableCell>
+        </TableRow>
+      )
+    }
+
+    return items.map((user, index) => {
+      const rCfg = roleConfig[user.role] || roleConfig.TEACHER
+      const RoleIcon = rCfg.icon
+      const canManageThisUser = canManageTargetUser(user)
+      return (
+        <motion.tr
+          key={user.id}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.2, delay: index * 0.03 }}
+          className={cn(
+            'hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all duration-200 border-l-2 border-l-transparent',
+            rCfg.borderColor, rCfg.darkBorder,
+            user.status === 'INACTIVE' && 'opacity-60',
+          )}
+        >
+          <TableCell>
+            <div className="flex items-center gap-2.5">
+              <div className={cn(
+                'h-9 w-9 rounded-full bg-gradient-to-br p-[2px]',
+                rCfg.gradientFrom, rCfg.gradientTo,
+              )}>
+                <Avatar className="h-full w-full rounded-full">
+                  <AvatarFallback className={cn(
+                    'text-xs font-semibold bg-white dark:bg-slate-800',
+                    user.role === 'SUPER_ADMIN' ? 'text-red-700 dark:text-red-400' :
+                    user.role === 'ADMIN' ? 'text-orange-700 dark:text-orange-400' :
+                    user.role === 'HEADTEACHER' ? 'text-violet-700 dark:text-violet-400' :
+                    user.role === 'DOS' ? 'text-indigo-700 dark:text-indigo-400' :
+                    user.role === 'TEACHER' ? 'text-sky-700 dark:text-sky-400' :
+                    user.role === 'SECRETARY' ? 'text-cyan-700 dark:text-cyan-400' :
+                    user.role === 'BURSAR' ? 'text-emerald-700 dark:text-emerald-400' :
+                    'text-green-700 dark:text-green-400'
+                  )}>
+                    {user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{user.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 sm:hidden">{user.email}</p>
+              </div>
+            </div>
+          </TableCell>
+          <TableCell className="hidden sm:table-cell text-sm text-slate-600 dark:text-slate-300">
+            {user.email}
+          </TableCell>
+          <TableCell className="hidden md:table-cell text-sm text-slate-500 dark:text-slate-400">
+            {user.phone || '—'}
+          </TableCell>
+          <TableCell>
+            <Badge
+              variant="outline"
+              className={cn('text-[10px] px-2 py-0.5 font-medium gap-1', rCfg.className)}
+            >
+              <RoleIcon className="w-3 h-3" />
+              {rCfg.label}
+            </Badge>
+          </TableCell>
+          {showAssignedClass && (
+            <TableCell className="hidden lg:table-cell">
+              {user.assignedClasses?.length ? (
+                <Badge variant="secondary" className="text-[10px]">
+                  {user.assignedClasses[0].name}
+                  {user.assignedClasses[0].stream ? ` ${user.assignedClasses[0].stream}` : ''}
+                </Badge>
+              ) : (
+                <span className="text-xs text-amber-600 dark:text-amber-400">Unassigned</span>
+              )}
+            </TableCell>
+          )}
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={user.status === 'ACTIVE'}
+                onCheckedChange={() => setToggleId(user.id)}
+                disabled={!canManageThisUser}
+                className="data-[state=checked]:bg-teal-600"
+              />
+            </div>
+          </TableCell>
+          <TableCell className="text-right">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setViewUser(user)}>
+                  <Eye className="w-4 h-4 mr-2" /> View Details
+                </DropdownMenuItem>
+                {canManageThisUser && (
+                  <>
+                    <DropdownMenuItem onClick={() => openEditForm(user)}>
+                      <Pencil className="w-4 h-4 mr-2" /> Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setToggleId(user.id)}
+                      className={user.status === 'ACTIVE' ? 'text-amber-600 focus:text-amber-600' : 'text-green-600 focus:text-green-600'}
+                    >
+                      {user.status === 'ACTIVE' ? (
+                        <><XCircle className="w-4 h-4 mr-2" /> Deactivate</>
+                      ) : (
+                        <><UserCheck className="w-4 h-4 mr-2" /> Activate</>
+                      )}
+                    </DropdownMenuItem>
+                    {canCreateDelete && (
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => setDeleteId(user.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </motion.tr>
+      )
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -596,14 +758,52 @@ export function UserManagement() {
         </Select>
       </div>
 
+      {showOtherSchoolUsersSection && (
+        <>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">School Users</h3>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+              {loading ? Math.max(total - counts.teachers, 0) : otherSchoolUsers.length}
+            </Badge>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800 overflow-hidden shadow-sm"
+          >
+            <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-800/80 sticky top-0 z-10">
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Name</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Email</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden md:table-cell">Phone</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Role</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</TableHead>
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {renderSchoolUserRows(otherSchoolUsers, 'No school users found', false)}
+                </TableBody>
+              </Table>
+            </div>
+          </motion.div>
+        </>
+      )}
+
+      {showTeachersSection && (
+        <>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">School Users (Non-Parents)</h3>
-        <Badge variant="secondary" className="bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-          {total}
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Teachers</h3>
+        <Badge variant="secondary" className="bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800">
+          {loading ? counts.teachers : teacherUsers.length}
         </Badge>
       </div>
 
-      {/* School Users Table */}
+      {/* Teachers Table */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -641,16 +841,16 @@ export function UserManagement() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : users.length === 0 ? (
+              ) : teacherUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12">
                     <UserCircle className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No users found</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No teachers found</p>
                     <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Try adjusting your search or filters</p>
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user, index) => {
+                teacherUsers.map((user, index) => {
                   const rCfg = roleConfig[user.role] || roleConfig.TEACHER
                   const sCfg = statusConfig[user.status] || statusConfig.ACTIVE
                   const RoleIcon = rCfg.icon
@@ -782,6 +982,8 @@ export function UserManagement() {
           </Table>
         </div>
       </motion.div>
+        </>
+      )}
 
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Parents</h3>
