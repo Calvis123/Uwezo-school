@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth-server'
 import { FINANCE_ROLES } from '@/lib/roles'
 import { apiRouteError } from '@/lib/api-route-error'
 import { buildStyledExportPdf } from '@/lib/export-pdf'
+import { summarizeStudentFeeLedger } from '@/lib/fee-balance'
 
 type FeeReportType =
   | 'transactions'
@@ -439,53 +440,59 @@ export async function GET(request: NextRequest) {
     if (reportType === 'fee-arrears-students') {
       const activeTerm = await db.term.findFirst({
         where: { status: 'ACTIVE' },
-        select: { id: true, name: true, year: true },
+        select: { id: true, name: true, year: true, startDate: true, endDate: true, status: true },
       })
       if (!activeTerm) {
         rows = []
       } else {
+        const terms = await db.term.findMany({
+          select: { id: true, name: true, year: true, startDate: true, endDate: true, status: true },
+          orderBy: [{ year: 'asc' }, { startDate: 'asc' }],
+        })
         const students = await db.student.findMany({
           where: {
             status: 'ACTIVE',
             ...(classId && classId !== 'all' ? { classId } : {}),
           },
-          include: { class: true },
+          include: {
+            class: true,
+            busAssignments: {
+              where: { status: 'ACTIVE' },
+              select: {
+                termId: true,
+                transportMode: true,
+                bus: { select: { routeName: true } },
+              },
+            },
+          },
           orderBy: [{ class: { name: 'asc' } }, { lastName: 'asc' }, { firstName: 'asc' }],
         })
 
         const studentIds = students.map((s) => s.id)
-        const classIds = Array.from(new Set(students.map((s) => s.classId)))
 
         const [structures, payments] = await Promise.all([
           db.feeStructure.findMany({
             where: {
-              termId: activeTerm.id,
               status: 'ACTIVE',
-              classId: { in: classIds },
             },
-            select: { classId: true, category: true, amount: true },
+            select: { id: true, classId: true, termId: true, category: true, amount: true, description: true },
           }),
           db.feeTransaction.findMany({
             where: {
               studentId: { in: studentIds },
               status: 'COMPLETED',
-              feeStructure: { termId: activeTerm.id },
             },
-            select: { studentId: true, amount: true, createdAt: true },
+            select: {
+              studentId: true,
+              feeStructureId: true,
+              amount: true,
+              status: true,
+              createdAt: true,
+              feeStructure: { select: { termId: true } },
+            },
             orderBy: { createdAt: 'desc' },
           }),
         ])
-
-        const classBaseTotals = structures.reduce<Record<string, number>>((acc, s) => {
-          if (s.category === 'TRANSPORT') return acc
-          acc[s.classId] = (acc[s.classId] || 0) + Number(s.amount || 0)
-          return acc
-        }, {})
-        const classTransportTotals = structures.reduce<Record<string, number>>((acc, s) => {
-          if (s.category !== 'TRANSPORT') return acc
-          acc[s.classId] = (acc[s.classId] || 0) + Number(s.amount || 0)
-          return acc
-        }, {})
 
         const paymentAgg = payments.reduce<Record<string, { paid: number; lastDate: Date | null }>>((acc, p) => {
           if (!acc[p.studentId]) {
@@ -500,19 +507,19 @@ export async function GET(request: NextRequest) {
 
         rows = students
           .map((student) => {
-            const tuitionAndOtherExpected = classBaseTotals[student.classId] || 0
-            const transportExpected = student.usesTransport ? classTransportTotals[student.classId] || 0 : 0
-            const expectedTotal = tuitionAndOtherExpected + transportExpected
-            const paidAmount = paymentAgg[student.id]?.paid || 0
-            const balanceDue = Math.max(0, expectedTotal - paidAmount)
+            const ledger = summarizeStudentFeeLedger(terms, activeTerm.id, structures, payments.filter((p) => p.studentId === student.id), student)
+            const activeTermBalance = ledger.current.balance
+            const arrearsBalance = ledger.arrears.balance
+            const balanceDue = ledger.balance
 
             return {
               studentName: `${student.firstName} ${student.lastName}`,
               admissionNo: student.admissionNumber,
               className: student.class?.name || '',
               term: `${activeTerm.name} ${activeTerm.year}`,
-              expectedFees: expectedTotal,
-              paidAmount,
+              currentTermBalance: activeTermBalance,
+              previousArrears: arrearsBalance,
+              paidAmount: paymentAgg[student.id]?.paid || 0,
               balanceDue,
               transportIncluded: student.usesTransport ? 'Yes' : 'No',
               lastPaymentDate: paymentAgg[student.id]?.lastDate
@@ -523,8 +530,8 @@ export async function GET(request: NextRequest) {
           .filter((row) => row.balanceDue > 0)
       }
 
-      headers = ['Student Name', 'Admission No', 'Class', 'Term', 'Expected Fees', 'Paid Amount', 'Balance Due', 'Transport Included', 'Last Payment Date']
-      keys = ['studentName', 'admissionNo', 'className', 'term', 'expectedFees', 'paidAmount', 'balanceDue', 'transportIncluded', 'lastPaymentDate']
+      headers = ['Student Name', 'Admission No', 'Class', 'Current Term', 'Current Term Balance', 'Previous Arrears', 'Paid Amount', 'Total Balance Due', 'Transport Included', 'Last Payment Date']
+      keys = ['studentName', 'admissionNo', 'className', 'term', 'currentTermBalance', 'previousArrears', 'paidAmount', 'balanceDue', 'transportIncluded', 'lastPaymentDate']
       filename = `students-fee-arrears-${stamp}`
       title = 'Students with Fee Arrears'
     }

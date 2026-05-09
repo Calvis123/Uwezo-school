@@ -75,15 +75,21 @@ export async function GET(request: NextRequest) {
       }),
       db.transportAssignment.findMany({
         where: { termId, status: 'ACTIVE' },
-        select: { studentId: true, busId: true, bus: { select: { id: true, busNumber: true, routeName: true } } },
+        select: {
+          studentId: true,
+          busId: true,
+          transportMode: true,
+          bus: { select: { id: true, busNumber: true, routeName: true } },
+        },
       }),
     ])
 
-    const assignedMap = assignments.reduce<Record<string, { busId: string; busNumber: string; routeName: string }>>((acc, row) => {
+    const assignedMap = assignments.reduce<Record<string, { busId: string; busNumber: string; routeName: string; transportMode: string }>>((acc, row) => {
       acc[row.studentId] = {
         busId: row.busId,
         busNumber: row.bus.busNumber,
         routeName: row.bus.routeName,
+        transportMode: row.transportMode,
       }
       return acc
     }, {})

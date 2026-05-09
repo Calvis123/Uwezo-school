@@ -683,7 +683,8 @@ export function AttendanceMarking() {
 }
 
 function SchoolAttendanceReports() {
-  const { classes, setClasses, selectedClassId } = useAppStore()
+  const { user, classes, setClasses, selectedClassId } = useAppStore()
+  const isTeacherView = user?.role === 'TEACHER'
   const [localClasses, setLocalClasses] = useState(classes)
   const [classId, setClassId] = useState('ALL_CLASSES')
   const [period, setPeriod] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY')

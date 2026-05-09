@@ -89,17 +89,20 @@ const STATUS_ICONS: Record<string, typeof Clock> = {
 }
 
 const CLASS_LEVEL_ORDER: Record<string, number> = {
-  PP1: 0,
-  PP2: 1,
-  GRADE_1: 2,
-  GRADE_2: 3,
-  GRADE_3: 4,
-  GRADE_4: 5,
-  GRADE_5: 6,
-  GRADE_6: 7,
-  GRADE_7: 8,
-  GRADE_8: 9,
-  GRADE_9: 10,
+  PLAYGROUP: 0,
+  PRE_NURSERY: 0,
+  NURSERY: 1,
+  PP1: 1,
+  PP2: 2,
+  GRADE_1: 3,
+  GRADE_2: 4,
+  GRADE_3: 5,
+  GRADE_4: 6,
+  GRADE_5: 7,
+  GRADE_6: 8,
+  GRADE_7: 9,
+  GRADE_8: 10,
+  GRADE_9: 11,
 }
 
 export function StudentPromotion() {

@@ -245,7 +245,7 @@ export const classesApi = {
 
 // Reference data
 export const refApi = {
-  classes: () => request('/api/classes'),
+  classes: () => request('/api/classes?status=ACTIVE'),
   subjects: () => request('/api/subjects'),
   terms: () => request('/api/terms'),
 }
@@ -478,7 +478,7 @@ export const transportApi = {
     if (params?.termId) searchParams.set('termId', params.termId)
     return request(`/api/transport/assignments?${searchParams.toString()}`)
   },
-  assignStudent: (data: { studentId: string; busId: string; termId?: string }) =>
+  assignStudent: (data: { studentId: string; busId: string; termId?: string; transportMode?: string }) =>
     request('/api/transport/assignments', { method: 'POST', body: JSON.stringify(data) }),
   removeAssignment: (assignmentId: string) =>
     request(`/api/transport/assignments/${assignmentId}`, { method: 'DELETE' }),
@@ -488,7 +488,7 @@ export const transportApi = {
     if (params?.classId) searchParams.set('classId', params.classId)
     return request(`/api/transport/fee-structures?${searchParams.toString()}`)
   },
-  saveFeeStructure: (data: { classId: string | 'ALL'; termId: string; amount: number }) =>
+  saveFeeStructure: (data: { classId?: string | 'ALL'; routeName?: string; termId: string; amount: number }) =>
     request('/api/transport/fee-structures', { method: 'POST', body: JSON.stringify(data) }),
   updateFeeStructure: (id: string, data: { amount?: number; status?: string }) =>
     request(`/api/transport/fee-structures/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

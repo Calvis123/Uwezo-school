@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth-server';
 import { getParentPrimaryStudentId } from '@/lib/parent-access';
-import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
 import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
 
 export async function GET(
@@ -23,7 +22,17 @@ export async function GET(
 
     const student = await db.student.findUnique({
       where: { id: studentId },
-      include: { class: true },
+      include: {
+        class: true,
+        busAssignments: {
+          where: { status: 'ACTIVE' },
+          select: {
+            termId: true,
+            transportMode: true,
+            bus: { select: { routeName: true } },
+          },
+        },
+      },
     });
 
     if (!student) {
@@ -41,11 +50,8 @@ export async function GET(
     // Get all fee structures for the student's class
     const feeStructures = await db.feeStructure.findMany({
       where: {
-        OR: [
-          { classId: student.classId },
-          { description: { startsWith: ALL_CLASSES_MARKER } },
-        ],
         ...(activeTerm ? { termId: activeTerm.id } : {}),
+        status: 'ACTIVE',
       },
       include: { term: true },
       orderBy: [{ term: { year: 'asc' } }, { term: { name: 'asc' } }],
@@ -72,7 +78,15 @@ export async function GET(
       totalFees,
       totalPaid,
       balance,
-    } = summarizeStudentFeeBalance(feeStructures, payments, student);
+    } = summarizeStudentFeeBalance(feeStructures, payments, {
+      ...student,
+      transportRouteName:
+        student.busAssignments.find((assignment) => assignment.termId === activeTerm?.id)?.bus?.routeName ||
+        null,
+      transportMode:
+        student.busAssignments.find((assignment) => assignment.termId === activeTerm?.id)?.transportMode ||
+        null,
+    });
 
     const nonTransportStructures = applicableFeeStructures.filter((structure) => structure.category !== 'TRANSPORT');
     const transportStructures = applicableFeeStructures.filter((structure) => structure.category === 'TRANSPORT');

@@ -313,7 +313,7 @@ export function ExportData() {
     'transport-paid-students':
       'Students with at least one completed transport-fee payment in the selected period and class scope.',
     'fee-arrears-students':
-      'Active students in the selected class scope who still have unpaid balances for the active term.',
+      'Active students with carried-forward arrears from previous terms or years plus any current-term balance.',
     summary:
       'Consolidated daily, weekly, and monthly collections for quick finance trend monitoring.',
     statements:

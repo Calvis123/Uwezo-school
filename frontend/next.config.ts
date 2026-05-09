@@ -4,6 +4,7 @@ const backendBaseUrl = process.env.BACKEND_URL || "http://localhost:4000";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  allowedDevOrigins: ["192.168.1.69"],
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,

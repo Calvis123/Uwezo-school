@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Plus, Search, FileText, ChevronLeft, ChevronRight, GraduationCap, Bus, Bed, Trophy, Settings2 } from 'lucide-react'
+import { Plus, Search, FileText, ChevronLeft, ChevronRight, GraduationCap, Bus, Bed, Trophy, Settings2, Pencil, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { feesApi, refApi } from '@/lib/api'
@@ -26,7 +26,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { sortClassesByLevelAndStream } from '@/lib/class-sort'
 
 interface FeeStructureRow {
   id: string
@@ -34,12 +45,22 @@ interface FeeStructureRow {
   classId: string
   class?: { name: string }
   appliesToAllClasses?: boolean
+  classScope?: string | null
+  classScopeLabel?: string | null
   term?: { name: string; year: number }
   amount: number
   category: string
   status: string
   _count?: { transactions: number }
 }
+
+const FEE_SCOPE_OPTIONS = [
+  { value: 'SCOPE_PLAYGROUP', label: 'Playgroup' },
+  { value: 'SCOPE_PP1_PP2', label: 'PP1 - PP2' },
+  { value: 'SCOPE_GRADE_1_4', label: 'Grade 1 - Grade 4' },
+  { value: 'SCOPE_GRADE_5_6', label: 'Grade 5 - Grade 6' },
+  { value: 'SCOPE_JSS', label: 'JSS' },
+]
 
 function sortTermsBySequence(a: any, b: any) {
   const aNum = Number(String(a.name).match(/\d+/)?.[0] || '99')
@@ -58,12 +79,20 @@ function pickLatestYearTerm(terms: any[]) {
   return inLatestYear.find((term: any) => term.status === 'ACTIVE') || inLatestYear[0] || null
 }
 
-export function FeeStructures({ termId }: { termId?: string }) {
-  const { classes, setClasses, terms, setTerms } = useAppStore()
+export function FeeStructures({
+  termId,
+  initialStructureTermId,
+}: {
+  termId?: string
+  initialStructureTermId?: string
+}) {
+  const { classes, setClasses, terms, setTerms, user } = useAppStore()
   const [structures, setStructures] = useState<FeeStructureRow[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
+  const [deleteItem, setDeleteItem] = useState<FeeStructureRow | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [filterClass, setFilterClass] = useState('')
   const [filterTerm, setFilterTerm] = useState(termId || '')
   const [page, setPage] = useState(1)
@@ -71,6 +100,7 @@ export function FeeStructures({ termId }: { termId?: string }) {
   const [total, setTotal] = useState(0)
   const [localClasses, setLocalClasses] = useState(classes)
   const [localTerms, setLocalTerms] = useState(terms)
+  const classFilterOptions = useMemo(() => sortClassesByLevelAndStream(localClasses), [localClasses])
 
   const loadStructures = useCallback(async () => {
     setLoading(true)
@@ -78,9 +108,13 @@ export function FeeStructures({ termId }: { termId?: string }) {
       const params: any = { page, limit: 20 }
       if (filterClass) params.classId = filterClass
       if (filterTerm) params.termId = filterTerm
+      if (!filterTerm) params.allTerms = true
       const res = await feesApi.structures(params)
       if (res.success && res.data) {
-        setStructures(res.data || [])
+        setStructures((res.data || []).map((item: FeeStructureRow) => ({
+          ...item,
+          class: item.classScopeLabel ? { ...(item.class || {}), name: item.classScopeLabel } : item.class,
+        })))
         if (res.pagination) {
           setTotalPages(res.pagination.totalPages)
           setTotal(res.pagination.total)
@@ -121,19 +155,10 @@ export function FeeStructures({ termId }: { termId?: string }) {
         if (res.success && res.data) {
           setTerms(res.data)
           setLocalTerms(res.data)
-          // Auto-select latest-year term only when parent term is not controlling this component
-          if (!termId) {
-            const preferredTerm = pickLatestYearTerm(res.data)
-            if (preferredTerm) setFilterTerm(preferredTerm.id)
-          }
         }
       })
     } else {
       setLocalTerms(terms)
-      if (!filterTerm && !termId) {
-        const preferredTerm = pickLatestYearTerm(terms)
-        if (preferredTerm) setFilterTerm(preferredTerm.id)
-      }
     }
   }, [terms, setTerms, termId, filterTerm])
 
@@ -160,6 +185,27 @@ export function FeeStructures({ termId }: { termId?: string }) {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)
 
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+
+  const handleDeleteStructure = async () => {
+    if (!deleteItem) return
+    setDeleting(true)
+    try {
+      const res = await feesApi.deleteStructure(deleteItem.id) as any
+      if (res.success) {
+        toast.success('Fee structure deleted')
+        setDeleteItem(null)
+        await loadStructures()
+      } else {
+        toast.error(res.error || 'Failed to delete fee structure')
+      }
+    } catch {
+      toast.error('Failed to delete fee structure')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -184,7 +230,10 @@ export function FeeStructures({ termId }: { termId?: string }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Classes</SelectItem>
-              {localClasses.map((c) => (
+              {FEE_SCOPE_OPTIONS.map((scope) => (
+                <SelectItem key={scope.value} value={scope.value}>{scope.label}</SelectItem>
+              ))}
+              {classFilterOptions.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
@@ -219,6 +268,9 @@ export function FeeStructures({ termId }: { termId?: string }) {
                   <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Category</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400">Amount</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 hidden sm:table-cell">Status</TableHead>
+                  {isSuperAdmin && (
+                    <TableHead className="text-xs font-semibold text-slate-600 dark:text-slate-400 text-right">Actions</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -231,11 +283,12 @@ export function FeeStructures({ termId }: { termId?: string }) {
                       <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
+                      {isSuperAdmin && <TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>}
                     </TableRow>
                   ))
                 ) : structures.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
+                    <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-12">
                       <div className="flex flex-col items-center">
                         <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
                         <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No fee structures found</p>
@@ -272,6 +325,32 @@ export function FeeStructures({ termId }: { termId?: string }) {
                           {s.status}
                         </Badge>
                       </TableCell>
+                      {isSuperAdmin && (
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-slate-500 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                              onClick={() => { setEditItem(s); setFormOpen(true) }}
+                              aria-label={`Edit ${s.name}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-slate-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              onClick={() => setDeleteItem(s)}
+                              aria-label={`Delete ${s.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -337,8 +416,29 @@ export function FeeStructures({ termId }: { termId?: string }) {
         editItem={editItem}
         onSuccess={loadStructures}
         mode="structure"
-        initialStructureTermId={termId || filterTerm || undefined}
+        initialStructureTermId={initialStructureTermId || termId || filterTerm || undefined}
       />
+
+      <AlertDialog open={!!deleteItem} onOpenChange={(open) => { if (!open) setDeleteItem(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Fee Structure</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete {deleteItem?.name || 'this fee structure'}? This is only allowed when no payments have been recorded against it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStructure}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

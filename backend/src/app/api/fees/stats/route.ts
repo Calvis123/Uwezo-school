@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     const studentFees = await db.feeStructure.findMany({
       where: activeTermId ? { termId: activeTermId } : undefined,
       select: {
+        id: true,
         classId: true,
         amount: true,
         category: true,
@@ -47,8 +48,25 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         classId: true,
+        class: {
+          select: {
+            name: true,
+            level: true,
+          },
+        },
         studentType: true,
         usesTransport: true,
+        busAssignments: {
+          where: {
+            ...(activeTermId ? { termId: activeTermId } : {}),
+            status: 'ACTIVE',
+          },
+          select: {
+            transportMode: true,
+            bus: { select: { routeName: true } },
+          },
+          take: 1,
+        },
         feeTransactions: {
           where: {
             status: 'COMPLETED',
@@ -68,7 +86,11 @@ export async function GET(request: NextRequest) {
     let unpaidCount = 0;
 
     for (const student of activeStudents) {
-      const expected = getApplicableFeeStructures(studentFees, student).reduce(
+      const expected = getApplicableFeeStructures(studentFees, {
+        ...student,
+        transportRouteName: student.busAssignments[0]?.bus?.routeName || null,
+        transportMode: student.busAssignments[0]?.transportMode || null,
+      }).reduce(
         (sum, structure) => sum + Number(structure.amount || 0),
         0
       );

@@ -72,6 +72,10 @@ export async function PUT(
           where: { status: 'ACTIVE', id: { not: id } },
           data: { status: 'UPCOMING' },
         });
+        await tx.feeStructure.updateMany({
+          where: {},
+          data: { status: 'INACTIVE' },
+        });
       }
 
       const term = await tx.term.update({
@@ -86,6 +90,10 @@ export async function PUT(
       });
 
       if (nextStatus === 'ACTIVE') {
+        await tx.feeStructure.updateMany({
+          where: { termId: id },
+          data: { status: 'ACTIVE' },
+        });
         await tx.systemSetting.upsert({
           where: { key: 'academic_year' },
           update: { value: String(nextYear) },
@@ -97,6 +105,12 @@ export async function PUT(
           create: { key: 'current_term', value: nextName },
         });
       }
+      if (nextStatus !== 'ACTIVE') {
+        await tx.feeStructure.updateMany({
+          where: { termId: id },
+          data: { status: 'INACTIVE' },
+        });
+      }
 
       return term;
     });
@@ -106,4 +120,3 @@ export async function PUT(
     return apiRouteError(error, 'Failed to update term');
   }
 }
-

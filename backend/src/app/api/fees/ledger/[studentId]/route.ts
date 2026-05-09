@@ -3,8 +3,7 @@ import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth-server';
 import { FINANCE_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
-import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
-import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
+import { summarizeStudentFeeLedger } from '@/lib/fee-balance';
 
 const FEE_READ_ROLES = [...FINANCE_ROLES, 'SECRETARY'] as const;
 
@@ -19,7 +18,17 @@ export async function GET(
 
     const student = await db.student.findUnique({
       where: { id: studentId },
-      include: { class: true },
+      include: {
+        class: true,
+        busAssignments: {
+          where: { status: 'ACTIVE' },
+          select: {
+            termId: true,
+            transportMode: true,
+            bus: { select: { routeName: true } },
+          },
+        },
+      },
     });
 
     if (!student) {
@@ -31,36 +40,36 @@ export async function GET(
 
     const activeTerm = await db.term.findFirst({
       where: { status: 'ACTIVE' },
-      select: { id: true, name: true, year: true },
+      select: { id: true, name: true, year: true, startDate: true, endDate: true, status: true },
     });
 
-    // Get current-term fee structures applicable to this student's class
+    const terms = await db.term.findMany({
+      select: { id: true, name: true, year: true, startDate: true, endDate: true, status: true },
+      orderBy: [{ year: 'asc' }, { startDate: 'asc' }],
+    });
+
     const feeStructures = await db.feeStructure.findMany({
       where: {
-        OR: [
-          { classId: student.classId },
-          { description: { startsWith: ALL_CLASSES_MARKER } },
-        ],
-        ...(activeTerm ? { termId: activeTerm.id } : {}),
+        status: 'ACTIVE',
       },
       include: { term: true },
     });
 
-    // Get payments for this student (filtered to current-term structures below)
     const payments = await db.feeTransaction.findMany({
       where: { studentId },
       include: { feeStructure: true },
       orderBy: { createdAt: 'asc' },
     });
-    const {
-      applicableFeeStructures,
-      applicablePayments,
-      totalFees,
-      totalPaid,
-      balance,
-    } = summarizeStudentFeeBalance(feeStructures, payments, student);
-
-    // Calculate totals
+    const ledger = summarizeStudentFeeLedger(
+      terms,
+      activeTerm?.id,
+      feeStructures,
+      payments,
+      student
+    );
+    const currentTermSummary = ledger.termBreakdown.find((term) => term.termId === activeTerm?.id) || null;
+    const applicableFeeStructures = currentTermSummary?.feeStructures || [];
+    const applicablePayments = currentTermSummary?.payments || [];
 
     // Group payments by term
     const paymentsByTerm: Record<string, typeof payments> = {};
@@ -89,9 +98,20 @@ export async function GET(
         term: activeTerm,
         feeStructures: applicableFeeStructures,
         payments: applicablePayments,
-        totalFees,
-        totalPaid,
-        balance,
+        totalFees: ledger.totalFees,
+        totalPaid: ledger.totalPaid,
+        balance: ledger.balance,
+        currentTerm: ledger.current,
+        arrears: ledger.arrears,
+        termBreakdown: ledger.termBreakdown.map((term) => ({
+          termId: term.termId,
+          termName: term.termName,
+          year: term.year,
+          label: term.label,
+          totalFees: term.totalFees,
+          totalPaid: term.totalPaid,
+          balance: term.balance,
+        })),
         paymentsByTerm,
         structuresByTerm,
       },

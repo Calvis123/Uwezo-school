@@ -5,8 +5,7 @@ import { STAFF_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
 import { canTeacherAccessClass } from '@/lib/teacher-access';
 import { hashSync } from 'bcryptjs';
-import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
-import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
+import { summarizeStudentFeeLedger } from '@/lib/fee-balance';
 
 function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, '');
@@ -59,6 +58,14 @@ export async function GET(
           orderBy: { createdAt: 'desc' },
           take: 20,
         },
+        busAssignments: {
+          where: { status: 'ACTIVE' },
+          select: {
+            termId: true,
+            transportMode: true,
+            bus: { select: { routeName: true } },
+          },
+        },
       },
     });
 
@@ -77,37 +84,28 @@ export async function GET(
       );
     }
 
-    const [activeTerm, feeStructures] = await Promise.all([
-      db.term.findFirst({
-        where: { status: 'ACTIVE' },
-        select: { id: true, name: true, year: true },
-      }),
-      db.feeStructure.findMany({
-        where: {
-          OR: [
-            { classId: student.classId },
-            { description: { startsWith: ALL_CLASSES_MARKER } },
-          ],
-        },
-      }),
-    ]);
-
-    const termFeeStructures = feeStructures.filter((fs) => !activeTerm || fs.termId === activeTerm.id);
-    const { totalFees, totalPaid, balance: outstanding } = summarizeStudentFeeBalance(
-      termFeeStructures,
-      student.feeTransactions,
-      student
-    );
+    const activeTerm = await db.term.findFirst({
+      where: { status: 'ACTIVE' },
+      select: { id: true, name: true, year: true, startDate: true, endDate: true, status: true },
+    });
+    const terms = await db.term.findMany({
+      select: { id: true, name: true, year: true, startDate: true, endDate: true, status: true },
+      orderBy: [{ year: 'asc' }, { startDate: 'asc' }],
+    });
 
     let transportInfo: {
       status: 'BOARDING' | 'UNPAID' | 'PAID_UNASSIGNED' | 'ASSIGNED';
       paidAmount: number;
       bus: { id: string; busNumber: string; routeName: string } | null;
+      assignmentId: string | null;
+      transportMode: string | null;
       term: { id: string; name: string; year: number } | null;
     } = {
       status: student.studentType === 'BOARDING' ? 'BOARDING' : 'UNPAID',
       paidAmount: 0,
       bus: null,
+      assignmentId: null,
+      transportMode: null,
       term: activeTerm || null,
     };
 
@@ -131,6 +129,8 @@ export async function GET(
             status: 'ACTIVE',
           },
           select: {
+            id: true,
+            transportMode: true,
             bus: { select: { id: true, busNumber: true, routeName: true } },
           },
         }),
@@ -142,9 +142,31 @@ export async function GET(
         status: assignment ? 'ASSIGNED' : paidAmount > 0 ? 'PAID_UNASSIGNED' : 'UNPAID',
         paidAmount,
         bus: assignment?.bus || null,
+        assignmentId: assignment?.id || null,
+        transportMode: assignment?.transportMode || null,
         term: activeTerm,
       };
     }
+
+    const feeStructures = await db.feeStructure.findMany({
+      where: { status: 'ACTIVE' },
+    });
+
+    const allFeePayments = await db.feeTransaction.findMany({
+      where: { studentId: student.id },
+      include: { feeStructure: true },
+    });
+
+    const feeLedger = summarizeStudentFeeLedger(
+      terms,
+      activeTerm?.id,
+      feeStructures,
+      allFeePayments,
+      {
+        ...student,
+        busAssignments: student.busAssignments,
+      }
+    );
 
     const parentDetails = (student.guardians || []).map((g) => ({
       id: g.guardian?.id,
@@ -162,9 +184,11 @@ export async function GET(
         parentDetails,
         transportInfo,
         feeSummary: {
-          totalFees,
-          totalPaid,
-          outstanding,
+          totalFees: feeLedger.totalFees,
+          totalPaid: feeLedger.totalPaid,
+          outstanding: feeLedger.balance,
+          currentTerm: feeLedger.current,
+          arrears: feeLedger.arrears,
           term: activeTerm
             ? {
                 id: activeTerm.id,

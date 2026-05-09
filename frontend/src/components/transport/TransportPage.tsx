@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import {
   Bus,
   Plus,
@@ -22,6 +23,7 @@ import {
   UserPlus,
   ListChecks,
   Search,
+  MoreHorizontal,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -58,6 +60,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { FeeFormDialog } from '@/components/fees/FeeFormDialog'
 
@@ -109,13 +117,14 @@ interface EligibleStudent {
   lastName: string
   class?: { id: string; name: string; stream?: string | null } | null
   paidTransport: number
-  assigned?: { busId: string; busNumber: string; routeName: string } | null
+  assigned?: { busId: string; busNumber: string; routeName: string; transportMode?: string | null } | null
 }
 
 interface BusAssignment {
   id: string
   studentId: string
   busId: string
+  transportMode?: string | null
   paidAmount: number
   student: {
     firstName: string
@@ -141,7 +150,11 @@ interface TransportFeeStructureRow {
   name: string
   amount: number
   status: string
+  transportRouteName?: string | null
   appliesToAllClasses?: boolean
+  classScope?: string | null
+  classScopeLabel?: string | null
+  applicableClassIds?: string[]
   class: { id: string; name: string; stream?: string | null }
   term: { id: string; name: string; year: number; status: string }
 }
@@ -155,6 +168,12 @@ interface TransportRosterRow {
     name: string
     stream?: string | null
   }
+  route?: {
+    name: string
+    busNumber?: string | null
+    transportMode?: string | null
+    feeGroup?: string | null
+  } | null
   transportFee: {
     expected: number
     paid: number
@@ -215,7 +234,7 @@ const colorConfig: Record<string, { border: string; bg: string; dot: string; tex
   },
 }
 
-const statusConfig: Record<string, { label: string; className: string }> = {
+const statusConfig: Record<string, { label: string; className: string; icon: LucideIcon; dot: string }> = {
   ACTIVE: {
     label: 'Active',
     className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
@@ -235,6 +254,17 @@ const statusConfig: Record<string, { label: string; className: string }> = {
     dot: 'bg-amber-500',
   },
 }
+
+const transportModeLabels: Record<string, string> = {
+  TWO_WAY: 'Two way - Within Kapsoya',
+  TWO_WAY_WITHIN_KAPSOYA: 'Two way - Within Kapsoya',
+  TWO_WAY_OUTSIDE_KAPSOYA: 'Two way - Outside Kapsoya',
+  ONE_WAY_MORNING: 'One way - Morning (half of within Kapsoya)',
+  ONE_WAY_EVENING: 'One way - Evening (half of within Kapsoya)',
+}
+
+const getTransportModeLabel = (mode?: string | null) =>
+  transportModeLabels[mode || 'TWO_WAY'] || 'Two way'
 
 // ─── Component ─────────────────────────────────────────
 
@@ -267,6 +297,7 @@ export function TransportPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [assignDialogStudent, setAssignDialogStudent] = useState<EligibleStudent | null>(null)
   const [assignDialogBusId, setAssignDialogBusId] = useState('')
+  const [assignDialogTransportMode, setAssignDialogTransportMode] = useState('TWO_WAY_WITHIN_KAPSOYA')
   const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null)
   const [assignmentLoading, setAssignmentLoading] = useState(false)
   const [localTerms, setLocalTerms] = useState<any[]>([])
@@ -274,10 +305,11 @@ export function TransportPage() {
   const [feeStructures, setFeeStructures] = useState<TransportFeeStructureRow[]>([])
   const [feeLoading, setFeeLoading] = useState(false)
   const [feeSaving, setFeeSaving] = useState(false)
-  const [bulkFeeSaving, setBulkFeeSaving] = useState(false)
   const [feeTermId, setFeeTermId] = useState('')
-  const [feeClassId, setFeeClassId] = useState('')
+  const [feeRouteName, setFeeRouteName] = useState('')
   const [feeAmount, setFeeAmount] = useState('')
+  const [editingFeeStructure, setEditingFeeStructure] = useState<TransportFeeStructureRow | null>(null)
+  const [deletingFeeStructure, setDeletingFeeStructure] = useState<TransportFeeStructureRow | null>(null)
   const [transportPaymentDialogOpen, setTransportPaymentDialogOpen] = useState(false)
   const [paymentClassFilter, setPaymentClassFilter] = useState('ALL')
   const [paymentSearch, setPaymentSearch] = useState('')
@@ -307,7 +339,7 @@ export function TransportPage() {
       const res = await transportApi.list(statusFilter !== 'ALL' ? { status: statusFilter } : undefined)
       if (res.success) {
         setBuses(res.data || [])
-        setStats(res.stats || null)
+        setStats((res as any).stats || null)
       } else {
         toast.error(res.error || 'Failed to load buses')
       }
@@ -341,14 +373,14 @@ export function TransportPage() {
 
       if (eligibleRes.success) {
         setEligibleStudents(eligibleRes.data || [])
-        if (!assignmentTermId && eligibleRes.meta?.termId) {
-          setAssignmentTermId(eligibleRes.meta.termId)
+        if (!assignmentTermId && (eligibleRes as any).meta?.termId) {
+          setAssignmentTermId((eligibleRes as any).meta.termId)
         }
       }
       if (assignmentsRes.success) {
         setBusAssignments(assignmentsRes.data || [])
-        if (!assignmentTermId && assignmentsRes.meta?.termId) {
-          setAssignmentTermId(assignmentsRes.meta.termId)
+        if (!assignmentTermId && (assignmentsRes as any).meta?.termId) {
+          setAssignmentTermId((assignmentsRes as any).meta.termId)
         }
       }
     } catch {
@@ -409,21 +441,28 @@ export function TransportPage() {
   }, [canManageTransportFees, feeTermId])
 
   const handleSaveTransportFeeStructure = async () => {
-    if (!feeClassId || !feeTermId || !feeAmount) {
-      toast.error('Class, term, and amount are required')
+    if (!feeRouteName || !feeTermId || !feeAmount) {
+      toast.error('Group, term, and amount are required')
       return
     }
     setFeeSaving(true)
     try {
-      const res = await transportApi.saveFeeStructure({
-        classId: feeClassId,
-        termId: feeTermId,
-        amount: Number(feeAmount),
-      })
+      const res = editingFeeStructure
+        ? await transportApi.updateFeeStructure(editingFeeStructure.id, {
+            amount: Number(feeAmount),
+          })
+        : await transportApi.saveFeeStructure({
+            routeName: feeRouteName,
+            termId: feeTermId,
+            amount: Number(feeAmount),
+          })
       if (res.success) {
-        toast.success('Transport fee structure saved')
+        toast.success(editingFeeStructure ? 'Transport fee updated' : 'Transport fee saved')
         setFeeAmount('')
+        setFeeRouteName('')
+        setEditingFeeStructure(null)
         await loadTransportFeeStructures()
+        await loadTransportRoster()
       } else {
         toast.error(res.error || 'Failed to save transport fee structure')
       }
@@ -434,29 +473,39 @@ export function TransportPage() {
     }
   }
 
-  const handleSaveTransportFeeStructureAllClasses = async () => {
-    if (!feeTermId || !feeAmount) {
-      toast.error('Term and amount are required')
-      return
-    }
-    setBulkFeeSaving(true)
+  const handleEditTransportFeeStructure = (item: TransportFeeStructureRow) => {
+    setEditingFeeStructure(item)
+    setFeeTermId(item.term.id)
+    setFeeRouteName(item.transportRouteName || item.class.name)
+    setFeeAmount(String(Number(item.amount || 0)))
+  }
+
+  const handleCancelTransportFeeEdit = () => {
+    setEditingFeeStructure(null)
+    setFeeRouteName('')
+    setFeeAmount('')
+  }
+
+  const handleDeleteTransportFeeStructure = async () => {
+    if (!deletingFeeStructure) return
+    setFeeSaving(true)
     try {
-      const res = await transportApi.saveFeeStructure({
-        classId: 'ALL' as any,
-        termId: feeTermId,
-        amount: Number(feeAmount),
-      })
+      const res = await transportApi.updateFeeStructure(deletingFeeStructure.id, { status: 'INACTIVE' })
       if (res.success) {
-        toast.success('Transport fee structure applied across all active classes')
-        setFeeAmount('')
+        toast.success('Transport fee structure deleted')
+        if (editingFeeStructure?.id === deletingFeeStructure.id) {
+          handleCancelTransportFeeEdit()
+        }
+        setDeletingFeeStructure(null)
         await loadTransportFeeStructures()
+        await loadTransportRoster()
       } else {
-        toast.error(res.error || 'Failed to apply transport fee structure to all classes')
+        toast.error(res.error || 'Failed to delete transport fee structure')
       }
     } catch {
-      toast.error('Failed to apply transport fee structure to all classes')
+      toast.error('Failed to delete transport fee structure')
     } finally {
-      setBulkFeeSaving(false)
+      setFeeSaving(false)
     }
   }
 
@@ -508,6 +557,12 @@ export function TransportPage() {
         (!resolvedTermId || item.term.id === resolvedTermId)
       )?.id ||
       feeStructures.find((item) =>
+        Boolean(resolvedClassId) &&
+        Array.isArray(item.applicableClassIds) &&
+        item.applicableClassIds.includes(resolvedClassId as string) &&
+        (!resolvedTermId || item.term.id === resolvedTermId)
+      )?.id ||
+      feeStructures.find((item) =>
         item.appliesToAllClasses &&
         (!resolvedTermId || item.term.id === resolvedTermId)
       )?.id
@@ -531,7 +586,8 @@ export function TransportPage() {
     return (
       student.name.toLowerCase().includes(query) ||
       student.admissionNumber.toLowerCase().includes(query) ||
-      student.class.name.toLowerCase().includes(query)
+      student.class.name.toLowerCase().includes(query) ||
+      (student.route?.name || '').toLowerCase().includes(query)
     )
   })
 
@@ -561,26 +617,12 @@ export function TransportPage() {
     section?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const activeClasses = localClasses.filter((schoolClass: any) => schoolClass.status === 'ACTIVE')
-  const sortedActiveClasses = [...activeClasses].sort((a: any, b: any) => {
-    const aLabel = `${a.name || ''} ${a.stream || ''}`.trim().toLowerCase()
-    const bLabel = `${b.name || ''} ${b.stream || ''}`.trim().toLowerCase()
-    return aLabel.localeCompare(bLabel)
-  })
-  const explicitAllClassesStructure = feeStructures.find((item) => item.appliesToAllClasses)
-  const uniqueStructureAmounts = Array.from(
-    new Set(feeStructures.map((item) => Number(item.amount || 0)))
-  )
-  const showUnifiedStructureRow =
-    Boolean(explicitAllClassesStructure) ||
-    (
-      feeStructures.length > 1 &&
-      activeClasses.length > 0 &&
-      feeStructures.length === activeClasses.length &&
-      uniqueStructureAmounts.length === 1
-    )
+  const transportFeeGroups = ['Within Kapsoya', 'Outside Kapsoya']
+  const transportRoutes = Array.from(
+    new Set(activeBuses.map((bus) => bus.routeName.trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
 
-  const handleAssignStudent = async (studentId: string, busId = selectedBusId) => {
+  const handleAssignStudent = async (studentId: string, busId = selectedBusId, transportMode = 'TWO_WAY_WITHIN_KAPSOYA') => {
     if (!busId) {
       toast.error('Select a bus first')
       return
@@ -591,6 +633,7 @@ export function TransportPage() {
         studentId,
         busId,
         termId: assignmentTermId || undefined,
+        transportMode,
       })
       if (res.success) {
         toast.success('Student assigned to bus')
@@ -614,6 +657,7 @@ export function TransportPage() {
       ''
     setAssignDialogStudent(student)
     setAssignDialogBusId(suggestedBusId)
+    setAssignDialogTransportMode(student.assigned?.transportMode || 'TWO_WAY_WITHIN_KAPSOYA')
     setAssignDialogOpen(true)
   }
 
@@ -624,7 +668,7 @@ export function TransportPage() {
       return
     }
 
-    await handleAssignStudent(assignDialogStudent.id, assignDialogBusId)
+    await handleAssignStudent(assignDialogStudent.id, assignDialogBusId, assignDialogTransportMode)
     setAssignDialogOpen(false)
     setAssignDialogStudent(null)
   }
@@ -1000,6 +1044,21 @@ export function TransportPage() {
                 </p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label>Transport Use</Label>
+              <Select value={assignDialogTransportMode} onValueChange={setAssignDialogTransportMode}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Choose transport use" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TWO_WAY_WITHIN_KAPSOYA">Two way - Within Kapsoya</SelectItem>
+                  <SelectItem value="TWO_WAY_OUTSIDE_KAPSOYA">Two way - Outside Kapsoya</SelectItem>
+                  <SelectItem value="ONE_WAY_MORNING">One way morning - half of Within Kapsoya</SelectItem>
+                  <SelectItem value="ONE_WAY_EVENING">One way evening - half of Within Kapsoya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -1008,7 +1067,7 @@ export function TransportPage() {
             </Button>
             <Button
               onClick={handleConfirmAssignStudent}
-              disabled={!assignDialogBusId || assigningStudentId === assignDialogStudent?.id}
+              disabled={!assignDialogBusId || !assignDialogTransportMode || assigningStudentId === assignDialogStudent?.id}
               className="bg-teal-600 hover:bg-teal-700 text-white"
             >
               {assigningStudentId === assignDialogStudent?.id
@@ -1288,7 +1347,7 @@ export function TransportPage() {
                             </p>
                             {student.assigned && (
                               <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                                Currently: {student.assigned.busNumber}
+                                Currently: {student.assigned.busNumber} - {getTransportModeLabel(student.assigned.transportMode)}
                               </p>
                             )}
                           </div>
@@ -1332,6 +1391,9 @@ export function TransportPage() {
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                               {item.student.admissionNumber} • {item.student.class?.name || 'No class'} • Paid KES {item.paidAmount.toLocaleString()}
                             </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {getTransportModeLabel(item.transportMode)}
+                            </p>
                           </div>
                           <Button
                             size="sm"
@@ -1368,17 +1430,12 @@ export function TransportPage() {
                   </h3>
                 </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Configure transport fee by term for a class or quickly apply one amount across all active classes.
+                  Configure transport fees by route, for example within Kapsoya and outside Kapsoya.
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-[11px]">
-                    {activeClasses.length} Active Classes
+                    {transportFeeGroups.length} Kapsoya groups
                   </Badge>
-                    {showUnifiedStructureRow && (
-                      <Badge className="bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 text-[11px]">
-                      All-Classes Structure Active
-                      </Badge>
-                    )}
                 </div>
               </div>
               <Button
@@ -1390,11 +1447,28 @@ export function TransportPage() {
               </Button>
             </div>
 
-            <div className="rounded-xl border border-slate-200/70 dark:border-slate-700/70 bg-slate-50/60 dark:bg-slate-900/30 p-3.5 space-y-3.5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-lg border border-slate-200/70 dark:border-slate-700/70 bg-slate-50/70 dark:bg-slate-900/30 p-3.5">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {editingFeeStructure ? 'Edit Structure' : 'Create Structure'}
+                </p>
+                {editingFeeStructure && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={handleCancelTransportFeeEdit}
+                  >
+                    Cancel edit
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(160px,220px)_minmax(220px,260px)_minmax(180px,1fr)_auto] gap-3 items-end">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold tracking-wide text-slate-600 dark:text-slate-300">Term</Label>
-                  <Select value={feeTermId} onValueChange={setFeeTermId}>
+                  <Select value={feeTermId} onValueChange={setFeeTermId} disabled={Boolean(editingFeeStructure)}>
                     <SelectTrigger className="h-10 bg-white dark:bg-slate-900">
                       <SelectValue placeholder="Select term" />
                     </SelectTrigger>
@@ -1409,16 +1483,20 @@ export function TransportPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold tracking-wide text-slate-600 dark:text-slate-300">Class</Label>
-                  <Select value={feeClassId} onValueChange={setFeeClassId}>
+                  <Label className="text-xs font-semibold tracking-wide text-slate-600 dark:text-slate-300">Transport Fee Group</Label>
+                  <Select value={feeRouteName} onValueChange={setFeeRouteName} disabled={Boolean(editingFeeStructure)}>
                     <SelectTrigger className="h-10 bg-white dark:bg-slate-900">
-                      <SelectValue placeholder="Select class" />
+                      <SelectValue placeholder="Select group" />
                     </SelectTrigger>
                     <SelectContent className="max-h-72">
-                      <SelectItem value="ALL">All Classes</SelectItem>
-                      {sortedActiveClasses.map((schoolClass: any) => (
-                        <SelectItem key={schoolClass.id} value={schoolClass.id}>
-                          {schoolClass.name}{schoolClass.stream ? ` ${schoolClass.stream}` : ''}
+                      {transportFeeGroups.map((groupName) => (
+                        <SelectItem key={groupName} value={groupName}>
+                          {groupName}
+                        </SelectItem>
+                      ))}
+                      {transportRoutes.map((routeName) => (
+                        <SelectItem key={routeName} value={routeName}>
+                          {routeName}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1435,23 +1513,13 @@ export function TransportPage() {
                     placeholder="e.g. 6500"
                   />
                 </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <Button
                   onClick={handleSaveTransportFeeStructure}
-                  disabled={feeSaving || !feeClassId}
-                  className="h-10 bg-teal-600 hover:bg-teal-700 text-white"
+                  disabled={feeSaving || !feeRouteName || !feeAmount}
+                  className="h-10 bg-teal-600 hover:bg-teal-700 text-white whitespace-nowrap"
                 >
-                  {feeSaving ? 'Saving...' : 'Save Selected Class'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleSaveTransportFeeStructureAllClasses}
-                  disabled={bulkFeeSaving || !feeAmount}
-                  className="h-10"
-                >
-                  {bulkFeeSaving ? 'Applying...' : 'Apply to All Classes'}
+                  {feeSaving ? 'Saving...' : editingFeeStructure ? 'Update Fee' : 'Save Fee'}
                 </Button>
               </div>
             </div>
@@ -1472,37 +1540,46 @@ export function TransportPage() {
                   <div className="p-4 text-center">
                     <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No structures for this term yet</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Set an amount and save for a class or apply to all classes.
+                      Select a route and set its transport amount.
                     </p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {showUnifiedStructureRow ? (
-                      <div className="px-3.5 py-3 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm text-slate-800 dark:text-slate-100 truncate font-semibold">
-                            All Active Classes
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {activeClasses.length} classes covered
-                          </p>
-                        </div>
-                        <p className="text-sm font-semibold text-teal-700 dark:text-teal-300">
-                          KES {Number(explicitAllClassesStructure?.amount ?? uniqueStructureAmounts[0] ?? 0).toLocaleString()}
-                        </p>
-                      </div>
-                    ) : (
-                      feeStructures.map((item) => (
-                        <div key={item.id} className="px-3.5 py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                          <p className="text-sm text-slate-700 dark:text-slate-200 truncate">
-                            {item.class.name}{item.class.stream ? ` ${item.class.stream}` : ''}
-                          </p>
-                          <p className="text-sm font-semibold text-teal-700 dark:text-teal-300">
+                    {feeStructures.map((item) => (
+                        <div key={item.id} className="px-3.5 py-2.5 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                              {item.transportRouteName || item.class.name}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {item.term.name} {item.term.year}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-teal-700 dark:text-teal-300 tabular-nums">
                             KES {Number(item.amount || 0).toLocaleString()}
                           </p>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditTransportFeeStructure(item)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                                onClick={() => setDeletingFeeStructure(item)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      ))
-                    )}
+                    ))}
                   </div>
                 )}
               </div>
@@ -1551,7 +1628,7 @@ export function TransportPage() {
                   value={paymentSearch}
                   onChange={(event) => setPaymentSearch(event.target.value)}
                   className="h-9 pl-9"
-                  placeholder="Search student, admission number, or class..."
+                  placeholder="Search student, admission number, class, or route..."
                 />
               </div>
             </div>
@@ -1591,6 +1668,7 @@ export function TransportPage() {
                   <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
                     <th className="px-3 py-2 font-semibold">Student</th>
                     <th className="px-3 py-2 font-semibold">Class</th>
+                    <th className="px-3 py-2 font-semibold">Route</th>
                     <th className="px-3 py-2 font-semibold">Expected</th>
                     <th className="px-3 py-2 font-semibold">Paid</th>
                     <th className="px-3 py-2 font-semibold">Balance</th>
@@ -1604,6 +1682,7 @@ export function TransportPage() {
                       <tr key={index} className="border-t border-slate-100 dark:border-slate-700">
                         <td className="px-3 py-2"><Skeleton className="h-4 w-32" /></td>
                         <td className="px-3 py-2"><Skeleton className="h-4 w-20" /></td>
+                        <td className="px-3 py-2"><Skeleton className="h-4 w-24" /></td>
                         <td className="px-3 py-2"><Skeleton className="h-4 w-16" /></td>
                         <td className="px-3 py-2"><Skeleton className="h-4 w-16" /></td>
                         <td className="px-3 py-2"><Skeleton className="h-4 w-16" /></td>
@@ -1613,7 +1692,7 @@ export function TransportPage() {
                     ))
                   ) : filteredTransportRoster.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                      <td colSpan={8} className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                         No day students found for this class/term.
                       </td>
                     </tr>
@@ -1626,6 +1705,19 @@ export function TransportPage() {
                         </td>
                         <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
                           {student.class.name}{student.class.stream ? ` ${student.class.stream}` : ''}
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                          <p>{student.route?.name || 'No route'}</p>
+                          {student.route?.feeGroup && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {student.route.feeGroup}
+                            </p>
+                          )}
+                          {student.route?.transportMode && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {getTransportModeLabel(student.route.transportMode)}
+                            </p>
+                          )}
                         </td>
                         <td className="px-3 py-2">{formatCurrency(student.transportFee.expected)}</td>
                         <td className="px-3 py-2 text-emerald-700 dark:text-emerald-300">{formatCurrency(student.transportFee.paid)}</td>
@@ -1647,6 +1739,11 @@ export function TransportPage() {
                                 student.transportFee.suggestedFeeStructureId ||
                                 feeStructures.find((item) =>
                                   item.class.id === student.class.id &&
+                                  (!feeTermId || item.term.id === feeTermId)
+                                )?.id ||
+                                feeStructures.find((item) =>
+                                  Array.isArray(item.applicableClassIds) &&
+                                  item.applicableClassIds.includes(student.class.id) &&
                                   (!feeTermId || item.term.id === feeTermId)
                                 )?.id ||
                                 feeStructures.find((item) =>
@@ -1852,6 +1949,37 @@ export function TransportPage() {
       </Dialog>
 
       {/* ─── Delete Confirmation Dialog ───────────────── */}
+      <AlertDialog
+        open={!!deletingFeeStructure}
+        onOpenChange={(open) => !open && setDeletingFeeStructure(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Delete Transport Fee
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete{' '}
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                {deletingFeeStructure?.transportRouteName || deletingFeeStructure?.class.name}
+              </span>
+              ? Existing completed or pending payments may prevent this change.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTransportFeeStructure}
+              className="h-9 bg-red-600 hover:bg-red-700 text-white"
+              disabled={feeSaving}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

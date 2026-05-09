@@ -397,6 +397,7 @@ model TransportAssignment {
   bus         SchoolBus @relation(fields: [busId], references: [id], onDelete: Cascade)
   termId      String
   term        Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  transportMode String @default("TWO_WAY") // TWO_WAY, TWO_WAY_WITHIN_KAPSOYA, TWO_WAY_OUTSIDE_KAPSOYA, ONE_WAY_MORNING, ONE_WAY_EVENING
   paidAmount  Float    @default(0)
   status      String   @default("ACTIVE") // ACTIVE, INACTIVE
   assignedBy  String?

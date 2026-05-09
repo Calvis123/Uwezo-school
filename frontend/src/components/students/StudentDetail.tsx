@@ -168,6 +168,17 @@ const methodIcons: Record<string, React.ReactNode> = {
   BANK: <Landmark className="w-3.5 h-3.5" />,
 }
 
+function getTransportModeLabel(mode?: string | null) {
+  const labels: Record<string, string> = {
+    TWO_WAY: 'Two way - Within Kapsoya',
+    TWO_WAY_WITHIN_KAPSOYA: 'Two way - Within Kapsoya',
+    TWO_WAY_OUTSIDE_KAPSOYA: 'Two way - Outside Kapsoya',
+    ONE_WAY_MORNING: 'One way morning',
+    ONE_WAY_EVENING: 'One way evening',
+  }
+  return labels[mode || ''] || 'Transport'
+}
+
 interface AcademicsData {
   overview: {
     averageScore: number
@@ -347,6 +358,26 @@ export function StudentDetail() {
   const transportIdentity = getTransportIdentity(student?.transportInfo, student?.studentType)
   const feePaid = feeLedger ? (feeLedger.totalPaid / Math.max(feeLedger.totalFees, 1)) * 100 : 0
   const quickStats = academics?.quickStats || academics?.overview
+  const feeStructures = feeLedger?.feeStructures || []
+  const tuitionAmount = feeStructures
+    .filter((item: any) => item.category === 'TUITION')
+    .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0)
+  const boardingAmount = feeStructures
+    .filter((item: any) => item.category === 'BOARDING')
+    .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0)
+  const transportAmount = feeStructures
+    .filter((item: any) => item.category === 'TRANSPORT')
+    .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0)
+  const otherFeeAmount = feeStructures
+    .filter((item: any) => !['TUITION', 'BOARDING', 'TRANSPORT'].includes(item.category))
+    .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0)
+  const feeTotal = feeLedger?.totalFees || student?.feeSummary?.totalFees || 0
+  const currentTermBalance = feeLedger?.currentTerm?.balance ?? student?.feeSummary?.currentTerm?.balance ?? 0
+  const arrearsBalance = feeLedger?.arrears?.balance ?? student?.feeSummary?.arrears?.balance ?? 0
+  const totalFeeBalance = feeLedger?.balance ?? student?.feeSummary?.outstanding ?? 0
+  const transportRouteName = student?.transportInfo?.bus?.routeName || null
+  const transportBusNumber = student?.transportInfo?.bus?.busNumber || null
+  const transportModeLabel = getTransportModeLabel(student?.transportInfo?.transportMode)
 
   if (loading) {
     return (
@@ -684,7 +715,7 @@ export function StudentDetail() {
                       <DollarSign className="w-4 h-4 text-amber-500" /> Fee Balance
                     </span>
                     <span className="text-sm font-bold text-red-600 dark:text-red-400">
-                      KES {feeLedger?.balance?.toLocaleString() || student.feeSummary?.outstanding?.toLocaleString() || '0'}
+                      KES {totalFeeBalance.toLocaleString()}
                     </span>
                   </div>
                 )}
@@ -1105,11 +1136,49 @@ export function StudentDetail() {
 
         {/* Fees Tab */}
         <TabsContent value="fees" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="bg-white dark:bg-slate-800 card-interactive">
-              <CardContent className="p-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Total Fees</p>
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">KES {(feeLedger?.totalFees || student.feeSummary?.totalFees || 0).toLocaleString()}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <Card className="bg-white dark:bg-slate-800 card-interactive lg:col-span-1">
+              <CardContent className="p-4 space-y-3">
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Fee Breakdown</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">KES {Number(feeTotal).toLocaleString()}</p>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  {tuitionAmount > 0 && (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-600 dark:text-slate-300">Tuition</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">KES {tuitionAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {boardingAmount > 0 && (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-600 dark:text-slate-300">Boarding Fee</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">KES {boardingAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {transportAmount > 0 && (
+                    <div className="rounded-md bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/40 p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-700 dark:text-slate-200">Transport Fee</span>
+                        <span className="font-semibold text-teal-700 dark:text-teal-300">KES {transportAmount.toLocaleString()}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {transportBusNumber ? `${transportBusNumber} - ` : ''}{transportRouteName || 'Assigned route'} · {transportModeLabel}
+                      </p>
+                    </div>
+                  )}
+                  {otherFeeAmount > 0 && (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-600 dark:text-slate-300">Other Fees</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">KES {otherFeeAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex items-center justify-between gap-3">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Total</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">KES {Number(feeTotal).toLocaleString()}</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             <Card className="bg-white dark:bg-slate-800 card-interactive">
@@ -1120,11 +1189,20 @@ export function StudentDetail() {
             </Card>
             <Card className="bg-white dark:bg-slate-800 card-interactive">
               <CardContent className="p-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Balance</p>
-                <p className="text-xl font-bold text-red-600 dark:text-red-400">KES {(feeLedger?.balance || student.feeSummary?.outstanding || 0).toLocaleString()}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Current Term Balance</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">KES {currentTermBalance.toLocaleString()}</p>
                 {feeLedger && (
                   <Progress value={feePaid} className="mt-2 h-2" />
                 )}
+              </CardContent>
+            </Card>
+            <Card className="bg-white dark:bg-slate-800 card-interactive">
+              <CardContent className="p-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Previous Arrears</p>
+                <p className="text-xl font-bold text-red-600 dark:text-red-400">KES {arrearsBalance.toLocaleString()}</p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  Total unpaid: KES {totalFeeBalance.toLocaleString()}
+                </p>
               </CardContent>
             </Card>
           </div>

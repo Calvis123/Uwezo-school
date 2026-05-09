@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { requireUser } from '@/lib/auth-server';
 import { SYSTEM_SETTINGS_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
+import { getSettingsActiveTerm, syncFeeStructureStatusesToActiveTerm } from '@/lib/active-term';
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,7 +54,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const results = [];
+    const results: Awaited<ReturnType<typeof db.systemSetting.upsert>>[] = [];
 
     for (const [key, value] of Object.entries(normalizedSettings)) {
       const result = await db.systemSetting.upsert({
@@ -62,6 +63,21 @@ export async function PUT(request: NextRequest) {
         create: { key, value },
       });
       results.push(result);
+    }
+
+    if ('academic_year' in normalizedSettings || 'current_term' in normalizedSettings) {
+      const activeTerm = await getSettingsActiveTerm();
+      if (activeTerm) {
+        await db.term.updateMany({
+          where: { id: { not: activeTerm.id }, status: 'ACTIVE' },
+          data: { status: 'UPCOMING' },
+        });
+        await db.term.update({
+          where: { id: activeTerm.id },
+          data: { status: 'ACTIVE' },
+        });
+      }
+      await syncFeeStructureStatusesToActiveTerm();
     }
 
     return NextResponse.json({ success: true, data: results });

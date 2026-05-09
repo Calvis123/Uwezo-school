@@ -98,7 +98,24 @@ export async function GET(request: NextRequest) {
       }),
       db.student.findMany({
         where: { status: 'ACTIVE' },
-        select: { id: true, classId: true, usesTransport: true },
+        select: {
+          id: true,
+          classId: true,
+          usesTransport: true,
+          studentType: true,
+          class: { select: { name: true, level: true } },
+          busAssignments: {
+            where: {
+              ...(activeTerm ? { termId: activeTerm.id } : {}),
+              status: 'ACTIVE',
+            },
+            select: {
+              transportMode: true,
+              bus: { select: { routeName: true } },
+            },
+            take: 1,
+          },
+        },
       }),
       db.subject.count(),
     ]);
@@ -106,7 +123,11 @@ export async function GET(request: NextRequest) {
     // Calculate total expected fees
     let totalExpected = 0;
     for (const student of activeStudents) {
-      const applicableStructures = getApplicableFeeStructures(feeStructures, student);
+      const applicableStructures = getApplicableFeeStructures(feeStructures, {
+        ...student,
+        transportRouteName: student.busAssignments[0]?.bus?.routeName || null,
+        transportMode: student.busAssignments[0]?.transportMode || null,
+      });
       totalExpected += applicableStructures.reduce((sum, structure) => sum + Number(structure.amount || 0), 0);
     }
 

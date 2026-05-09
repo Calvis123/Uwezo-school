@@ -81,6 +81,15 @@ export async function POST(request: NextRequest) {
     const authed = await requireUser(request, { roles: [...ADMIN_ROLES, ...OFFICE_ROLES] })
     const body = await request.json()
     const { studentId, busId, termId } = body
+    const transportMode = [
+      'TWO_WAY',
+      'TWO_WAY_WITHIN_KAPSOYA',
+      'TWO_WAY_OUTSIDE_KAPSOYA',
+      'ONE_WAY_MORNING',
+      'ONE_WAY_EVENING',
+    ].includes(String(body?.transportMode || ''))
+      ? String(body.transportMode)
+      : 'TWO_WAY_WITHIN_KAPSOYA'
 
     if (!studentId || !busId) {
       return NextResponse.json({ success: false, error: 'studentId and busId are required' }, { status: 400 })
@@ -125,12 +134,6 @@ export async function POST(request: NextRequest) {
       _sum: { amount: true },
     })
     const paidAmount = paidTransport._sum.amount || 0
-    if (paidAmount <= 0) {
-      return NextResponse.json(
-        { success: false, error: 'Student has not paid transport fee for this term' },
-        { status: 400 }
-      )
-    }
 
     const activeAssignmentsOnBus = await db.transportAssignment.count({
       where: { busId, termId: resolvedTermId, status: 'ACTIVE' },
@@ -156,6 +159,7 @@ export async function POST(request: NextRequest) {
         classId: student.classId,
         busId,
         termId: resolvedTermId,
+        transportMode,
         paidAmount,
         status: 'ACTIVE',
         assignedBy: authed.id,
@@ -163,6 +167,7 @@ export async function POST(request: NextRequest) {
       update: {
         classId: student.classId,
         busId,
+        transportMode,
         paidAmount,
         status: 'ACTIVE',
         assignedBy: authed.id,

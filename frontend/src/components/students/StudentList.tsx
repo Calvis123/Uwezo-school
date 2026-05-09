@@ -21,6 +21,7 @@ import {
   LayoutGrid,
   ArrowRight,
   UserRoundPlus,
+  UserCheck,
   Link2,
   Bus,
   LockKeyhole,
@@ -79,6 +80,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { getInitials, getAvatarColor } from '@/lib/avatar'
+import { getClassDisplayName, sortClassesByLevelAndStream } from '@/lib/class-sort'
 
 interface StudentRow {
   id: string
@@ -91,6 +93,8 @@ interface StudentRow {
     status: 'BOARDING' | 'UNPAID' | 'PAID_UNASSIGNED' | 'ASSIGNED'
     paidAmount?: number
     bus?: { id: string; busNumber: string; routeName: string } | null
+    assignmentId?: string | null
+    transportMode?: string | null
   }
   feeInfo?: {
     status: 'UNPAID' | 'PARTIAL' | 'PAID'
@@ -111,39 +115,6 @@ interface StudentRow {
   }>
 }
 
-const classLevelOrder: Record<string, number> = {
-  PP1: 0,
-  PP2: 1,
-  GRADE_1: 2,
-  GRADE_2: 3,
-  GRADE_3: 4,
-  GRADE_4: 5,
-  GRADE_5: 6,
-  GRADE_6: 7,
-  GRADE_7: 8,
-  GRADE_8: 9,
-  GRADE_9: 10,
-}
-
-const getClassDisplayName = (classItem?: { name?: string; stream?: string | null }) => {
-  if (!classItem) return '-'
-  const name = classItem.name || 'Class'
-  const stream = classItem.stream?.trim()
-  if (!stream) return name
-  if (new RegExp(`\\s+${stream}$`, 'i').test(name)) return name
-  return `${name} ${stream}`
-}
-
-const sortClassesByLevelAndStream = (items: any[]) => {
-  return [...items].sort((a, b) => {
-    const levelDiff = (classLevelOrder[a.level] ?? 99) - (classLevelOrder[b.level] ?? 99)
-    if (levelDiff !== 0) return levelDiff
-    const nameDiff = String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
-    if (nameDiff !== 0) return nameDiff
-    return String(a.stream || '').localeCompare(String(b.stream || ''), undefined, { numeric: true, sensitivity: 'base' })
-  })
-}
-
 export function StudentList() {
   const { navigateTo, classes, setClasses, user, selectedClassId } = useAppStore()
   const [students, setStudents] = useState<StudentRow[]>([])
@@ -159,6 +130,8 @@ export function StudentList() {
   const [editStudent, setEditStudent] = useState<any | null>(null)
   const [linkParentStudent, setLinkParentStudent] = useState<StudentRow | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [activateId, setActivateId] = useState<string | null>(null)
+  const [transferId, setTransferId] = useState<string | null>(null)
   const [linkParentLoading, setLinkParentLoading] = useState(false)
   const [parentName, setParentName] = useState('')
   const [parentPhone, setParentPhone] = useState('')
@@ -257,15 +230,47 @@ export function StudentList() {
     try {
       const result = await studentsApi.delete(deleteId)
       if (result.success) {
-        toast.success('Student deleted successfully')
+        toast.success('Student deactivated successfully')
         loadStudents()
       } else {
-        toast.error(result.error || 'Failed to delete student')
+        toast.error(result.error || 'Failed to deactivate student')
       }
     } catch {
       toast.error('An error occurred')
     }
     setDeleteId(null)
+  }
+
+  const handleMarkTransferred = async () => {
+    if (!transferId) return
+    try {
+      const result = await studentsApi.update(transferId, { status: 'TRANSFERRED' })
+      if (result.success) {
+        toast.success('Student marked as transferred')
+        loadStudents()
+      } else {
+        toast.error(result.error || 'Failed to update student status')
+      }
+    } catch {
+      toast.error('An error occurred')
+    }
+    setTransferId(null)
+  }
+
+  const handleActivate = async () => {
+    if (!activateId) return
+    try {
+      const result = await studentsApi.update(activateId, { status: 'ACTIVE' })
+      if (result.success) {
+        toast.success('Student activated successfully')
+        loadStudents()
+      } else {
+        toast.error(result.error || 'Failed to activate student')
+      }
+    } catch {
+      toast.error('An error occurred')
+    }
+    setActivateId(null)
   }
 
   const openLinkParentDialog = (student: StudentRow) => {
@@ -862,12 +867,23 @@ export function StudentList() {
                                 <UserRoundPlus className="w-4 h-4 mr-2" /> Link Parent
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem
-                              className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
-                              onClick={() => setDeleteId(student.id)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
+                            {student.status === 'ACTIVE' && (
+                              <DropdownMenuItem onClick={() => setTransferId(student.id)}>
+                                <ArrowRight className="w-4 h-4 mr-2" /> Mark Transferred
+                              </DropdownMenuItem>
+                            )}
+                            {student.status === 'INACTIVE' ? (
+                              <DropdownMenuItem onClick={() => setActivateId(student.id)}>
+                                <UserCheck className="w-4 h-4 mr-2" /> Activate
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                                onClick={() => setDeleteId(student.id)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Deactivate
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -1143,13 +1159,55 @@ export function StudentList() {
         onSuccess={loadStudents}
       />
 
-      {/* Delete Confirmation */}
+      {/* Activate Confirmation */}
+      <AlertDialog open={!!activateId} onOpenChange={() => setActivateId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Student</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will return the student to the active list and include them again in active student workflows.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleActivate}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              Activate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Transfer Confirmation */}
+      <AlertDialog open={!!transferId} onOpenChange={() => setTransferId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Student as Transferred</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will keep the student record but remove the student from the active list by setting their status to transferred.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMarkTransferred}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Mark Transferred
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deactivate Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Student</AlertDialogTitle>
+            <AlertDialogTitle>Deactivate Student</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this student? This action cannot be undone.
+              This will keep the student record but hide the student from the active list by setting their status to inactive.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1158,7 +1216,7 @@ export function StudentList() {
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700"
             >
-              Delete
+              Deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

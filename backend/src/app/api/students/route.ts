@@ -48,11 +48,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20')));
-    const classId = searchParams.get('classId');
+    let classId = searchParams.get('classId');
     const status = searchParams.get('status');
     const gender = searchParams.get('gender');
     const studentType = searchParams.get('studentType');
     const search = searchParams.get('search');
+
+    if (classId) {
+      const selectedClass = await db.schoolClass.findUnique({
+        where: { id: classId },
+        select: { id: true, name: true, status: true },
+      });
+      if (selectedClass && selectedClass.status !== 'ACTIVE') {
+        const activeReplacement = await db.schoolClass.findFirst({
+          where: {
+            id: { not: selectedClass.id },
+            name: { equals: selectedClass.name, mode: 'insensitive' },
+            status: 'ACTIVE',
+          },
+          select: { id: true },
+        });
+        if (activeReplacement) classId = activeReplacement.id;
+      }
+    }
 
     const where: Prisma.StudentWhereInput = {};
 
@@ -125,7 +143,11 @@ export async function GET(request: NextRequest) {
             take: 1,
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { firstName: 'asc' },
+          { lastName: 'asc' },
+          { admissionNumber: 'asc' },
+        ],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -136,11 +158,10 @@ export async function GET(request: NextRequest) {
 
     if (students.length > 0) {
       const studentIds = students.map((student) => student.id);
-      const classIds = Array.from(new Set(students.map((student) => student.classId)));
 
       let paidByStudent: Record<string, number> = {};
       let feePaidByStudent: Record<string, number> = {};
-      let assignedByStudent: Record<string, { bus: { id: string; busNumber: string; routeName: string } }> = {};
+      let assignedByStudent: Record<string, { id: string; transportMode: string; bus: { id: string; busNumber: string; routeName: string } }> = {};
       let classBaseFeesByClassId: Record<string, number> = {};
       let classTransportFeesByClassId: Record<string, number> = {};
       let termFeeStructures: Array<{
@@ -174,7 +195,9 @@ export async function GET(request: NextRequest) {
               status: 'ACTIVE',
             },
             select: {
+              id: true,
               studentId: true,
+              transportMode: true,
               bus: { select: { id: true, busNumber: true, routeName: true } },
             },
           }),
@@ -195,7 +218,6 @@ export async function GET(request: NextRequest) {
             where: {
               termId: activeTerm.id,
               status: 'ACTIVE',
-              classId: { in: classIds },
             },
             select: {
               id: true,
@@ -219,8 +241,8 @@ export async function GET(request: NextRequest) {
           return acc;
         }, {});
 
-        assignedByStudent = assignments.reduce<Record<string, { bus: { id: string; busNumber: string; routeName: string } }>>((acc, row) => {
-          acc[row.studentId] = { bus: row.bus };
+        assignedByStudent = assignments.reduce<Record<string, { id: string; transportMode: string; bus: { id: string; busNumber: string; routeName: string } }>>((acc, row) => {
+          acc[row.studentId] = { id: row.id, bus: row.bus, transportMode: row.transportMode };
           return acc;
         }, {});
 
@@ -229,8 +251,14 @@ export async function GET(request: NextRequest) {
       }
 
       items = students.map((student) => {
+        const assignment = assignedByStudent[student.id] || null;
+        const studentWithTransportRoute = {
+          ...student,
+          transportRouteName: assignment?.bus?.routeName || null,
+          transportMode: assignment?.transportMode || null,
+        };
         const expectedFees = termFeeStructures.length > 0
-          ? getApplicableFeeStructures(termFeeStructures, student).reduce(
+          ? getApplicableFeeStructures(termFeeStructures, studentWithTransportRoute).reduce(
               (sum, structure) => sum + Number(structure.amount || 0),
               0
             )
@@ -259,7 +287,6 @@ export async function GET(request: NextRequest) {
         }
 
         const paidAmount = paidByStudent[student.id] || 0;
-        const assignment = assignedByStudent[student.id] || null;
 
         return {
           ...student,
@@ -268,6 +295,8 @@ export async function GET(request: NextRequest) {
             status: assignment ? 'ASSIGNED' : paidAmount > 0 ? 'PAID_UNASSIGNED' : 'UNPAID',
             paidAmount,
             bus: assignment?.bus || null,
+            assignmentId: assignment?.id || null,
+            transportMode: assignment?.transportMode || null,
             term: activeTerm,
           },
         };

@@ -71,6 +71,15 @@ interface FeeFormDialogProps {
 }
 
 const ALL_CLASSES_VALUE = 'ALL'
+const FEE_SCOPE_OPTIONS = [
+  { value: 'SCOPE_PLAYGROUP', label: 'Playgroup', description: 'Playgroup only' },
+  { value: 'SCOPE_PP1_PP2', label: 'PP1 - PP2', description: 'PP1, PP2' },
+  { value: 'SCOPE_GRADE_1_4', label: 'Grade 1 - Grade 4', description: 'Grade 1, Grade 2, Grade 3, Grade 4' },
+  { value: 'SCOPE_GRADE_5_6', label: 'Grade 5 - Grade 6', description: 'Grade 5, Grade 6' },
+  { value: 'SCOPE_JSS', label: 'JSS', description: 'Grade 7, Grade 8, Grade 9' },
+]
+
+const getSelectedScope = (value: string) => FEE_SCOPE_OPTIONS.find((scope) => scope.value === value)
 
 function sortTermsBySequence(a: any, b: any) {
   const aNum = Number(String(a.name).match(/\d+/)?.[0] || '99')
@@ -98,6 +107,14 @@ function getApplicablePaymentCategories(student: any): string[] {
   return student.usesTransport
     ? ['TUITION', 'TRANSPORT', 'EXTRACURRICULAR', 'OTHER']
     : ['TUITION', 'EXTRACURRICULAR', 'OTHER']
+}
+
+const isOneWayTransportStudent = (student?: any) =>
+  String(student?.transportInfo?.transportMode || student?.transportMode || '').startsWith('ONE_WAY')
+
+const getStudentTransportFeeAmount = (fee: any, student?: any) => {
+  const amount = Number(fee?.amount || 0)
+  return fee?.category === 'TRANSPORT' && isOneWayTransportStudent(student) ? amount / 2 : amount
 }
 
 export function FeeFormDialog({
@@ -271,9 +288,11 @@ export function FeeFormDialog({
         category: String(data.category || 'TUITION').toUpperCase(),
         description: data.description?.trim() || undefined,
       }
-      const result = await feesApi.createStructure(payload) as any
+      const result = editItem
+        ? await feesApi.updateStructure(editItem.id, payload) as any
+        : await feesApi.createStructure(payload) as any
       if (!result.success) {
-        toast.error(result.error || 'Failed to create fee structure')
+        toast.error(result.error || `Failed to ${editItem ? 'update' : 'create'} fee structure`)
         return
       }
 
@@ -286,7 +305,7 @@ export function FeeFormDialog({
             : `Created ${createdCount} structure(s) for all classes`
         )
       } else {
-        toast.success('Fee structure saved')
+        toast.success(editItem ? 'Fee structure updated' : 'Fee structure saved')
       }
       onClose()
       onSuccess?.()
@@ -385,7 +404,12 @@ export function FeeFormDialog({
   const filteredFeeStructures = feeStructures.filter((fee: any) => {
     const selectedClassId = paymentClassId || selectedStudent?.classId
     const appliesToAllClasses = Boolean(fee.appliesToAllClasses)
-    const matchesStudentClass = !selectedClassId || appliesToAllClasses || fee.classId === selectedClassId
+    const applicableClassIds = Array.isArray(fee.applicableClassIds) ? fee.applicableClassIds : []
+    const matchesStudentClass =
+      !selectedClassId ||
+      appliesToAllClasses ||
+      fee.classId === selectedClassId ||
+      applicableClassIds.includes(selectedClassId)
     const matchesTerm = !paymentTermId || fee.termId === paymentTermId
     const matchesCategory = !paymentCategory || fee.category === paymentCategory
     const matchesStudentProfile = !selectedStudent || applicableCategories.includes(String(fee.category || '').toUpperCase())
@@ -395,8 +419,15 @@ export function FeeFormDialog({
     ? `${selectedStudent.firstName} ${selectedStudent.lastName}${selectedStudent.admissionNumber ? ` (${selectedStudent.admissionNumber})` : ''}`
     : ''
   const selectedFeeLabel = selectedFee
-    ? `${selectedFee.name} (${selectedFee.term?.name || 'Term'}) - KES ${Number(selectedFee.amount || 0).toLocaleString()}`
+    ? `${selectedFee.name} (${selectedFee.term?.name || 'Term'}) - KES ${getStudentTransportFeeAmount(selectedFee, selectedStudent).toLocaleString()}`
     : ''
+
+  useEffect(() => {
+    if (!open || mode !== 'payment' || paymentCategory !== 'TRANSPORT') return
+    if (!selectedFee || !selectedStudent || initialPayment?.amount) return
+    const payableAmount = getStudentTransportFeeAmount(selectedFee, selectedStudent)
+    if (payableAmount) setPaymentAmount(String(payableAmount))
+  }, [open, mode, paymentCategory, selectedFee, selectedStudent, initialPayment?.amount])
 
   useEffect(() => {
     if (mode !== 'payment' || paymentCategory !== 'TRANSPORT') return
@@ -408,11 +439,12 @@ export function FeeFormDialog({
     )
     if (preferred) {
       setPaymentFeeStructureId(preferred.id)
-      if (!paymentAmount && preferred.amount) {
-        setPaymentAmount(String(preferred.amount))
+      const payableAmount = getStudentTransportFeeAmount(preferred, selectedStudent)
+      if (!paymentAmount && payableAmount) {
+        setPaymentAmount(String(payableAmount))
       }
     }
-  }, [mode, paymentCategory, paymentClassId, paymentTermId, paymentFeeStructureId, feeStructures, paymentAmount])
+  }, [mode, paymentCategory, paymentClassId, paymentTermId, paymentFeeStructureId, feeStructures, paymentAmount, selectedStudent])
 
   useEffect(() => {
     if (!open || mode !== 'payment' || paymentCategory === 'TRANSPORT') return
@@ -431,8 +463,9 @@ export function FeeFormDialog({
 
     if (preferred) {
       setPaymentFeeStructureId(preferred.id)
-      if (preferred.amount) {
-        setPaymentAmount(String(preferred.amount))
+      const payableAmount = getStudentTransportFeeAmount(preferred, selectedStudent)
+      if (payableAmount) {
+        setPaymentAmount(String(payableAmount))
       }
     } else if (paymentFeeStructureId) {
       setPaymentFeeStructureId('')
@@ -538,7 +571,8 @@ export function FeeFormDialog({
                         setStudentPickerOpen(false)
                         if (paymentFeeStructureId) {
                           const fee = feeStructures.find((f: any) => f.id === paymentFeeStructureId)
-                          if (fee && !fee.appliesToAllClasses && fee.classId !== val) setPaymentFeeStructureId('')
+                          const applicableClassIds = Array.isArray(fee?.applicableClassIds) ? fee.applicableClassIds : []
+                          if (fee && !fee.appliesToAllClasses && fee.classId !== val && !applicableClassIds.includes(val)) setPaymentFeeStructureId('')
                         }
                       }}>
                         <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900">
@@ -667,7 +701,7 @@ export function FeeFormDialog({
                             <CommandList>
                               <CommandEmpty>No matching fee structure found.</CommandEmpty>
                               {filteredFeeStructures.map((f: any) => {
-                                const label = `${f.name} (${f.term?.name || 'Term'}) - KES ${Number(f.amount || 0).toLocaleString()}`
+                                const label = `${f.name} (${f.term?.name || 'Term'}) - KES ${getStudentTransportFeeAmount(f, selectedStudent).toLocaleString()}`
                                 return (
                                   <CommandItem
                                     key={f.id}
@@ -675,7 +709,8 @@ export function FeeFormDialog({
                                     onSelect={() => {
                                       setPaymentFeeStructureId(f.id)
                                       if (f?.termId) setPaymentTermId(f.termId)
-                                      if (f?.amount) setPaymentAmount(String(f.amount))
+                                      const payableAmount = getStudentTransportFeeAmount(f, selectedStudent)
+                                      if (payableAmount) setPaymentAmount(String(payableAmount))
                                       setFeePickerOpen(false)
                                     }}
                                   >
@@ -683,7 +718,7 @@ export function FeeFormDialog({
                                     <div className="flex min-w-0 flex-col">
                                       <span className="truncate">{label}</span>
                                       <span className="text-xs text-slate-500 dark:text-slate-400">
-                                        {f.category || 'Fee'}{f.appliesToAllClasses ? ' - All Classes' : ''}
+                                        {f.category || 'Fee'}{f.appliesToAllClasses ? ' - All Classes' : f.classScopeLabel ? ` - ${f.classScopeLabel}` : ''}
                                       </span>
                                     </div>
                                   </CommandItem>
@@ -861,6 +896,7 @@ export function FeeFormDialog({
 
   const classSelection = form.watch('classId')
   const isAllClassesSelected = classSelection === ALL_CLASSES_VALUE
+  const selectedScope = getSelectedScope(classSelection)
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -881,26 +917,50 @@ export function FeeFormDialog({
               <p className="text-xs text-red-500">{form.formState.errors.name.message}</p>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          {!editItem && (
             <div className="space-y-2">
-              <Label>Class *</Label>
-              <Select value={form.watch('classId')} onValueChange={(v) => form.setValue('classId', v)}>
-                <SelectTrigger className="h-11"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {!editItem && (
-                    <SelectItem value={ALL_CLASSES_VALUE}>All Classes</SelectItem>
-                  )}
-                  {localClasses.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!editItem && (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Choose <span className="font-medium">All Classes</span> to apply this structure to all active classes.
-                </p>
-              )}
+              <Label>Shared Fee Group *</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {FEE_SCOPE_OPTIONS.map((scope) => {
+                  const active = classSelection === scope.value
+                  return (
+                    <button
+                      key={scope.value}
+                      type="button"
+                      onClick={() => form.setValue('classId', scope.value, { shouldValidate: true })}
+                      className={cn(
+                        'text-left rounded-lg border px-3 py-2.5 transition-colors',
+                        active
+                          ? 'border-teal-500 bg-teal-50 text-teal-900 dark:border-teal-400 dark:bg-teal-900/25 dark:text-teal-100'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                      )}
+                    >
+                      <span className="block text-sm font-semibold">{scope.label}</span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">{scope.description}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Select one group to apply the same structure to all classes in that band.
+              </p>
             </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {editItem && (
+              <div className="space-y-2">
+                <Label>Class *</Label>
+                <Select value={form.watch('classId')} onValueChange={(v) => form.setValue('classId', v, { shouldValidate: true })}>
+                  <SelectTrigger className="h-11"><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>
+                    {localClasses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Term *</Label>
               <Select value={form.watch('termId')} onValueChange={(v) => form.setValue('termId', v)}>
@@ -940,14 +1000,19 @@ export function FeeFormDialog({
           </div>
           {isAllClassesSelected && (
             <div className="rounded-lg border border-blue-200/70 bg-blue-50/70 px-3 py-2 text-xs text-blue-700 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-300">
-              This will create one fee structure per active class for the selected term.
+              This fee structure will apply to all active classes for the selected term.
+            </div>
+          )}
+          {selectedScope && (
+            <div className="rounded-lg border border-teal-200/70 bg-teal-50/70 px-3 py-2 text-xs text-teal-700 dark:border-teal-900/50 dark:bg-teal-900/20 dark:text-teal-300">
+              {selectedScope.label} shares this fee structure: {selectedScope.description}.
             </div>
           )}
           <DialogFooter className="gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="bg-teal-600 hover:bg-teal-700 min-w-28" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {editItem ? 'Update' : isAllClassesSelected ? 'Create for All' : 'Create'}
+              {editItem ? 'Update' : isAllClassesSelected ? 'Create for All' : selectedScope ? `Create for ${selectedScope.label}` : 'Create'}
             </Button>
           </DialogFooter>
         </form>

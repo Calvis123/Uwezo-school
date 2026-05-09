@@ -3,7 +3,13 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth-server'
 import { FINANCE_ROLES } from '@/lib/roles'
 import { apiRouteError } from '@/lib/api-route-error'
-import { isAllClassesScopeDescription } from '@/lib/fee-structure-scope'
+import {
+  getClassScopeFromDescription,
+  getTransportFeeGroupForMode,
+  getTransportRouteFromDescription,
+  getTransportFeeScopeForClass,
+  isAllClassesScopeDescription,
+} from '@/lib/fee-structure-scope'
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,7 +45,7 @@ export async function GET(request: NextRequest) {
         status: 'ACTIVE',
         ...(classId ? { id: classId } : {}),
       },
-      select: { id: true, name: true, stream: true },
+      select: { id: true, name: true, stream: true, level: true },
       orderBy: [{ level: 'asc' }, { name: 'asc' }],
     })
 
@@ -78,17 +84,39 @@ export async function GET(request: NextRequest) {
     })
 
     const globalStructureRows = transportStructures.filter((row) => isAllClassesScopeDescription(row.description))
-    const classSpecificRows = transportStructures.filter((row) => !isAllClassesScopeDescription(row.description))
+    const routeRows = transportStructures.filter((row) => Boolean(getTransportRouteFromDescription(row.description)))
+    const scopedRows = transportStructures.filter((row) => Boolean(getClassScopeFromDescription(row.description)))
+    const classSpecificRows = transportStructures.filter((row) =>
+      !isAllClassesScopeDescription(row.description) &&
+      !getTransportRouteFromDescription(row.description) &&
+      !getClassScopeFromDescription(row.description)
+    )
 
     const globalDue = globalStructureRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+    const dueByScope = scopedRows.reduce<Record<string, number>>((acc, row) => {
+      const scope = getClassScopeFromDescription(row.description)
+      if (!scope) return acc
+      acc[scope] = (acc[scope] || 0) + Number(row.amount || 0)
+      return acc
+    }, {})
     const dueByClassId = classSpecificRows.reduce<Record<string, number>>((acc, row) => {
       acc[row.classId] = (acc[row.classId] || 0) + Number(row.amount || 0)
+      return acc
+    }, {})
+    const dueByRoute = routeRows.reduce<Record<string, { amount: number; id: string }>>((acc, row) => {
+      const routeName = getTransportRouteFromDescription(row.description)
+      if (!routeName) return acc
+      const key = routeName.trim().toLowerCase()
+      acc[key] = {
+        amount: (acc[key]?.amount || 0) + Number(row.amount || 0),
+        id: row.id,
+      }
       return acc
     }, {})
 
     const transportStructureIds = transportStructures.map((row) => row.id)
     const rosterClassIds =
-      globalDue > 0 || Object.keys(dueByClassId).length === 0
+      globalDue > 0 || scopedRows.length > 0 || Object.keys(dueByClassId).length === 0
         ? classIds
         : Object.keys(dueByClassId)
 
@@ -101,7 +129,15 @@ export async function GET(request: NextRequest) {
       },
       include: {
         class: {
-          select: { id: true, name: true, stream: true },
+          select: { id: true, name: true, stream: true, level: true },
+        },
+        busAssignments: {
+          where: { termId, status: 'ACTIVE' },
+          select: {
+            transportMode: true,
+            bus: { select: { id: true, busNumber: true, routeName: true } },
+          },
+          take: 1,
         },
       },
       orderBy: [{ class: { name: 'asc' } }, { lastName: 'asc' }, { firstName: 'asc' }],
@@ -173,8 +209,24 @@ export async function GET(request: NextRequest) {
     let unpaidStudents = 0
 
     const studentsPayload = students.map((student) => {
+      const assignment = student.busAssignments[0] || null
+      const routeName = assignment?.bus?.routeName || null
+      const isOneWay = String(assignment?.transportMode || '').startsWith('ONE_WAY')
+      const transportMultiplier = isOneWay ? 0.5 : 1
+      const feeGroupName = getTransportFeeGroupForMode(assignment?.transportMode)
+      const routeFeeKey = feeGroupName || routeName
+      const routeFee = routeFeeKey ? dueByRoute[routeFeeKey.trim().toLowerCase()] : null
       const classSpecificExpected = Number(dueByClassId[student.classId] || 0)
-      const expected = classSpecificExpected > 0 ? classSpecificExpected : Number(globalDue || 0)
+      const studentScope = getTransportFeeScopeForClass(student.class)
+      const scopedExpected = studentScope ? Number(dueByScope[studentScope] || 0) : 0
+      const baseExpected = routeFee
+        ? Number(routeFee.amount || 0)
+        : classSpecificExpected > 0
+          ? classSpecificExpected
+          : scopedExpected > 0
+            ? scopedExpected
+            : Number(globalDue || 0)
+      const expected = baseExpected * transportMultiplier
       const paid = Number(paidByStudent[student.id] || 0)
       const balance = Math.max(0, expected - paid)
       const lastPayment = lastPaymentByStudent[student.id] || null
@@ -200,6 +252,14 @@ export async function GET(request: NextRequest) {
           name: student.class.name,
           stream: student.class.stream,
         },
+        route: routeName
+          ? {
+              name: routeName,
+              busNumber: assignment?.bus?.busNumber || null,
+              transportMode: assignment?.transportMode || 'TWO_WAY',
+              feeGroup: feeGroupName,
+            }
+          : null,
         transportFee: {
           expected,
           paid,
@@ -211,7 +271,9 @@ export async function GET(request: NextRequest) {
           lastPaymentAmount: lastPayment?.amount || 0,
           lastReceiptNumber: lastPayment?.receiptNumber || null,
           suggestedFeeStructureId:
+            routeFee?.id ||
             classSpecificRows.find((row) => row.classId === student.classId)?.id ||
+            scopedRows.find((row) => getClassScopeFromDescription(row.description) === studentScope)?.id ||
             globalStructureRows[0]?.id ||
             null,
         },

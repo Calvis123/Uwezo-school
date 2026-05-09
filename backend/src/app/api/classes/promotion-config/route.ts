@@ -6,23 +6,43 @@ import { apiRouteError } from '@/lib/api-route-error'
 
 // Level order for class hierarchy
 const LEVEL_ORDER: Record<string, number> = {
-  PP1: 0,
-  PP2: 1,
-  GRADE_1: 2,
-  GRADE_2: 3,
-  GRADE_3: 4,
-  GRADE_4: 5,
-  GRADE_5: 6,
-  GRADE_6: 7,
-  GRADE_7: 8,
-  GRADE_8: 9,
-  GRADE_9: 10,
+  PLAYGROUP: 0,
+  PRE_NURSERY: 0,
+  NURSERY: 0,
+  PP1: 1,
+  PP2: 2,
+  GRADE_1: 3,
+  GRADE_2: 4,
+  GRADE_3: 5,
+  GRADE_4: 6,
+  GRADE_5: 7,
+  GRADE_6: 8,
+  GRADE_7: 9,
+  GRADE_8: 10,
+  GRADE_9: 11,
 }
 
 const getClassLevel = (cls: { name: string; level: string }) => {
   const name = cls.name.toLowerCase()
-  if (name.includes('pp1') || name.includes('pre-primary 1')) return 'PP1'
-  if (name.includes('pp2') || name.includes('pre-primary 2')) return 'PP2'
+  if (
+    name.includes('playgroup') ||
+    name.includes('play group') ||
+    name.includes('pre-nursery') ||
+    name.includes('pre nursery') ||
+    cls.level === 'PRE_NURSERY'
+  ) return 'PLAYGROUP'
+  if (
+    name.includes('pp1') ||
+    name.includes('pre-primary 1') ||
+    name.includes('pre primary 1') ||
+    name === 'nursery' ||
+    cls.level === 'NURSERY'
+  ) return 'PP1'
+  if (
+    name.includes('pp2') ||
+    name.includes('pre-primary 2') ||
+    name.includes('pre primary 2')
+  ) return 'PP2'
 
   const gradeMatch = name.match(/grade\s*([1-9])/)
   if (gradeMatch) return `GRADE_${gradeMatch[1]}`

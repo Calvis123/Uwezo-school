@@ -3,7 +3,14 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth-server'
 import { FINANCE_ROLES } from '@/lib/roles'
 import { apiRouteError } from '@/lib/api-route-error'
-import { isAllClassesScopeDescription } from '@/lib/fee-structure-scope'
+import {
+  feeClassScopeAppliesToClass,
+  getClassScopeFromDescription,
+  getFeeClassScopeForClass,
+  getTransportRouteFromDescription,
+  isAllClassesScopeDescription,
+  transportRouteAppliesToStudent,
+} from '@/lib/fee-structure-scope'
 
 function generateRandomString(prefix: string, length: number = 10): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -39,7 +46,22 @@ export async function POST(request: NextRequest) {
       const [student, feeStructure] = await Promise.all([
         db.student.findUnique({
           where: { id: studentId },
-          select: { id: true, status: true, studentType: true, usesTransport: true, classId: true },
+          select: {
+            id: true,
+            status: true,
+            studentType: true,
+            usesTransport: true,
+            classId: true,
+            class: { select: { name: true, level: true } },
+            busAssignments: {
+              where: { term: { status: 'ACTIVE' }, status: 'ACTIVE' },
+              select: {
+                transportMode: true,
+                bus: { select: { routeName: true } },
+              },
+              take: 1,
+            },
+          },
         }),
         db.feeStructure.findUnique({
           where: { id: feeStructureId },
@@ -66,9 +88,36 @@ export async function POST(request: NextRequest) {
         )
       }
       const appliesToAllClasses = isAllClassesScopeDescription(feeStructure.description)
-      if (!appliesToAllClasses && student.classId !== feeStructure.classId) {
+      const classScope = getClassScopeFromDescription(feeStructure.description)
+      const studentScope = getFeeClassScopeForClass(student.class)
+      const appliesToStudentScope = feeClassScopeAppliesToClass(classScope, studentScope)
+      const feeRouteName = getTransportRouteFromDescription(feeStructure.description)
+      const studentRouteName = student.busAssignments[0]?.bus?.routeName || null
+      const appliesToStudentRoute = transportRouteAppliesToStudent(
+        feeRouteName,
+        studentRouteName,
+        student.busAssignments[0]?.transportMode
+      )
+      if (
+        !appliesToAllClasses &&
+        !appliesToStudentScope &&
+        !(feeStructure.category === 'TRANSPORT' && feeRouteName) &&
+        student.classId !== feeStructure.classId
+      ) {
         return NextResponse.json(
           { success: false, error: 'Selected fee structure does not belong to the student class' },
+          { status: 400 }
+        )
+      }
+      if (feeStructure.category === 'TRANSPORT' && !appliesToStudentRoute) {
+        return NextResponse.json(
+          { success: false, error: 'Selected transport fee does not match the student route' },
+          { status: 400 }
+        )
+      }
+      if (feeStructure.category === 'TRANSPORT' && student.studentType !== 'DAY') {
+        return NextResponse.json(
+          { success: false, error: 'Transport charges are only allowed for day students' },
           { status: 400 }
         )
       }

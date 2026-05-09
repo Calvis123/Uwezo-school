@@ -1,5 +1,6 @@
 'use client'
 
+import type { KeyboardEvent } from 'react'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Plus,
@@ -97,6 +98,28 @@ interface StudentRow {
   lastName: string
   gender: string
   status: string
+  studentType?: string
+  guardians?: Array<{
+    guardian?: {
+      name?: string
+      phone?: string
+      email?: string
+    }
+  }>
+  feeInfo?: {
+    status: string
+    expectedAmount: number
+    paidAmount: number
+    balance: number
+  }
+  transportInfo?: {
+    status: string
+    paidAmount?: number
+    bus?: {
+      busNumber: string
+      routeName: string
+    } | null
+  }
 }
 
 interface ClassGroup {
@@ -106,9 +129,16 @@ interface ClassGroup {
   classes: ClassItem[]
 }
 
+interface ClassSection {
+  key: string
+  title: string
+  groups: ClassGroup[]
+}
+
 // ==================== Constants ====================
 
 const LEVEL_OPTIONS = [
+  { value: 'PLAYGROUP', label: 'Playgroup' },
   { value: 'PP1', label: 'PP1' },
   { value: 'PP2', label: 'PP2' },
   { value: 'GRADE_1', label: 'Grade 1' },
@@ -122,9 +152,34 @@ const LEVEL_OPTIONS = [
   { value: 'GRADE_9', label: 'Grade 9' },
 ]
 
+const FILTER_LEVEL_OPTIONS = [
+  { value: 'ECDE', label: 'ECDE' },
+  ...LEVEL_OPTIONS,
+]
+
+const LEVEL_ORDER: Record<string, number> = {
+  PLAYGROUP: 0,
+  PRE_NURSERY: 0,
+  NURSERY: 0,
+  PP1: 1,
+  PP2: 2,
+  GRADE_1: 3,
+  GRADE_2: 4,
+  GRADE_3: 5,
+  GRADE_4: 6,
+  GRADE_5: 7,
+  GRADE_6: 8,
+  GRADE_7: 9,
+  GRADE_8: 10,
+  GRADE_9: 11,
+}
+
 const STREAM_OPTIONS = ['A', 'B', 'C']
 
 const levelBadgeColors: Record<string, string> = {
+  PLAYGROUP: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
+  PRE_NURSERY: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
+  NURSERY: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
   PP1: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
   PP2: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800',
   GRADE_1: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800',
@@ -139,6 +194,9 @@ const levelBadgeColors: Record<string, string> = {
 }
 
 const levelCardAccent: Record<string, string> = {
+  PLAYGROUP: 'from-pink-500',
+  PRE_NURSERY: 'from-pink-500',
+  NURSERY: 'from-pink-500',
   PP1: 'from-pink-500',
   PP2: 'from-pink-500',
   GRADE_1: 'from-teal-500',
@@ -176,8 +234,25 @@ const getStreamLabel = (cls: ClassItem) => {
 
 const getClassLevelValue = (cls: ClassItem) => {
   const baseName = getClassGroupName(cls).toLowerCase()
-  if (baseName.includes('pp1') || baseName.includes('pre-primary 1')) return 'PP1'
-  if (baseName.includes('pp2') || baseName.includes('pre-primary 2')) return 'PP2'
+  if (
+    baseName.includes('playgroup') ||
+    baseName.includes('play group') ||
+    baseName.includes('pre-nursery') ||
+    baseName.includes('pre nursery') ||
+    cls.level === 'PRE_NURSERY'
+  ) return 'PLAYGROUP'
+  if (
+    baseName.includes('pp1') ||
+    baseName.includes('pre-primary 1') ||
+    baseName.includes('pre primary 1') ||
+    baseName === 'nursery' ||
+    cls.level === 'NURSERY'
+  ) return 'PP1'
+  if (
+    baseName.includes('pp2') ||
+    baseName.includes('pre-primary 2') ||
+    baseName.includes('pre primary 2')
+  ) return 'PP2'
 
   const gradeMatch = baseName.match(/grade\s*([1-9])/)
   if (gradeMatch) return `GRADE_${gradeMatch[1]}`
@@ -185,9 +260,27 @@ const getClassLevelValue = (cls: ClassItem) => {
   return cls.level
 }
 
+const getCanonicalClassName = (level: string, fallback: string) => {
+  return LEVEL_OPTIONS.find(l => l.value === level)?.label || fallback
+}
+
 const getClassLevelLabel = (cls: ClassItem) => {
   const levelValue = getClassLevelValue(cls)
   return LEVEL_OPTIONS.find(l => l.value === levelValue)?.label || levelValue
+}
+
+const getClassLevelOrder = (level: string) => LEVEL_ORDER[level] ?? 999
+
+const isEcdeLevel = (level: string) => {
+  return ['PLAYGROUP', 'PRE_NURSERY', 'NURSERY', 'PP1', 'PP2'].includes(level)
+}
+
+const formatCurrency = (amount?: number) => {
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    maximumFractionDigits: 0,
+  }).format(amount || 0)
 }
 
 // ==================== Main Component ====================
@@ -232,7 +325,7 @@ export function ClassManagement() {
   const [assignTeacherId, setAssignTeacherId] = useState('')
   const [assignLoading, setAssignLoading] = useState(false)
 
-  const studentLimit = 10
+  const studentLimit = 100
 
   // ==================== Load Classes ====================
   const loadClasses = useCallback(async () => {
@@ -283,8 +376,8 @@ export function ClassManagement() {
     const grouped = new Map<string, ClassGroup>()
 
     classes.forEach((cls) => {
-      const groupName = getClassGroupName(cls)
       const levelValue = getClassLevelValue(cls)
+      const groupName = getCanonicalClassName(levelValue, getClassGroupName(cls))
       const key = `${levelValue}::${groupName.toLowerCase()}`
       const group = grouped.get(key)
 
@@ -300,17 +393,32 @@ export function ClassManagement() {
       }
     })
 
-    return Array.from(grouped.values()).map((group) => ({
-      ...group,
-      classes: [...group.classes].sort((a, b) => {
-        const aStream = a.stream || ''
-        const bStream = b.stream || ''
-        return aStream.localeCompare(bStream, undefined, { numeric: true, sensitivity: 'base' })
-      }),
-    }))
+    return Array.from(grouped.values())
+      .map((group) => ({
+        ...group,
+        classes: [...group.classes].sort((a, b) => {
+          const aStream = a.stream || ''
+          const bStream = b.stream || ''
+          return aStream.localeCompare(bStream, undefined, { numeric: true, sensitivity: 'base' })
+        }),
+      }))
+      .sort((a, b) => {
+        const levelDiff = getClassLevelOrder(a.level) - getClassLevelOrder(b.level)
+        if (levelDiff !== 0) return levelDiff
+        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      })
   }, [classes])
 
   const totalClasses = classGroups.length
+  const classSections = useMemo<ClassSection[]>(() => {
+    const ecdeGroups = classGroups.filter(group => isEcdeLevel(group.level))
+    const gradeGroups = classGroups.filter(group => !isEcdeLevel(group.level))
+
+    return [
+      ...(ecdeGroups.length > 0 ? [{ key: 'ecde', title: 'ECDE', groups: ecdeGroups }] : []),
+      ...(gradeGroups.length > 0 ? [{ key: 'grades', title: 'Grade 1 - Grade 9', groups: gradeGroups }] : []),
+    ]
+  }, [classGroups])
   const activeClasses = classGroups.filter(group => group.classes.some(c => c.status === 'ACTIVE')).length
   const totalStudents = classes.reduce((sum, c) => sum + c.studentCount, 0)
   const avgClassSize = activeClasses > 0 ? Math.round(totalStudents / activeClasses) : 0
@@ -318,7 +426,7 @@ export function ClassManagement() {
   // ==================== Form Handlers ====================
   const openCreateForm = () => {
     setEditClass(null)
-    setFormData({ name: '', level: 'GRADE_1', stream: 'A', capacity: 40, teacherId: '', status: 'ACTIVE' })
+    setFormData({ name: '', level: 'PLAYGROUP', stream: 'A', capacity: 40, teacherId: '', status: 'ACTIVE' })
     setFormOpen(true)
   }
 
@@ -404,6 +512,13 @@ export function ClassManagement() {
       setClassStudents([])
     } finally {
       setStudentsLoading(false)
+    }
+  }
+
+  const handleClassCardKeyDown = (event: KeyboardEvent<HTMLDivElement>, cls: ClassItem) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openViewStudents(cls)
     }
   }
 
@@ -579,7 +694,7 @@ export function ClassManagement() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Levels</SelectItem>
-              {LEVEL_OPTIONS.map(l => (
+              {FILTER_LEVEL_OPTIONS.map(l => (
                 <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
               ))}
             </SelectContent>
@@ -634,9 +749,18 @@ export function ClassManagement() {
           )}
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <AnimatePresence mode="popLayout">
-            {classGroups.map((group, index) => {
+        <div className="space-y-6">
+          {classSections.map((section) => (
+            <section key={section.key} className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{section.title}</h3>
+                <Badge variant="secondary" className="text-[10px] px-2 py-0">
+                  {section.groups.length} classes
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <AnimatePresence mode="popLayout">
+            {section.groups.map((group, index) => {
               const selectedId = selectedClassByGroup[group.key]
               const cls = group.classes.find(c => c.id === selectedId) || group.classes[0]
               const levelValue = getClassLevelValue(cls)
@@ -655,8 +779,14 @@ export function ClassManagement() {
                   exit={{ opacity: 0, y: -12 }}
                   transition={{ duration: 0.2, delay: index * 0.03 }}
                 >
-                  <Card className={cn(
-                    'shadow-sm border bg-white dark:bg-slate-800 hover:shadow-md transition-shadow relative overflow-hidden group',
+                  <Card
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View students and class data for ${cls.name}`}
+                    onClick={() => openViewStudents(cls)}
+                    onKeyDown={(event) => handleClassCardKeyDown(event, cls)}
+                    className={cn(
+                    'shadow-sm border bg-white dark:bg-slate-800 hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950',
                     cls.status === 'ACTIVE'
                       ? 'border-slate-200/60 dark:border-slate-700/60'
                       : 'border-slate-200/40 dark:border-slate-700/40 opacity-70'
@@ -674,11 +804,17 @@ export function ClassManagement() {
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity focus-visible:opacity-100 flex-shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity focus-visible:opacity-100 flex-shrink-0"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuContent align="end" className="w-44" onClick={(event) => event.stopPropagation()}>
                             <DropdownMenuItem onClick={() => openEditForm(cls)}>
                               <Pencil className="w-4 h-4 mr-2" /> Edit
                             </DropdownMenuItem>
@@ -713,7 +849,11 @@ export function ClassManagement() {
                             value={cls.id}
                             onValueChange={(value) => setSelectedClassByGroup(current => ({ ...current, [group.key]: value }))}
                           >
-                            <SelectTrigger className="h-7 w-28 text-xs bg-white dark:bg-slate-900">
+                            <SelectTrigger
+                              className="h-7 w-28 text-xs bg-white dark:bg-slate-900"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -765,7 +905,10 @@ export function ClassManagement() {
                 </motion.div>
               )
             })}
-          </AnimatePresence>
+                </AnimatePresence>
+              </div>
+            </section>
+          ))}
         </div>
       )}
 
@@ -868,7 +1011,7 @@ export function ClassManagement() {
 
       {/* ==================== View Students Dialog ==================== */}
       <Dialog open={viewStudentsOpen} onOpenChange={setViewStudentsOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="w-5 h-5 text-teal-600 dark:text-teal-400" />
@@ -896,30 +1039,85 @@ export function ClassManagement() {
                         <TableHead className="text-xs">Adm #</TableHead>
                         <TableHead className="text-xs">Name</TableHead>
                         <TableHead className="text-xs">Gender</TableHead>
+                        <TableHead className="text-xs">Guardian</TableHead>
+                        <TableHead className="text-xs">Fees</TableHead>
+                        <TableHead className="text-xs">Transport</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {classStudents.map((s, i) => (
-                        <TableRow key={s.id}>
-                          <TableCell className="text-xs font-mono text-slate-400">
-                            {(studentPage - 1) * studentLimit + i + 1}
-                          </TableCell>
-                          <TableCell className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                            {s.admissionNumber}
-                          </TableCell>
-                          <TableCell className="text-sm text-slate-900 dark:text-slate-100">
-                            {s.firstName} {s.lastName}
-                          </TableCell>
-                          <TableCell>
-                            <span className={cn(
-                              'text-xs font-medium',
-                              s.gender === 'MALE' ? 'text-sky-600 dark:text-sky-400' : 'text-pink-600 dark:text-pink-400'
-                            )}>
-                              {s.gender === 'MALE' ? 'Male' : 'Female'}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {classStudents.map((s, i) => {
+                        const guardian = s.guardians?.[0]?.guardian
+                        const feeStatus = s.feeInfo?.status || 'UNKNOWN'
+                        const feeBalance = s.feeInfo?.balance || 0
+                        const transportStatus = s.transportInfo?.status || (s.studentType === 'BOARDING' ? 'BOARDING' : 'UNSET')
+
+                        return (
+                          <TableRow
+                            key={s.id}
+                            className="cursor-pointer"
+                            onClick={() => navigateTo('student-detail', { studentId: s.id })}
+                          >
+                            <TableCell className="text-xs font-mono text-slate-400">
+                              {(studentPage - 1) * studentLimit + i + 1}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                              {s.admissionNumber}
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-900 dark:text-slate-100">
+                              <div className="font-medium">{s.firstName} {s.lastName}</div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">{s.studentType || 'DAY'}</div>
+                            </TableCell>
+                            <TableCell>
+                              <span className={cn(
+                                'text-xs font-medium',
+                                s.gender === 'MALE' ? 'text-sky-600 dark:text-sky-400' : 'text-pink-600 dark:text-pink-400'
+                              )}>
+                                {s.gender === 'MALE' ? 'Male' : 'Female'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-600 dark:text-slate-300">
+                              <div className="max-w-36 truncate">{guardian?.name || 'No guardian'}</div>
+                              {guardian?.phone && (
+                                <div className="text-slate-400 dark:text-slate-500">{guardian.phone}</div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'w-fit text-[10px] px-2 py-0',
+                                    feeStatus === 'PAID'
+                                      ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800'
+                                      : feeStatus === 'PARTIAL'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800'
+                                        : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800'
+                                  )}
+                                >
+                                  {feeStatus}
+                                </Badge>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                  Bal: {formatCurrency(feeBalance)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-600 dark:text-slate-300">
+                              <div>{transportStatus.replace(/_/g, ' ')}</div>
+                              {s.transportInfo?.bus && (
+                                <div className="text-slate-400 dark:text-slate-500">
+                                  {s.transportInfo.bus.busNumber} - {s.transportInfo.bus.routeName}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-[10px] px-2 py-0">
+                                {s.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>

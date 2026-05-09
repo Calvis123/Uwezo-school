@@ -9,6 +9,7 @@ type TermLite = {
   id: string
   name: string
   year: number
+  startDate?: Date
 }
 
 function getPaymentStatus(expected: number, paid: number): 'UNPAID' | 'PARTIAL' | 'PAID' {
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     const requestedYear = searchParams.get('year')
 
     const allTerms = await db.term.findMany({
-      select: { id: true, name: true, year: true, status: true },
+      select: { id: true, name: true, year: true, status: true, startDate: true },
       orderBy: [{ year: 'asc' }, { startDate: 'asc' }],
     })
 
@@ -85,15 +86,30 @@ export async function GET(request: NextRequest) {
           lastName: true,
           admissionNumber: true,
           classId: true,
+          class: {
+            select: {
+              name: true,
+              level: true,
+            },
+          },
           studentType: true,
           usesTransport: true,
+          busAssignments: {
+            where: {
+              status: 'ACTIVE',
+            },
+            select: {
+              termId: true,
+              transportMode: true,
+              bus: { select: { routeName: true } },
+            },
+          },
         },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       }),
       db.feeStructure.findMany({
         where: {
           status: 'ACTIVE',
-          termId: { in: termIds },
         },
         select: {
           id: true,
@@ -109,7 +125,6 @@ export async function GET(request: NextRequest) {
         where: {
           status: 'COMPLETED',
           student: { classId: { in: classIds } },
-          feeStructure: { termId: { in: termIds } },
         },
         select: {
           id: true,
@@ -167,11 +182,16 @@ export async function GET(request: NextRequest) {
 
       const termSummary = terms.map((term) => {
         const expected = list.reduce(
-          (sum, student) =>
-            sum + getApplicableFeeStructures(
+          (sum, student) => {
+            const transportRouteName =
+              student.busAssignments.find((assignment) => assignment.termId === term.id)?.bus?.routeName || null
+            const transportMode =
+              student.busAssignments.find((assignment) => assignment.termId === term.id)?.transportMode || null
+            return sum + getApplicableFeeStructures(
               feeStructures.filter((structure) => structure.termId === term.id),
-              student
-            ).reduce((structureSum, structure) => structureSum + Number(structure.amount || 0), 0),
+              { ...student, transportRouteName, transportMode }
+            ).reduce((structureSum, structure) => structureSum + Number(structure.amount || 0), 0)
+          },
           0
         )
         const paid = list.reduce((sum, student) => sum + (studentTermPaid.get(`${student.id}:${term.id}`) || 0), 0)
@@ -190,10 +210,34 @@ export async function GET(request: NextRequest) {
       })
 
       const studentsPayload = list.map((student) => {
+        const firstDisplayedTerm = terms[0]
+        const priorTerms = firstDisplayedTerm
+          ? allTerms.filter((term) => sortTerms(term, firstDisplayedTerm) < 0)
+          : []
+        const arrearsBeforeYear = priorTerms.reduce(
+          (sum, term) => {
+            const transportRouteName =
+              student.busAssignments.find((assignment) => assignment.termId === term.id)?.bus?.routeName || null
+            const transportMode =
+              student.busAssignments.find((assignment) => assignment.termId === term.id)?.transportMode || null
+            const expected = getApplicableFeeStructures(
+              feeStructures.filter((structure) => structure.termId === term.id),
+              { ...student, transportRouteName, transportMode }
+            ).reduce((structureSum, structure) => structureSum + Number(structure.amount || 0), 0)
+            const paid = studentTermPaid.get(`${student.id}:${term.id}`) || 0
+            return sum + Math.max(0, expected - paid)
+          },
+          0
+        )
+
         const perTerm = terms.map((term) => {
+          const transportRouteName =
+            student.busAssignments.find((assignment) => assignment.termId === term.id)?.bus?.routeName || null
+          const transportMode =
+            student.busAssignments.find((assignment) => assignment.termId === term.id)?.transportMode || null
           const applicableStructures = getApplicableFeeStructures(
             feeStructures.filter((structure) => structure.termId === term.id),
-            student
+            { ...student, transportRouteName, transportMode }
           )
           const expected = applicableStructures.reduce(
             (sum, structure) => sum + Number(structure.amount || 0),
@@ -232,6 +276,8 @@ export async function GET(request: NextRequest) {
           },
           { expected: 0, paid: 0, balance: 0 }
         )
+        overall.expected += arrearsBeforeYear
+        overall.balance += arrearsBeforeYear
         const overallStatus = getPaymentStatus(overall.expected, overall.paid)
 
         const nextDue = perTerm.find((term) => term.balance > 0)
@@ -241,6 +287,7 @@ export async function GET(request: NextRequest) {
           name: `${student.firstName} ${student.lastName}`,
           admissionNumber: student.admissionNumber,
           perTerm,
+          arrearsBeforeYear,
           overall,
           overallStatus,
           nextDueTermId: nextDue?.termId || perTerm[0]?.termId || null,

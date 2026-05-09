@@ -3,7 +3,12 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth-server'
 import { FINANCE_ROLES } from '@/lib/roles'
 import { apiRouteError } from '@/lib/api-route-error'
-import { isAllClassesScopeDescription, removeAllClassesScopeMarker } from '@/lib/fee-structure-scope'
+import {
+  FEE_CLASS_SCOPES,
+  getClassScopeFromDescription,
+  isAllClassesScopeDescription,
+  removeFeeScopeMarkers,
+} from '@/lib/fee-structure-scope'
 
 export async function PUT(
   request: NextRequest,
@@ -79,14 +84,19 @@ export async function PUT(
     })
 
     const appliesToAllClasses = isAllClassesScopeDescription(updated.description)
+    const classScope = getClassScopeFromDescription(updated.description)
     return NextResponse.json({
       success: true,
       data: {
         ...updated,
         appliesToAllClasses,
-        description: removeAllClassesScopeMarker(updated.description),
+        classScope,
+        classScopeLabel: classScope ? FEE_CLASS_SCOPES[classScope].label : null,
+        description: removeFeeScopeMarkers(updated.description),
         class: appliesToAllClasses
           ? { id: 'ALL', name: 'All Classes', stream: null }
+          : classScope
+            ? { id: `SCOPE_${classScope}`, name: FEE_CLASS_SCOPES[classScope].label, stream: null }
           : updated.class,
       },
     })

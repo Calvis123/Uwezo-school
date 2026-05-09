@@ -1,44 +1,45 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useAppStore } from '@/lib/store'
-import { LoginPage } from '@/components/auth/LoginPage'
-import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { DashboardHome } from '@/components/dashboard/DashboardHome'
-import { RoleCenter } from '@/components/dashboard/RoleCenter'
-import { StudentList } from '@/components/students/StudentList'
-import { StudentDetail } from '@/components/students/StudentDetail'
-import { FeeStructures } from '@/components/fees/FeeStructures'
-import { FeePayments } from '@/components/fees/FeePayments'
-import { FeeReports } from '@/components/fees/FeeReports'
-import { ExamList } from '@/components/exams/ExamList'
-import { MarkEntry } from '@/components/exams/MarkEntry'
-import { ReportCards } from '@/components/exams/ReportCards'
-import { AttendanceMarking } from '@/components/attendance/AttendanceMarking'
-import { NoticeList } from '@/components/notices/NoticeList'
-import { SettingsPage } from '@/components/settings/SettingsPage'
-import { UserManagement } from '@/components/users/UserManagement'
-import { CalendarView } from '@/components/calendar/CalendarView'
-import { TeacherWorkspace } from '@/components/teacher/TeacherWorkspace'
-import { MessagingPage } from '@/components/messaging/MessagingPage'
-import { ExportData } from '@/components/export/ExportData'
-import { ClassManagement } from '@/components/classes/ClassManagement'
-import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
-import { ActivityFeed } from '@/components/activity/ActivityFeed'
-import { FeesPage } from '@/components/fees/FeesPage'
-import { ClassReport } from '@/components/reports/ClassReport'
-import { StudentPromotion } from '@/components/students/StudentPromotion'
-import { LibraryPage } from '@/components/library/LibraryPage'
-import { HealthRecords } from '@/components/health/HealthRecords'
-import { TransportPage } from '@/components/transport/TransportPage'
-import { DocumentsPage } from '@/components/documents/DocumentsPage'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { AppLoader } from '@/components/layout/AppLoader'
-import { ParentDashboard } from '@/components/parent/ParentDashboard'
 import { authApi } from '@/lib/api'
 import { clearTabAuthenticated, isTabAuthenticated, touchTabAuthenticated } from '@/lib/tab-auth'
+
+const LoadingView = () => <AppLoader />
+
+const LoginPage = dynamic(() => import('@/components/auth/LoginPage').then((mod) => mod.LoginPage), { loading: LoadingView })
+const DashboardLayout = dynamic(() => import('@/components/layout/DashboardLayout').then((mod) => mod.DashboardLayout), { loading: LoadingView })
+const DashboardHome = dynamic(() => import('@/components/dashboard/DashboardHome').then((mod) => mod.DashboardHome), { loading: LoadingView })
+const RoleCenter = dynamic(() => import('@/components/dashboard/RoleCenter').then((mod) => mod.RoleCenter), { loading: LoadingView })
+const ParentDashboard = dynamic(() => import('@/components/parent/ParentDashboard').then((mod) => mod.ParentDashboard), { loading: LoadingView })
+const UserManagement = dynamic(() => import('@/components/users/UserManagement').then((mod) => mod.UserManagement), { loading: LoadingView })
+const StudentList = dynamic(() => import('@/components/students/StudentList').then((mod) => mod.StudentList), { loading: LoadingView })
+const StudentDetail = dynamic(() => import('@/components/students/StudentDetail').then((mod) => mod.StudentDetail), { loading: LoadingView })
+const ClassManagement = dynamic(() => import('@/components/classes/ClassManagement').then((mod) => mod.ClassManagement), { loading: LoadingView })
+const AnalyticsPage = dynamic(() => import('@/components/analytics/AnalyticsPage').then((mod) => mod.AnalyticsPage), { loading: LoadingView })
+const FeesPage = dynamic(() => import('@/components/fees/FeesPage').then((mod) => mod.FeesPage), { loading: LoadingView })
+const ExportData = dynamic(() => import('@/components/export/ExportData').then((mod) => mod.ExportData), { loading: LoadingView })
+const ExamList = dynamic(() => import('@/components/exams/ExamList').then((mod) => mod.ExamList), { loading: LoadingView })
+const MarkEntry = dynamic(() => import('@/components/exams/MarkEntry').then((mod) => mod.MarkEntry), { loading: LoadingView })
+const ReportCards = dynamic(() => import('@/components/exams/ReportCards').then((mod) => mod.ReportCards), { loading: LoadingView })
+const AttendanceMarking = dynamic(() => import('@/components/attendance/AttendanceMarking').then((mod) => mod.AttendanceMarking), { loading: LoadingView })
+const NoticeList = dynamic(() => import('@/components/notices/NoticeList').then((mod) => mod.NoticeList), { loading: LoadingView })
+const SettingsPage = dynamic(() => import('@/components/settings/SettingsPage').then((mod) => mod.SettingsPage), { loading: LoadingView })
+const CalendarView = dynamic(() => import('@/components/calendar/CalendarView').then((mod) => mod.CalendarView), { loading: LoadingView })
+const TeacherWorkspace = dynamic(() => import('@/components/teacher/TeacherWorkspace').then((mod) => mod.TeacherWorkspace), { loading: LoadingView })
+const MessagingPage = dynamic(() => import('@/components/messaging/MessagingPage').then((mod) => mod.MessagingPage), { loading: LoadingView })
+const ClassReport = dynamic(() => import('@/components/reports/ClassReport').then((mod) => mod.ClassReport), { loading: LoadingView })
+const StudentPromotion = dynamic(() => import('@/components/students/StudentPromotion').then((mod) => mod.StudentPromotion), { loading: LoadingView })
+const LibraryPage = dynamic(() => import('@/components/library/LibraryPage').then((mod) => mod.LibraryPage), { loading: LoadingView })
+const HealthRecords = dynamic(() => import('@/components/health/HealthRecords').then((mod) => mod.HealthRecords), { loading: LoadingView })
+const TransportPage = dynamic(() => import('@/components/transport/TransportPage').then((mod) => mod.TransportPage), { loading: LoadingView })
+const DocumentsPage = dynamic(() => import('@/components/documents/DocumentsPage').then((mod) => mod.DocumentsPage), { loading: LoadingView })
+const ActivityFeed = dynamic(() => import('@/components/activity/ActivityFeed').then((mod) => mod.ActivityFeed), { loading: LoadingView })
 
 function ViewRouter() {
   const { currentView, user } = useAppStore()

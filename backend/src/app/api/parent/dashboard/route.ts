@@ -4,7 +4,6 @@ import { requireUser } from '@/lib/auth-server';
 import { MARKED_ATTENDANCE_STATUSES } from '@/lib/attendance';
 import { getParentPrimaryStudentId } from '@/lib/parent-access';
 import { summarizeStudentFeeBalance } from '@/lib/fee-balance';
-import { ALL_CLASSES_MARKER } from '@/lib/fee-structure-scope';
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,11 +41,8 @@ export async function GET(request: NextRequest) {
         // Fee balance
         const feeStructures = await db.feeStructure.findMany({
           where: {
-            OR: [
-              { classId: student.classId },
-              { description: { startsWith: ALL_CLASSES_MARKER } },
-            ],
             ...(activeTerm ? { termId: activeTerm.id } : {}),
+            status: 'ACTIVE',
           },
         });
         const payments = await db.feeTransaction.findMany({
@@ -62,10 +58,27 @@ export async function GET(request: NextRequest) {
               : {}),
           },
         });
+        const activeTransportAssignment = activeTerm
+          ? await db.transportAssignment.findFirst({
+              where: {
+                studentId: student.id,
+                termId: activeTerm.id,
+                status: 'ACTIVE',
+              },
+              select: {
+                transportMode: true,
+                bus: { select: { routeName: true } },
+              },
+            })
+          : null;
         const { totalFees, totalPaid, balance } = summarizeStudentFeeBalance(
           feeStructures,
           payments,
-          student
+          {
+            ...student,
+            transportRouteName: activeTransportAssignment?.bus?.routeName || null,
+            transportMode: activeTransportAssignment?.transportMode || null,
+          }
         );
 
         // Attendance rate for active term
@@ -197,7 +210,7 @@ export async function GET(request: NextRequest) {
           id: guardian.id,
           name: guardian.name,
           email: guardian.email,
-          phone: guardian.phone,
+          phone: (guardian as { phone?: string | null }).phone || null,
           role: guardian.role,
         },
         childrenSummary,

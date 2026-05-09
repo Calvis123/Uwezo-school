@@ -5,6 +5,55 @@ import { requireUser } from '@/lib/auth-server';
 import { STAFF_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
 
+const LEVEL_ORDER: Record<string, number> = {
+  PLAYGROUP: 0,
+  PRE_NURSERY: 0,
+  NURSERY: 0,
+  PP1: 1,
+  PP2: 2,
+  GRADE_1: 3,
+  GRADE_2: 4,
+  GRADE_3: 5,
+  GRADE_4: 6,
+  GRADE_5: 7,
+  GRADE_6: 8,
+  GRADE_7: 9,
+  GRADE_8: 10,
+  GRADE_9: 11,
+};
+
+const getClassLevel = (cls: { name: string; level: string }) => {
+  const name = cls.name.toLowerCase();
+  if (
+    name.includes('playgroup') ||
+    name.includes('play group') ||
+    name.includes('pre-nursery') ||
+    name.includes('pre nursery') ||
+    cls.level === 'PRE_NURSERY'
+  ) return 'PLAYGROUP';
+  if (
+    name.includes('pp1') ||
+    name.includes('pre-primary 1') ||
+    name.includes('pre primary 1') ||
+    name === 'nursery' ||
+    cls.level === 'NURSERY'
+  ) return 'PP1';
+  if (
+    name.includes('pp2') ||
+    name.includes('pre-primary 2') ||
+    name.includes('pre primary 2')
+  ) return 'PP2';
+
+  const gradeMatch = name.match(/grade\s*([1-9])/);
+  if (gradeMatch) return `GRADE_${gradeMatch[1]}`;
+
+  return cls.level;
+};
+
+const getClassLevelOrder = (cls: { name: string; level: string }) => {
+  return LEVEL_ORDER[getClassLevel(cls)] ?? 999;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const authed = await requireUser(request, { roles: [...STAFF_ROLES] });
@@ -18,10 +67,35 @@ export async function GET(request: NextRequest) {
     if (level) {
       const gradeName = level.startsWith('GRADE_') ? `Grade ${level.replace('GRADE_', '')}` : null;
       const prePrimaryName = level === 'PP1' ? 'PP1' : level === 'PP2' ? 'PP2' : null;
+      const isEcde = level === 'ECDE';
+      const isPlaygroup = level === 'PLAYGROUP' || level === 'PRE_NURSERY';
       where.OR = [
         { level },
+        ...(isEcde ? [{ level: { in: ['PLAYGROUP', 'PRE_NURSERY', 'NURSERY', 'PP1', 'PP2'] } }] : []),
+        ...(isPlaygroup ? [{ level: { in: ['PLAYGROUP', 'PRE_NURSERY'] } }] : []),
         ...(gradeName ? [{ name: { contains: gradeName, mode: 'insensitive' as const } }] : []),
         ...(prePrimaryName ? [{ name: { contains: prePrimaryName, mode: 'insensitive' as const } }] : []),
+        ...(isPlaygroup
+          ? [
+              { name: { contains: 'Playgroup', mode: 'insensitive' as const } },
+              { name: { contains: 'Play group', mode: 'insensitive' as const } },
+              { name: { contains: 'Pre-Nursery', mode: 'insensitive' as const } },
+              { name: { contains: 'Pre Nursery', mode: 'insensitive' as const } },
+            ]
+          : []),
+        ...(isEcde
+          ? [
+              { name: { contains: 'Playgroup', mode: 'insensitive' as const } },
+              { name: { contains: 'Play group', mode: 'insensitive' as const } },
+              { name: { contains: 'Nursery', mode: 'insensitive' as const } },
+              { name: { contains: 'Pre-Nursery', mode: 'insensitive' as const } },
+              { name: { contains: 'Pre Nursery', mode: 'insensitive' as const } },
+              { name: { contains: 'PP1', mode: 'insensitive' as const } },
+              { name: { contains: 'PP2', mode: 'insensitive' as const } },
+              { name: { contains: 'Pre-primary 1', mode: 'insensitive' as const } },
+              { name: { contains: 'Pre-primary 2', mode: 'insensitive' as const } },
+            ]
+          : []),
       ];
     }
     if (status) where.status = status;
@@ -39,19 +113,27 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+      orderBy: [{ name: 'asc' }, { stream: 'asc' }],
     });
 
-    const classesWithCount = classes.map((cls) => ({
-      id: cls.id,
-      name: cls.name,
-      level: cls.level,
-      stream: cls.stream,
-      teacherId: cls.teacherId,
-      capacity: cls.capacity,
-      status: cls.status,
-      studentCount: cls._count.students,
-    }));
+    const classesWithCount = classes
+      .map((cls) => ({
+        id: cls.id,
+        name: cls.name,
+        level: cls.level,
+        stream: cls.stream,
+        teacherId: cls.teacherId,
+        capacity: cls.capacity,
+        status: cls.status,
+        studentCount: cls._count.students,
+      }))
+      .sort((a, b) => {
+        const levelDiff = getClassLevelOrder(a) - getClassLevelOrder(b);
+        if (levelDiff !== 0) return levelDiff;
+        const nameDiff = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+        if (nameDiff !== 0) return nameDiff;
+        return (a.stream || '').localeCompare(b.stream || '', undefined, { numeric: true, sensitivity: 'base' });
+      });
 
     return NextResponse.json({ success: true, data: classesWithCount });
   } catch (error: unknown) {

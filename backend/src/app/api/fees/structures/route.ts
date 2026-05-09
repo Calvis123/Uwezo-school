@@ -4,10 +4,19 @@ import { Prisma } from '@prisma/client';
 import { requireUser } from '@/lib/auth-server';
 import { FINANCE_ROLES } from '@/lib/roles';
 import { apiRouteError } from '@/lib/api-route-error';
+import { getSettingsActiveTerm } from '@/lib/active-term';
 import {
+  FEE_CLASS_SCOPES,
+  FeeClassScope,
+  addClassScopeMarker,
   addAllClassesScopeMarker,
+  feeClassScopeAppliesToClass,
+  getClassScopeFromDescription,
+  getFeeClassScopeForClass,
+  getTransportFeeScopeForClass,
+  getTransportRouteFromDescription,
   isAllClassesScopeDescription,
-  removeAllClassesScopeMarker,
+  removeFeeScopeMarkers,
 } from '@/lib/fee-structure-scope';
 
 export async function GET(request: NextRequest) {
@@ -26,13 +35,12 @@ export async function GET(request: NextRequest) {
     if (termId) where.termId = termId;
     if (category) where.category = category;
 
+    const settingsActiveTerm = await getSettingsActiveTerm();
+
     // If no term filter, default to the current active term
     if (!termId && !allTerms) {
-      const activeTerm = await db.term.findFirst({
-        where: { status: 'ACTIVE' },
-      });
-      if (activeTerm) {
-        where.termId = activeTerm.id;
+      if (settingsActiveTerm) {
+        where.termId = settingsActiveTerm.id;
       }
     }
 
@@ -50,23 +58,63 @@ export async function GET(request: NextRequest) {
       }),
       db.schoolClass.findMany({
         where: { status: 'ACTIVE' },
-        select: { id: true },
+        select: { id: true, name: true, level: true },
       }),
     ]);
 
     const activeClassIds = new Set(activeClasses.map((item) => item.id));
+    const classScopeById = new Map(activeClasses.map((item) => [
+      item.id,
+      category === 'TRANSPORT' ? getTransportFeeScopeForClass(item) : getFeeClassScopeForClass(item),
+    ]));
+    const classIdsByScope = activeClasses.reduce<Record<string, string[]>>((acc, cls) => {
+      const scope = getFeeClassScopeForClass(cls);
+      if (!scope) return acc;
+      if (!acc[scope]) acc[scope] = [];
+      acc[scope].push(cls.id);
+      return acc;
+    }, {});
+    for (const cls of activeClasses) {
+      const scope = getTransportFeeScopeForClass(cls);
+      if (!scope) continue;
+      if (!classIdsByScope[scope]) classIdsByScope[scope] = [];
+      if (!classIdsByScope[scope].includes(cls.id)) classIdsByScope[scope].push(cls.id);
+    }
 
     const normalized = structures.map((item) => {
       const appliesToAllClasses = isAllClassesScopeDescription(item.description);
+      const classScope = getClassScopeFromDescription(item.description);
+      const transportRouteName = getTransportRouteFromDescription(item.description);
       return {
         ...item,
         appliesToAllClasses,
-        description: removeAllClassesScopeMarker(item.description),
+        classScope,
+        classScopeLabel: classScope ? FEE_CLASS_SCOPES[classScope].label : null,
+        transportRouteName,
+        applicableClassIds: transportRouteName
+          ? Array.from(activeClassIds)
+          : classScope
+            ? classIdsByScope[classScope] || []
+            : appliesToAllClasses
+              ? Array.from(activeClassIds)
+              : [item.classId],
+        status: item.termId === settingsActiveTerm?.id ? 'ACTIVE' : 'INACTIVE',
+        description: removeFeeScopeMarkers(item.description),
       };
     });
 
+    const requestedFilterScopeValue = classId && classId.startsWith('SCOPE_') ? classId.replace('SCOPE_', '') : null;
+    const requestedFilterScope = requestedFilterScopeValue && requestedFilterScopeValue in FEE_CLASS_SCOPES
+      ? requestedFilterScopeValue as FeeClassScope
+      : null;
+    const selectedClassScope = requestedFilterScope || (classId ? classScopeById.get(classId) : null);
     const filteredByClass = classId
-      ? normalized.filter((item) => item.appliesToAllClasses || item.classId === classId)
+      ? normalized.filter((item) =>
+          item.appliesToAllClasses ||
+          Boolean(item.transportRouteName) ||
+          (!requestedFilterScope && item.classId === classId) ||
+          feeClassScopeAppliesToClass(item.classScope, selectedClassScope)
+        )
       : normalized;
 
     // Collapse historical duplicated "same fee in every class" rows into one presentation row.
@@ -78,6 +126,7 @@ export async function GET(request: NextRequest) {
         row.category,
         Number(row.amount || 0).toFixed(2),
         row.status,
+        row.appliesToAllClasses ? 'ALL' : row.classScope || '',
         String(row.description || '').trim().toLowerCase(),
       ].join('|');
       const list = grouped.get(key) || [];
@@ -165,21 +214,108 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const termExists = await db.term.findUnique({ where: { id: termId }, select: { id: true } });
+    const termExists = await db.term.findUnique({ where: { id: termId }, select: { id: true, status: true } });
     if (!termExists) {
       return NextResponse.json(
         { success: false, error: 'Invalid term selected' },
         { status: 400 }
       );
     }
+    const settingsActiveTerm = await getSettingsActiveTerm();
 
     const normalizedName = String(name).trim();
     const normalizedNameKey = normalizedName.toLowerCase();
     const isAllClasses = String(classId) === 'ALL';
-    const cleanedDescription = removeAllClassesScopeMarker(description);
+    const requestedScopeValue = String(classId || '').startsWith('SCOPE_')
+      ? String(classId).replace('SCOPE_', '')
+      : null;
+    const requestedScope = requestedScopeValue && requestedScopeValue in FEE_CLASS_SCOPES
+      ? requestedScopeValue as FeeClassScope
+      : null;
+    const cleanedDescription = removeFeeScopeMarkers(description);
+
+    if (requestedScope) {
+      const scopeClasses = await db.schoolClass.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, name: true, level: true },
+        orderBy: { name: 'asc' },
+      });
+      const scopedClasses = scopeClasses.filter((cls) => getFeeClassScopeForClass(cls) === requestedScope);
+
+      if (scopedClasses.length === 0) {
+        return NextResponse.json(
+          { success: false, error: `No active classes found for ${FEE_CLASS_SCOPES[requestedScope].label}` },
+          { status: 400 }
+        );
+      }
+
+      const existingCandidates = await db.feeStructure.findMany({
+        where: {
+          termId,
+          category: categoryValue,
+        },
+        select: { id: true, classId: true, name: true, description: true, status: true },
+      });
+      const duplicate = existingCandidates.find(
+        (item) =>
+          String(item.name).trim().toLowerCase() === normalizedNameKey &&
+          (
+            getClassScopeFromDescription(item.description) === requestedScope ||
+            feeClassScopeAppliesToClass(getClassScopeFromDescription(item.description), requestedScope) ||
+            isAllClassesScopeDescription(item.description) ||
+            scopedClasses.some((cls) => cls.id === item.classId)
+          )
+      );
+      if (duplicate) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              duplicate.status === 'ACTIVE'
+                ? `A similar active ${FEE_CLASS_SCOPES[requestedScope].label} fee structure already exists for this term and category`
+                : `A similar ${FEE_CLASS_SCOPES[requestedScope].label} fee structure already exists for this term and category`,
+          },
+          { status: 409 }
+        );
+      }
+
+      const anchorClass = scopedClasses[0];
+      const structure = await db.feeStructure.create({
+        data: {
+          name: normalizedName,
+          classId: anchorClass.id,
+          termId,
+          amount: amountNumber,
+          category: categoryValue,
+          description: addClassScopeMarker(requestedScope, cleanedDescription),
+          status: termExists.id === settingsActiveTerm?.id ? 'ACTIVE' : 'INACTIVE',
+        },
+        include: {
+          class: true,
+          term: true,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            ...structure,
+            classScope: requestedScope,
+            classScopeLabel: FEE_CLASS_SCOPES[requestedScope].label,
+            applicableClassIds: scopedClasses.map((cls) => cls.id),
+            description: removeFeeScopeMarkers(structure.description),
+          },
+        },
+        { status: 201 }
+      );
+    }
 
     if (!isAllClasses) {
-      const classExists = await db.schoolClass.findUnique({ where: { id: classId }, select: { id: true } });
+      const classExists = await db.schoolClass.findUnique({
+        where: { id: classId },
+        select: { id: true, name: true, level: true },
+      });
       if (!classExists) {
         return NextResponse.json(
           { success: false, error: 'Invalid class selected' },
@@ -195,10 +331,15 @@ export async function POST(request: NextRequest) {
         },
         select: { id: true, classId: true, name: true, status: true, description: true },
       });
+      const classScope = getFeeClassScopeForClass(classExists);
       const duplicate = existingCandidates.find(
         (item) =>
           String(item.name).trim().toLowerCase() === normalizedNameKey &&
-          (item.classId === classId || isAllClassesScopeDescription(item.description))
+          (
+            item.classId === classId ||
+            isAllClassesScopeDescription(item.description) ||
+            feeClassScopeAppliesToClass(getClassScopeFromDescription(item.description), classScope)
+          )
       );
       if (duplicate) {
         return NextResponse.json(
@@ -221,6 +362,7 @@ export async function POST(request: NextRequest) {
           amount: amountNumber,
           category: categoryValue,
           description: cleanedDescription || undefined,
+          status: termExists.id === settingsActiveTerm?.id ? 'ACTIVE' : 'INACTIVE',
         },
         include: {
           class: true,
@@ -281,6 +423,7 @@ export async function POST(request: NextRequest) {
         amount: amountNumber,
         category: categoryValue,
         description: addAllClassesScopeMarker(cleanedDescription),
+        status: termExists.id === settingsActiveTerm?.id ? 'ACTIVE' : 'INACTIVE',
       },
       include: {
         class: true,
@@ -294,7 +437,7 @@ export async function POST(request: NextRequest) {
         data: {
           ...createdStructure,
           appliesToAllClasses: true,
-          description: removeAllClassesScopeMarker(createdStructure.description),
+          description: removeFeeScopeMarkers(createdStructure.description),
         },
       },
       { status: 201 }

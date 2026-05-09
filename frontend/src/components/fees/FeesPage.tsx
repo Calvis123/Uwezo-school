@@ -161,7 +161,7 @@ export function FeesPage() {
 
       <Tabs value={activeSection} onValueChange={(value) => setActiveSection(value as 'structures' | 'payments' | 'reports')}>
         <TabsContent value="structures" className="mt-4">
-          <FeeStructures termId={effectiveTermId || undefined} />
+          <FeeStructures initialStructureTermId={effectiveTermId || undefined} />
         </TabsContent>
         <TabsContent value="payments" className="mt-4">
           <FeePayments termId={effectiveTermId || undefined} />

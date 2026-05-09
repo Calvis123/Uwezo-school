@@ -5,9 +5,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Bus, Loader2 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
-import { studentsApi, refApi } from '@/lib/api'
+import { studentsApi, refApi, transportApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -48,6 +48,22 @@ const studentSchema = z.object({
 
 type StudentFormData = z.infer<typeof studentSchema>
 
+interface TransportBusOption {
+  id: string
+  busNumber: string
+  routeName: string
+  capacity: number
+  currentStudents: number
+  status: string
+}
+
+const transportModeOptions = [
+  { value: 'TWO_WAY_WITHIN_KAPSOYA', label: 'Two way - Within Kapsoya' },
+  { value: 'TWO_WAY_OUTSIDE_KAPSOYA', label: 'Two way - Outside Kapsoya' },
+  { value: 'ONE_WAY_MORNING', label: 'One way morning - half of Within Kapsoya' },
+  { value: 'ONE_WAY_EVENING', label: 'One way evening - half of Within Kapsoya' },
+]
+
 interface StudentFormProps {
   open: boolean
   onClose: () => void
@@ -59,6 +75,10 @@ export function StudentForm({ open, onClose, editStudent, onSuccess }: StudentFo
   const { classes } = useAppStore()
   const [loading, setLoading] = useState(false)
   const [localClasses, setLocalClasses] = useState(classes)
+  const [transportBuses, setTransportBuses] = useState<TransportBusOption[]>([])
+  const [transportLoading, setTransportLoading] = useState(false)
+  const [selectedBusId, setSelectedBusId] = useState('')
+  const [selectedTransportMode, setSelectedTransportMode] = useState('TWO_WAY_WITHIN_KAPSOYA')
 
   const form = useForm<StudentFormData>({
     resolver: zodResolver(studentSchema),
@@ -91,6 +111,21 @@ export function StudentForm({ open, onClose, editStudent, onSuccess }: StudentFo
   }, [open, classes])
 
   useEffect(() => {
+    if (!open) return
+    setTransportLoading(true)
+    transportApi.list({ status: 'ACTIVE' })
+      .then((res) => {
+        if (res.success && res.data) {
+          setTransportBuses(res.data || [])
+        } else {
+          setTransportBuses([])
+        }
+      })
+      .catch(() => setTransportBuses([]))
+      .finally(() => setTransportLoading(false))
+  }, [open])
+
+  useEffect(() => {
     if (editStudent) {
       form.reset({
         firstName: editStudent.firstName || '',
@@ -108,6 +143,8 @@ export function StudentForm({ open, onClose, editStudent, onSuccess }: StudentFo
         guardianPhone: editStudent.guardians?.[0]?.guardian?.phone || '',
         guardianRelationship: editStudent.guardians?.[0]?.relationship || 'FATHER',
       })
+      setSelectedBusId(editStudent.transportInfo?.bus?.id || '')
+      setSelectedTransportMode(editStudent.transportInfo?.transportMode || 'TWO_WAY_WITHIN_KAPSOYA')
     } else {
       form.reset({
         firstName: '',
@@ -125,18 +162,34 @@ export function StudentForm({ open, onClose, editStudent, onSuccess }: StudentFo
         guardianPhone: '',
         guardianRelationship: 'FATHER',
       })
+      setSelectedBusId('')
+      setSelectedTransportMode('TWO_WAY_WITHIN_KAPSOYA')
     }
   }, [editStudent, form, open])
 
   const studentType = form.watch('studentType')
+  const usesTransport = form.watch('usesTransport')
 
   useEffect(() => {
     if (studentType === 'BOARDING' && form.getValues('usesTransport')) {
       form.setValue('usesTransport', false)
+      setSelectedBusId('')
     }
   }, [studentType, form])
 
+  useEffect(() => {
+    if (!usesTransport) {
+      setSelectedBusId('')
+      setSelectedTransportMode('TWO_WAY_WITHIN_KAPSOYA')
+    }
+  }, [usesTransport])
+
   const onSubmit = async (data: StudentFormData) => {
+    if (data.studentType === 'DAY' && data.usesTransport && !selectedBusId) {
+      toast.error('Select the student bus route')
+      return
+    }
+
     setLoading(true)
     try {
       const payload = {
@@ -152,6 +205,27 @@ export function StudentForm({ open, onClose, editStudent, onSuccess }: StudentFo
       }
 
       if (result.success) {
+        const studentId = editStudent?.id || result.data?.id
+        if (studentId && data.studentType === 'DAY' && data.usesTransport) {
+          if (!selectedBusId) {
+            toast.error('Select the student bus route')
+            setLoading(false)
+            return
+          }
+          const assignmentResult = await transportApi.assignStudent({
+            studentId,
+            busId: selectedBusId,
+            transportMode: selectedTransportMode,
+          })
+          if (!assignmentResult.success) {
+            toast.error(assignmentResult.error || 'Student saved, but route assignment failed')
+            setLoading(false)
+            return
+          }
+        } else if (editStudent?.transportInfo?.assignmentId) {
+          await transportApi.removeAssignment(editStudent.transportInfo.assignmentId)
+        }
+
         if (!editStudent && result.data?.parentPortalCredentials?.phone) {
           const creds = result.data.parentPortalCredentials
           toast.success('Student added + parent portal linked', {
@@ -177,7 +251,7 @@ export function StudentForm({ open, onClose, editStudent, onSuccess }: StudentFo
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editStudent ? 'Edit Student' : 'Add New Student'}</DialogTitle>
         </DialogHeader>
@@ -251,6 +325,59 @@ export function StudentForm({ open, onClose, editStudent, onSuccess }: StudentFo
                   <SelectItem value="NO">No, not using school bus</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {studentType === 'DAY' && usesTransport && (
+            <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3.5 space-y-3 dark:border-teal-900/40 dark:bg-teal-950/20">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-md bg-white flex items-center justify-center text-teal-700 dark:bg-slate-900 dark:text-teal-300">
+                  <Bus className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">School Bus Route</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Choose the assigned route and fee group for this transport student.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Bus / Route *</Label>
+                  <Select value={selectedBusId} onValueChange={setSelectedBusId}>
+                    <SelectTrigger className="bg-white dark:bg-slate-900">
+                      <SelectValue placeholder={transportLoading ? 'Loading routes...' : 'Select bus route'} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {transportBuses.map((bus) => (
+                        <SelectItem key={bus.id} value={bus.id}>
+                          {bus.busNumber} - {bus.routeName} ({bus.currentStudents}/{bus.capacity})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!transportLoading && transportBuses.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">No active bus routes found.</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Transport Use *</Label>
+                  <Select value={selectedTransportMode} onValueChange={setSelectedTransportMode}>
+                    <SelectTrigger className="bg-white dark:bg-slate-900">
+                      <SelectValue placeholder="Select transport use" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {transportModeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           )}
 

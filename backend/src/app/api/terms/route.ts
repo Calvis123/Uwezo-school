@@ -185,6 +185,10 @@ export async function POST(request: NextRequest) {
           where: { status: 'ACTIVE' },
           data: { status: 'UPCOMING' },
         });
+        await tx.feeStructure.updateMany({
+          where: {},
+          data: { status: 'INACTIVE' },
+        });
       }
 
       const term = await tx.term.create({
@@ -198,6 +202,10 @@ export async function POST(request: NextRequest) {
       });
 
       if (status === 'ACTIVE') {
+        await tx.feeStructure.updateMany({
+          where: { termId: term.id },
+          data: { status: 'ACTIVE' },
+        });
         await tx.systemSetting.upsert({
           where: { key: 'academic_year' },
           update: { value: String(year) },
