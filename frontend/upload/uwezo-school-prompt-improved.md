@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-**Project:** Enhance and extend an existing Next.js-based School Management System for Olive Schools, Eldoret, Kenya.
+**Project:** Enhance and extend an existing Next.js-based School Management System for Uwezo School, Eldoret, Kenya.
 
 **Live Environment:** `https://m1vy02g3srx0-d.space.z.ai/` (Staging) | `Uwezo School.wellwinschemist.co.ke` (Production)
 

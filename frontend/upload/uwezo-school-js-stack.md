@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary
 
-**Project:** Build a modern, full-stack School Management System for Olive Schools, Eldoret, Kenya using cutting-edge JavaScript technologies.
+**Project:** Build a modern, full-stack School Management System for Uwezo School, Eldoret, Kenya using cutting-edge JavaScript technologies.
 
 **Target:** Replace/Enhance existing Laravel system at `Uwezo School.wellwinschemist.co.ke`
 

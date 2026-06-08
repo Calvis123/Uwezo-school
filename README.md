@@ -1,2 +1,1 @@
 # Uwezo School
-# Uwezo School
