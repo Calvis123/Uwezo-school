@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack -p 3000",
+    "dev:browser": "node scripts/dev-open-browser.js",
     "postinstall": "node scripts/fix-react-remove-scroll.js",
     "build": "next build && node scripts/postbuild-standalone.js",
     "start": "NODE_ENV=production node scripts/run-with-log.js server.log node .next/standalone/server.js",
