@@ -9,8 +9,7 @@ function required(name: string): string {
 }
 
 export const env = {
-  DATABASE_URL: required("DATABASE_URL"),
-  DIRECT_URL: required("DIRECT_URL"),
   AUTH_SECRET: required("AUTH_SECRET"),
+  BACKEND_URL: process.env.BACKEND_URL ?? "http://localhost:4000",
   NODE_ENV: process.env.NODE_ENV ?? "development",
 };

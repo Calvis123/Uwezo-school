@@ -56,6 +56,8 @@ import { NotificationCenter } from './NotificationCenter'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ROLE_LABELS } from '@/lib/roles'
 
+const CURRENT_ACADEMIC_YEAR = new Date().getFullYear()
+
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER', 'DOS', 'TEACHER', 'SECRETARY', 'BURSAR', 'PARENT'] },
   { id: 'users', label: 'Users', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN', 'HEADTEACHER'] },
@@ -188,9 +190,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[11px]">
           <Calendar className="w-3 h-3 text-teal-600 dark:text-teal-400" />
-          <span className="font-medium text-teal-700 dark:text-teal-300">2025 Academic Year</span>
+          <span className="font-medium text-teal-700 dark:text-teal-300">{CURRENT_ACADEMIC_YEAR} Academic Year</span>
             <span className="text-slate-400 dark:text-slate-500">-</span>
-          <span className="text-slate-600 dark:text-slate-400">Term 1</span>
+          <span className="text-slate-600 dark:text-slate-400">Active Term</span>
           </div>
           <Badge
             variant="secondary"
@@ -499,7 +501,7 @@ function DashboardFooter() {
               className="w-6 h-6 rounded-md object-contain flex-shrink-0"
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              (c) 2025 Uwezo School - Eldoret, Kenya
+              (c) {CURRENT_ACADEMIC_YEAR} Uwezo School - Eldoret, Kenya
             </p>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-slate-400 dark:text-slate-500">

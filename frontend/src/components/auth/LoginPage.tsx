@@ -100,12 +100,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,rgba(13,148,136,0.09),transparent_35%),radial-gradient(circle_at_90%_18%,rgba(14,165,233,0.09),transparent_32%),linear-gradient(140deg,#f1f7f6_0%,#f9fcff_50%,#fffaf0_100%)] dark:bg-[radial-gradient(circle_at_10%_10%,rgba(20,184,166,0.15),transparent_35%),radial-gradient(circle_at_90%_18%,rgba(56,189,248,0.12),transparent_30%),linear-gradient(140deg,#020617_0%,#0f172a_45%,#111827_100%)] p-4 sm:p-6 lg:p-10 relative overflow-hidden flex items-center justify-center">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-20 h-96 w-96 rounded-full bg-teal-100/60 blur-3xl dark:bg-teal-900/25" />
-        <div className="absolute -bottom-48 -right-20 h-[28rem] w-[28rem] rounded-full bg-cyan-100/50 blur-3xl dark:bg-cyan-900/20" />
-      </div>
-
+    <div className="min-h-screen bg-[linear-gradient(140deg,#eef7f4_0%,#f8fbff_54%,#fff8ed_100%)] dark:bg-[linear-gradient(140deg,#020617_0%,#0f172a_52%,#111827_100%)] p-4 sm:p-6 lg:p-10 relative overflow-hidden flex items-center justify-center">
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-none opacity-[0.07] dark:opacity-[0.04] hidden sm:block">
         <div className="relative w-[400px] h-[200px]">
           <div className="absolute bottom-0 left-[50px] w-[300px] h-[140px] bg-teal-800 rounded-t-lg" />
@@ -130,13 +125,10 @@ export function LoginPage() {
         transition={{ duration: 0.45 }}
         className="w-full max-w-5xl relative z-10"
       >
-        <div className="grid lg:grid-cols-[1.06fr_1fr] gap-6 lg:gap-0 rounded-3xl border border-slate-200/70 dark:border-slate-700/60 bg-white/75 dark:bg-slate-900/60 backdrop-blur-xl shadow-[0_35px_80px_-35px_rgba(2,6,23,0.35)] overflow-hidden">
-          <section className="hidden lg:flex flex-col justify-between p-10 xl:p-12 bg-[linear-gradient(155deg,#0f766e_0%,#0f766e_45%,#115e59_100%)] text-white relative overflow-hidden">
-            <div className="absolute -top-24 -right-20 h-60 w-60 rounded-full bg-white/10" />
-            <div className="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-black/10" />
-
+        <div className="grid lg:grid-cols-[1.06fr_1fr] gap-6 lg:gap-0 rounded-lg border border-slate-200/70 dark:border-slate-700/60 bg-white/80 dark:bg-slate-900/65 backdrop-blur-xl shadow-[0_35px_80px_-35px_rgba(2,6,23,0.35)] overflow-hidden">
+          <section className="hidden lg:flex flex-col justify-between p-10 xl:p-12 bg-[linear-gradient(155deg,#0f766e_0%,#0f766e_55%,#115e59_100%)] text-white relative overflow-hidden">
             <div className="relative z-10 text-center">
-              <img src="/logo.png" alt="Uwezo School" className="w-24 h-24 rounded-2xl bg-white/90 p-2.5 object-contain shadow-2xl mx-auto" />
+              <img src="/logo.png" alt="Uwezo School" className="w-24 h-24 rounded-lg bg-white/90 p-2.5 object-contain shadow-2xl mx-auto" />
               <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight">Uwezo School</h1>
               <p className="mt-2 text-white/80 text-base">Nurturing Excellence, Building Futures</p>
 
@@ -175,12 +167,12 @@ export function LoginPage() {
 
           <section className="p-5 sm:p-8 lg:p-10 xl:p-12">
             <div className="lg:hidden mb-6 text-center">
-              <img src="/logo.png" alt="Uwezo School" className="w-16 h-16 rounded-xl bg-white p-1.5 object-contain shadow-md mx-auto" />
+              <img src="/logo.png" alt="Uwezo School" className="w-16 h-16 rounded-lg bg-white p-1.5 object-contain shadow-md mx-auto" />
               <h1 className="mt-3 text-2xl font-bold text-slate-900 dark:text-slate-100">Uwezo School</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">Nurturing Excellence, Building Futures</p>
             </div>
 
-            <Card className="border-slate-200/70 dark:border-slate-700/70 shadow-xl bg-white/95 dark:bg-slate-900/85">
+            <Card className="rounded-lg border-slate-200/70 dark:border-slate-700/70 shadow-xl bg-white/95 dark:bg-slate-900/85">
               <CardHeader className="text-center pb-3 pt-6 px-6">
                 <CardTitle className="text-2xl text-slate-900 dark:text-slate-100">Welcome Back</CardTitle>
                 <CardDescription className="text-slate-500 dark:text-slate-400">
@@ -197,20 +189,20 @@ export function LoginPage() {
 
                 <div className="mb-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
                   <Info className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
-                  <span>Select your portal tab below, then sign in with your assigned credentials.</span>
+                  <span>Secure access for staff and registered guardians.</span>
                 </div>
 
                 <Tabs defaultValue="signin" className="w-full">
-                  <TabsList className="grid grid-cols-2 w-full bg-slate-100 dark:bg-slate-800/80 p-1 h-12 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+                  <TabsList className="grid grid-cols-2 w-full bg-slate-100 dark:bg-slate-800/80 p-1 h-12 rounded-lg border border-slate-200/80 dark:border-slate-700/80">
                     <TabsTrigger
                       value="signin"
-                      className="h-10 font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-slate-100"
+                      className="h-10 font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-slate-100"
                     >
                       Staff Login
                     </TabsTrigger>
                     <TabsTrigger
                       value="parent"
-                      className="h-10 font-semibold rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-slate-100"
+                      className="h-10 font-semibold rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-slate-100"
                     >
                       Parent Login
                     </TabsTrigger>
@@ -274,7 +266,7 @@ export function LoginPage() {
 
                       <Button
                         type="submit"
-                        className="w-full h-12 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold shadow-lg shadow-teal-500/20"
+                        className="w-full h-12 rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold shadow-lg shadow-teal-500/20"
                         disabled={loading}
                       >
                         {loading ? (
@@ -293,11 +285,11 @@ export function LoginPage() {
                   </TabsContent>
 
                   <TabsContent value="parent" className="mt-5">
-                    <div className="rounded-xl border border-teal-100 dark:border-teal-900/60 bg-gradient-to-r from-teal-50/80 to-cyan-50/70 dark:from-teal-900/20 dark:to-cyan-900/10 p-3 text-xs text-slate-600 dark:text-slate-300 mb-4 flex gap-2">
+                    <div className="rounded-lg border border-teal-100 dark:border-teal-900/60 bg-gradient-to-r from-teal-50/80 to-cyan-50/70 dark:from-teal-900/20 dark:to-cyan-900/10 p-3 text-xs text-slate-600 dark:text-slate-300 mb-4 flex gap-2">
                       <Users className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-medium text-slate-700 dark:text-slate-100">Auto-linked parent access</p>
-                        <p>Parent accounts are generated from guardian details when students are registered.</p>
+                        <p>Guardian access uses the details saved in student records.</p>
                       </div>
                     </div>
 
@@ -340,7 +332,7 @@ export function LoginPage() {
 
                       <Button
                         type="submit"
-                        className="w-full h-12 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold shadow-lg shadow-teal-500/20"
+                        className="w-full h-12 rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-semibold shadow-lg shadow-teal-500/20"
                         disabled={loading}
                       >
                         {loading ? (
